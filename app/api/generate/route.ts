@@ -1,11 +1,15 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { generateQuote } from '@/lib/ai'
-import { readPrices, readSettings, readReferences, readTaskOrderRefs, appendHistory } from '@/lib/storage'
+import { generateQuote, type GenerateInput } from '@/lib/ai'
 import { calcTotals, uid } from '@/lib/calc'
-import type { GenerateInput } from '@/lib/ai'
 import { okResponse, errorResponse } from '@/lib/api/response'
 import { getEnv } from '@/lib/env'
+import { pricesRepository } from '@/lib/repositories/prices-repository'
+import { settingsRepository } from '@/lib/repositories/settings-repository'
+import { referencesRepository } from '@/lib/repositories/references-repository'
+import { taskOrderRefsRepository } from '@/lib/repositories/task-order-refs-repository'
+import { historyRepository } from '@/lib/repositories/history-repository'
+import { logError } from '@/lib/utils/logger'
 
 const GenerateRequestSchema = z.object({
   eventName: z.string().min(1, '행사명을 입력해주세요.'),
@@ -48,10 +52,12 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const prices        = readPrices()
-    const settings      = readSettings()
-    const references    = readReferences()
-    const taskOrderRefs = readTaskOrderRefs()
+    const [prices, settings, references, taskOrderRefs] = await Promise.all([
+      pricesRepository.getAll(),
+      settingsRepository.get(),
+      referencesRepository.getAll(),
+      taskOrderRefsRepository.getAll(),
+    ])
 
     const input: GenerateInput = { ...body, prices, settings, references, taskOrderRefs }
     let doc = await generateQuote(input)
@@ -75,8 +81,7 @@ export async function POST(req: NextRequest) {
     }
     const totals = calcTotals(doc)
 
-    // 이력 저장
-    appendHistory({
+    await historyRepository.append({
       id: uid(),
       eventName:  doc.eventName,
       clientName: doc.clientName,
@@ -92,7 +97,7 @@ export async function POST(req: NextRequest) {
 
     return okResponse({ doc, totals })
   } catch (e) {
-    console.error('[generate]', e)
+    logError('generate', e)
     const msg = e instanceof Error ? e.message : '견적서 생성에 실패했습니다.'
     return errorResponse(500, 'INTERNAL_ERROR', msg)
   }

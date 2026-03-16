@@ -1,4 +1,4 @@
-import type { QuoteDoc, PriceCategory } from '../types'
+import type { QuoteDoc, PriceCategory } from './types'
 
 function extractCodeFence(text: string): string | null {
   const fenced = text.match(/```json([\s\S]*?)```/i) || text.match(/```([\s\S]*?)```/)

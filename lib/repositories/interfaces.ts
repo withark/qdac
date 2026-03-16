@@ -3,6 +3,8 @@ import type {
   PriceCategory,
   CompanySettings,
   ReferenceDoc,
+  ScenarioRefDoc,
+  TaskOrderDoc,
 } from '../types'
 
 export interface HistoryRepository {
@@ -26,5 +28,15 @@ export interface SettingsRepository {
 export interface ReferencesRepository {
   getAll(): Promise<ReferenceDoc[]>
   saveAll(list: ReferenceDoc[]): Promise<void>
+}
+
+export interface ScenarioRefsRepository {
+  getAll(): Promise<ScenarioRefDoc[]>
+  saveAll(list: ScenarioRefDoc[]): Promise<void>
+}
+
+export interface TaskOrderRefsRepository {
+  getAll(): Promise<TaskOrderDoc[]>
+  saveAll(list: TaskOrderDoc[]): Promise<void>
 }
 

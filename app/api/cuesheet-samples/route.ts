@@ -7,6 +7,7 @@ import {
 } from '@/lib/storage'
 import { uid } from '@/lib/calc'
 import type { CuesheetSample } from '@/lib/types'
+import { logError } from '@/lib/utils/logger'
 
 const ALLOWED_EXT = ['pdf', 'xlsx', 'xls', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'txt', 'csv', 'md', 'ppt', 'pptx', 'doc', 'docx']
 
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, id, filename })
   } catch (e) {
-    console.error('[cuesheet-samples POST]', e)
+    logError('cuesheet-samples:POST', e)
     return NextResponse.json({ error: '업로드에 실패했습니다.' }, { status: 500 })
   }
 }
@@ -62,6 +63,7 @@ export async function DELETE(req: NextRequest) {
     writeCuesheetSamples(list.filter((s) => s.id !== id))
     return NextResponse.json({ ok: true })
   } catch (e) {
+    logError('cuesheet-samples:DELETE', e)
     return NextResponse.json({ error: '삭제에 실패했습니다.' }, { status: 500 })
   }
 }

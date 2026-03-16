@@ -3,25 +3,17 @@ import path from 'path'
 import type { PriceCategory, HistoryRecord, CompanySettings, ReferenceDoc, CuesheetSample, ScenarioRefDoc, TaskOrderDoc } from './types'
 import { DEFAULT_SETTINGS as DEFAULT_SETTINGS_IMPORT } from './defaults'
 import { getEnv } from './env'
+import { ensureDir, readJson as readJsonFile, writeJson as writeJsonFile } from './utils/json-file'
 
 const env = getEnv()
 const DATA_DIR = env.DATA_DIR || path.join(process.cwd(), 'data')
 
-function ensureDir() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true })
-}
-
 function readJson<T>(filename: string, fallback: T): T {
-  ensureDir()
-  const fp = path.join(DATA_DIR, filename)
-  if (!fs.existsSync(fp)) return fallback
-  try { return JSON.parse(fs.readFileSync(fp, 'utf-8')) as T }
-  catch { return fallback }
+  return readJsonFile(DATA_DIR, filename, fallback)
 }
 
 function writeJson<T>(filename: string, data: T): void {
-  ensureDir()
-  fs.writeFileSync(path.join(DATA_DIR, filename), JSON.stringify(data, null, 2), 'utf-8')
+  writeJsonFile(DATA_DIR, filename, data)
 }
 
 // ─── 단가표 ──────────────────────────────────
@@ -90,8 +82,7 @@ export function writeTaskOrderRefs(data: TaskOrderDoc[]): void {
 const CUESHEET_SAMPLES_DIR = path.join(DATA_DIR, 'cuesheet-samples')
 
 function ensureCuesheetDir() {
-  ensureDir()
-  if (!fs.existsSync(CUESHEET_SAMPLES_DIR)) fs.mkdirSync(CUESHEET_SAMPLES_DIR, { recursive: true })
+  ensureDir(CUESHEET_SAMPLES_DIR)
 }
 
 export function readCuesheetSamples(): CuesheetSample[] {

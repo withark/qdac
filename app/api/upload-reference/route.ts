@@ -1,5 +1,4 @@
 import { NextRequest } from 'next/server'
-import { readPrices } from '@/lib/storage'
 import { summarizeReference, extractPricesFromReference } from '@/lib/ai'
 import { extractTextFromFile } from '@/lib/file-utils'
 import { uid } from '@/lib/calc'

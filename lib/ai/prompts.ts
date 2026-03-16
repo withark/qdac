@@ -1,5 +1,4 @@
-import type { GenerateInput, QuoteDoc } from './types'
-import type { PriceCategory } from '../types'
+import type { GenerateInput, QuoteDoc, PriceCategory } from './types'
 
 export function buildPriceContext(prices: PriceCategory[]): string {
   if (!prices.length) return ''

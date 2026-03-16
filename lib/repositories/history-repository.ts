@@ -1,6 +1,7 @@
 import { readHistory, writeHistory } from '../storage'
 import type { HistoryRecord } from '../types'
 import type { HistoryRepository } from './interfaces'
+import { HistoryListSchema } from '../schemas/history'
 
 export const historyRepository: HistoryRepository = {
   async getAll(): Promise<HistoryRecord[]> {
@@ -15,12 +16,14 @@ export const historyRepository: HistoryRepository = {
   async append(record: HistoryRecord): Promise<void> {
     const list = readHistory()
     list.push(record)
-    writeHistory(list)
+    const parsed = HistoryListSchema.parse(list) as HistoryRecord[]
+    writeHistory(parsed)
   },
 
   async delete(id: string): Promise<void> {
     const list = readHistory().filter(h => h.id !== id)
-    writeHistory(list)
+    const parsed = HistoryListSchema.parse(list) as HistoryRecord[]
+    writeHistory(parsed)
   },
 
   async clear(): Promise<void> {

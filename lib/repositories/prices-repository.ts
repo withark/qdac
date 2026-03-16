@@ -1,6 +1,7 @@
 import { readPrices, writePrices } from '../storage'
 import type { PriceCategory } from '../types'
 import type { PricesRepository } from './interfaces'
+import { PricesSchema } from '../schemas/prices'
 
 export const pricesRepository: PricesRepository = {
   async getAll(): Promise<PriceCategory[]> {
@@ -8,7 +9,8 @@ export const pricesRepository: PricesRepository = {
   },
 
   async saveAll(prices: PriceCategory[]): Promise<void> {
-    writePrices(prices)
+    const parsed = PricesSchema.parse(prices)
+    writePrices(parsed)
   },
 }
 

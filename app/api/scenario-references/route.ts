@@ -1,14 +1,14 @@
 import { NextRequest } from 'next/server'
-import { readScenarioRefs, writeScenarioRefs } from '@/lib/storage'
 import { summarizeScenarioRef } from '@/lib/ai'
 import { extractTextFromFile } from '@/lib/file-utils'
 import { uid } from '@/lib/calc'
 import { okResponse, errorResponse } from '@/lib/api/response'
 import { logError } from '@/lib/utils/logger'
+import { scenarioRefsRepository } from '@/lib/repositories/scenario-refs-repository'
 
 export async function GET() {
   try {
-    const refs = readScenarioRefs()
+    const refs = await scenarioRefsRepository.getAll()
     return okResponse(refs)
   } catch (e) {
     logError('scenario-references:GET', e)
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     }
 
     const summary = await summarizeScenarioRef(rawText, file.name)
-    const refs = readScenarioRefs()
+    const refs = await scenarioRefsRepository.getAll()
     refs.push({
       id: uid(),
       filename: file.name,
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
       summary,
       rawText: rawText.slice(0, 5000),
     })
-    writeScenarioRefs(refs)
+    await scenarioRefsRepository.saveAll(refs)
     return okResponse({ ok: true, summary })
   } catch (e) {
     logError('scenario-references:POST', e)
@@ -63,8 +63,8 @@ export async function DELETE(req: NextRequest) {
     if (!id) {
       return errorResponse(400, 'INVALID_REQUEST', 'id가 없습니다.')
     }
-    const refs = readScenarioRefs().filter(r => r.id !== id)
-    writeScenarioRefs(refs)
+    const refs = (await scenarioRefsRepository.getAll()).filter(r => r.id !== id)
+    await scenarioRefsRepository.saveAll(refs)
     return okResponse({ ok: true })
   } catch (e) {
     logError('scenario-references:DELETE', e)

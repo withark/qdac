@@ -1,14 +1,14 @@
 import { NextRequest } from 'next/server'
-import { readTaskOrderRefs, writeTaskOrderRefs } from '@/lib/storage'
 import { summarizeTaskOrderRef } from '@/lib/ai'
 import { extractTextFromFile } from '@/lib/file-utils'
 import { uid } from '@/lib/calc'
 import { okResponse, errorResponse } from '@/lib/api/response'
 import { logError } from '@/lib/utils/logger'
+import { taskOrderRefsRepository } from '@/lib/repositories/task-order-refs-repository'
 
 export async function GET() {
   try {
-    const refs = readTaskOrderRefs()
+    const refs = await taskOrderRefsRepository.getAll()
     return okResponse(refs)
   } catch (e) {
     logError('task-order-references:GET', e)
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     }
 
     const summary = await summarizeTaskOrderRef(rawText, file.name)
-    const refs = readTaskOrderRefs()
+    const refs = await taskOrderRefsRepository.getAll()
     refs.push({
       id: uid(),
       filename: file.name,
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
       summary,
       rawText: rawText.slice(0, 5000),
     })
-    writeTaskOrderRefs(refs)
+    await taskOrderRefsRepository.saveAll(refs)
     return okResponse({ ok: true, summary })
   } catch (e) {
     logError('task-order-references:POST', e)
@@ -63,8 +63,8 @@ export async function DELETE(req: NextRequest) {
     if (!id) {
       return errorResponse(400, 'INVALID_REQUEST', 'id가 없습니다.')
     }
-    const refs = readTaskOrderRefs().filter(r => r.id !== id)
-    writeTaskOrderRefs(refs)
+    const refs = (await taskOrderRefsRepository.getAll()).filter(r => r.id !== id)
+    await taskOrderRefsRepository.saveAll(refs)
     return okResponse({ ok: true })
   } catch (e) {
     logError('task-order-references:DELETE', e)
