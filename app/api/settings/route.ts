@@ -1,22 +1,9 @@
 import { NextRequest } from 'next/server'
-import { z } from 'zod'
 import { okResponse, errorResponse } from '@/lib/api/response'
 import { settingsRepository } from '@/lib/repositories/settings-repository'
 import type { CompanySettings } from '@/lib/types'
+import { CompanySettingsSchema } from '@/lib/schemas/settings'
 import { logError } from '@/lib/utils/logger'
-
-const SettingsSchema = z.object({
-  name: z.string(),
-  biz: z.string(),
-  ceo: z.string(),
-  contact: z.string(),
-  tel: z.string(),
-  addr: z.string(),
-  expenseRate: z.number(),
-  profitRate: z.number(),
-  validDays: z.number(),
-  paymentTerms: z.string(),
-})
 
 export async function GET() {
   try {
@@ -31,7 +18,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const json = await req.json()
-    const parsed = SettingsSchema.safeParse(json)
+    const parsed = CompanySettingsSchema.safeParse(json)
     if (!parsed.success) {
       return errorResponse(400, 'INVALID_REQUEST', '설정 형식이 올바르지 않습니다.', parsed.error.flatten())
     }

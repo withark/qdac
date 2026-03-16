@@ -22,7 +22,11 @@ export const authOptions: NextAuthOptions = {
     },
     redirect({ url, baseUrl }) {
       if (url.startsWith('/')) return `${baseUrl}${url}`
-      if (new URL(url).origin === baseUrl) return url
+      try {
+        if (new URL(url).origin === baseUrl) return url
+      } catch {
+        // 잘못된 url이면 홈으로
+      }
       return baseUrl + '/'
     },
     session({ session, token }) {
