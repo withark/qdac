@@ -15,6 +15,7 @@
     "jspdf": "^2.5.1",
     "mammoth": "^1.12.0",
     "next": "14.2.5",
+    "next-auth": "^4.24.13",
     "node-pptx-parser": "^1.0.1",
     "openai": "^6.29.0",
     "pdf-parse": "^1.1.1",

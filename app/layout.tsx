@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { SessionProvider } from '@/components/auth/SessionProvider'
 
 export const metadata: Metadata = {
   title: '쿼닥 · 행사 문서 올인원',
@@ -13,7 +14,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://cdn.jsdelivr.net" />
         <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet" />
       </head>
-      <body className="bg-slate-50 text-gray-900 antialiased min-h-screen">{children}</body>
+      <body className="bg-slate-50 text-gray-900 antialiased min-h-screen">
+        <SessionProvider>{children}</SessionProvider>
+      </body>
     </html>
   )
 }

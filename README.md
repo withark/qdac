@@ -11,11 +11,12 @@ AI 기반 행사 견적서 자동 생성 도구 (Next.js 14)
 npm install
 ```
 
-### 2. API 키 설정
+### 2. 환경 변수 설정
 ```bash
 cp .env.local.example .env.local
 ```
-`.env.local` 파일을 열고 Anthropic API 키 입력:
+- **로그인 (Google):** `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` — 상세는 [docs/AUTH_ENV.md](docs/AUTH_ENV.md) 참고.
+- **AI:** `.env.local`에 Anthropic 또는 OpenAI API 키 입력:
 ```
 ANTHROPIC_API_KEY=sk-ant-여기에_키_입력
 ```
@@ -33,6 +34,7 @@ npm run dev
 
 | 경로 | 기능 |
 |------|------|
+| `/auth` | Google 로그인 |
 | `/generate` | AI 견적서 생성 · Excel/PDF 다운로드 |
 | `/prices`   | 단가표 관리 (내 단가 → AI 자동 반영) |
 | `/history`  | 견적 이력 · 통계 |
