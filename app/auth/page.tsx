@@ -16,8 +16,9 @@ export default async function AuthPage({
   searchParams: SearchParams
 }) {
   const session = await getServerSession(authOptions)
-  const hasCallbackParam = typeof searchParams?.callbackUrl === 'string'
-  const callbackUrlRaw = hasCallbackParam ? searchParams.callbackUrl : '/generate'
+  const callbackUrlParam = typeof searchParams?.callbackUrl === 'string' ? searchParams.callbackUrl : undefined
+  const hasCallbackParam = typeof callbackUrlParam === 'string'
+  const callbackUrlRaw = (callbackUrlParam ?? '/generate').trim() || '/generate'
   const callbackUrlSanitized = sanitizeCallbackUrl(callbackUrlRaw)
   const callbackUrl =
     // callbackUrl이 없거나(기본), 외부/비정상 값이 들어온 경우엔 /generate로 안전하게 통일
