@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { getBillingMode } from '@/lib/billing/mode'
 import { recordBillingWebhookEventIfNew } from '@/lib/billing/webhook-idempotency'
 import { logBillingWebhook } from '@/lib/billing/webhook-log'
+import { verifyTossWebhookPayment } from '@/lib/billing/toss-webhook-verify'
 import {
   getBillingOrderByOrderId,
   markBillingOrderApproved,
@@ -12,6 +13,11 @@ import { cancelActiveSubscription, setActiveSubscription } from '@/lib/db/subscr
 import type { BillingCycle, PlanType } from '@/lib/plans'
 
 export const dynamic = 'force-dynamic'
+
+function isTossWebhookVerificationEnabled(): boolean {
+  const v = (process.env.TOSS_PAYMENTS_WEBHOOK_VERIFY ?? '').trim().toLowerCase()
+  return v === '1' || v === 'true' || v === 'yes' || v === 'on'
+}
 
 type TossPaymentStatusChangedData = {
   paymentKey?: string
@@ -97,6 +103,24 @@ export async function POST(req: NextRequest) {
 
   const eventType = payload?.eventType ?? ''
   const data = payload?.data ?? {}
+
+  if (isTossWebhookVerificationEnabled() && eventType === 'PAYMENT_STATUS_CHANGED') {
+    const paymentKey = typeof data.paymentKey === 'string' ? data.paymentKey : ''
+    const orderId = typeof data.orderId === 'string' ? data.orderId : ''
+    if (!paymentKey || !orderId) {
+      return new Response(JSON.stringify({ error: '웹훅 검증에 필요한 paymentKey/orderId가 없습니다.' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    const verified = await verifyTossWebhookPayment({ paymentKey, orderId, status: typeof data.status === 'string' ? data.status : undefined })
+    if (!verified.ok) {
+      return new Response(JSON.stringify({ error: '웹훅 검증 실패', reason: verified.reason }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+  }
 
   await logBillingWebhook({
     provider: 'toss',

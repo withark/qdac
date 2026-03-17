@@ -1,6 +1,7 @@
 import type { BillingCycle, PlanType } from '@/lib/plans'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
 import { getTossSecretKey } from '@/lib/billing/toss-config'
+import { tossBasicAuthHeader } from '@/lib/billing/toss-auth'
 import { getBillingOrderByOrderId, markBillingOrderApproved, markBillingOrderFailed } from '@/lib/billing/toss-orders-db'
 import { setActiveSubscription } from '@/lib/db/subscriptions-db'
 
@@ -10,11 +11,6 @@ function addDaysIso(days: number): string {
 
 function expiresAtForCycle(cycle: Exclude<BillingCycle, null>): string {
   return cycle === 'annual' ? addDaysIso(365) : addDaysIso(30)
-}
-
-function basicAuthHeader(secretKey: string): string {
-  const token = Buffer.from(`${secretKey}:`, 'utf8').toString('base64')
-  return `Basic ${token}`
 }
 
 export async function confirmTossPayment(input: { paymentKey: string; orderId: string; amount: number }) {
@@ -29,7 +25,7 @@ export async function confirmTossPayment(input: { paymentKey: string; orderId: s
   const res = await fetch('https://api.tosspayments.com/v1/payments/confirm', {
     method: 'POST',
     headers: {
-      Authorization: basicAuthHeader(secretKey),
+      Authorization: tossBasicAuthHeader(secretKey),
       'Content-Type': 'application/json',
       'Idempotency-Key': `planic:${input.orderId}`,
     },
