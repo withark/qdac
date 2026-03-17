@@ -58,5 +58,9 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/generate/:path*', '/settings/:path*', '/history/:path*', '/references/:path*', '/prices/:path*', '/dashboard/:path*', '/billing/:path*'],
+  // host canonicalize는 전 경로에 적용되어야 세션/콜백 도메인 불일치가 사라진다.
+  // next 내부 리소스/정적 파일/이미지 최적화/API는 제외.
+  matcher: [
+    '/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\..*).*)',
+  ],
 }
