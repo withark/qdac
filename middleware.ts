@@ -3,8 +3,7 @@ import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 
 const ADMIN_COOKIE_NAME = 'planic_admin'
-// /generate는 비로그인도 진입 가능(생성 시도 시 API에서 401 → 로그인 유도)
-const PROTECTED_PREFIXES = ['/settings', '/history', '/references', '/prices', '/dashboard', '/billing']
+const PROTECTED_PREFIXES = ['/generate', '/settings', '/history', '/references', '/prices', '/dashboard', '/billing']
 
 /**
  * /admin 이하 경로는 관리자 쿠키가 있을 때만 접근 허용.
@@ -22,9 +21,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // 2) /generate는 로그인 없이 페이지 진입 허용
-  if (pathname === '/generate' || pathname.startsWith('/generate/')) return NextResponse.next()
-  // 3) 그 외 보호 페이지: 로그인 필요
+  // 2) 보호 페이지: 로그인 필요
   const needsAuth = PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'))
   if (!needsAuth) return NextResponse.next()
 
@@ -36,7 +33,11 @@ export function middleware(request: NextRequest) {
     const callbackUrl = request.nextUrl.pathname + request.nextUrl.search
     url.pathname = '/auth'
     url.searchParams.set('callbackUrl', callbackUrl)
-    url.searchParams.set('reason', 'login_required')
+    // /generate 접근은 "회원가입(로그인) 필요"로 안내, 그 외는 일반 로그인 안내
+    const reason = pathname === '/generate' || pathname.startsWith('/generate/')
+      ? 'signup_required'
+      : 'login_required'
+    url.searchParams.set('reason', reason)
     return NextResponse.redirect(url)
   })()
 }

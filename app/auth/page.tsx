@@ -30,6 +30,11 @@ export default function AuthPage({
             <p className="text-sm text-gray-500">소셜 계정으로 계속하기</p>
           </div>
 
+          {reason === 'signup_required' && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              바로 시작하기를 이용하려면 회원가입(로그인)이 필요해요. 가입/로그인 후 원래 가려던 페이지로 이어서 이동합니다.
+            </div>
+          )}
           {reason === 'login_required' && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
               해당 기능은 로그인 후 이용할 수 있어요. 로그인하면 원래 가려던 페이지로 이어서 이동합니다.

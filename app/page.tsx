@@ -2,15 +2,11 @@ import Link from 'next/link'
 import { getServerSession } from 'next-auth/next'
 import { EvQuoteLogo } from '@/components/EvQuoteLogo'
 import { authOptions } from '@/lib/auth'
-
-/** 바로 시작하기 / 견적 만들기 → 항상 /generate로 이동 (비로그인도 진입 가능, 생성 시도 시 로그인 유도) */
-function startUrl(_session: unknown): string {
-  return '/generate'
-}
+import { buildStartHref } from '@/lib/auth-redirect'
 
 export default async function IntroPage() {
   const session = await getServerSession(authOptions)
-  const start = startUrl(session)
+  const start = buildStartHref({ isAuthenticated: !!session, targetPath: '/generate' })
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 via-white to-primary-50/30">
@@ -22,12 +18,15 @@ export default async function IntroPage() {
           <Link href="/plans" className="text-sm font-medium text-gray-600 hover:text-primary-600 transition-colors">
             플랜
           </Link>
-          <Link
-            href={start}
-            className="text-sm font-medium text-primary-600 hover:text-primary-700"
-          >
-            {session ? '견적 만들기' : '로그인 / 시작하기'}
-          </Link>
+          {session ? (
+            <Link href={start} className="text-sm font-medium text-primary-700 hover:text-primary-800">
+              견적 만들기
+            </Link>
+          ) : (
+            <Link href={start} className="text-sm font-medium text-primary-600 hover:text-primary-700">
+              로그인 / 시작하기
+            </Link>
+          )}
         </nav>
       </header>
 

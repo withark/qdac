@@ -6,6 +6,7 @@ import DurationInput, { durationToString, type DurationValue } from '@/component
 import type { QuoteDoc } from '@/lib/types'
 import { apiFetch, ApiError } from '@/lib/api/client'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
+import { buildAuthHref } from '@/lib/auth-redirect'
 
 /** 전화번호 숫자만 추출 후 자동 하이픈 포맷 (한국 형식) */
 function formatPhoneDisplay(value: string): string {
@@ -208,7 +209,7 @@ export default function InputForm({ onGenerated, onLoadingChange, onStatusChange
       onGenerated(data.doc, data.totals, requestBody)
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
-        window.location.href = `/auth?callbackUrl=${encodeURIComponent('/generate')}&reason=login_required`
+        window.location.href = buildAuthHref({ callbackUrl: '/generate', reason: 'login_required' })
         return
       }
       setError(toUserMessage(e, '견적서 생성에 실패했습니다.'))
