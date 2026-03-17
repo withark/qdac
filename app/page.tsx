@@ -60,7 +60,7 @@ export default function IntroPage() {
       </main>
 
       <footer className="flex-shrink-0 py-6 text-center text-xs text-slate-400">
-        에쿼 · 행사 문서 올인원
+        이쿼 · 행사 문서 올인원
       </footer>
     </div>
   )
