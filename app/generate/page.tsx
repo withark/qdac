@@ -8,10 +8,19 @@ import type { QuoteDoc, CompanySettings, HistoryRecord, PriceCategory } from '@/
 import { exportToExcel } from '@/lib/exportExcel'
 import { exportToPdf }   from '@/lib/exportPdf'
 import { fmtKRW } from '@/lib/calc'
+import { apiFetch } from '@/lib/api/client'
+import { toUserMessage } from '@/lib/errors/toUserMessage'
+import type { PlanType } from '@/lib/plans'
 
 const LEFT_MIN = 240
 const LEFT_MAX = 480
 const LEFT_DEFAULT = 288
+
+type MeLite = {
+  subscription: { planType: PlanType }
+  usage: { quoteGeneratedCount: number }
+  limits: { monthlyQuoteGenerateLimit: number }
+}
 
 export default function GeneratePage() {
   const [doc,   setDoc]   = useState<QuoteDoc | null>(null)
@@ -25,19 +34,26 @@ export default function GeneratePage() {
   const [prices, setPrices] = useState<PriceCategory[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [statusMsg, setStatusMsg] = useState('')
+  const [me, setMe] = useState<MeLite | null>(null)
   const isDragging = useRef(false)
 
-  useEffect(() => {
-    fetch('/api/settings').then(r => r.json()).then(setCompanySettings).catch(() => {})
+  const refreshMe = useCallback(() => {
+    apiFetch<MeLite>('/api/me').then(setMe).catch(() => {})
   }, [])
 
   useEffect(() => {
-    fetch('/api/prices')
-      .then(r => r.json())
-      .then((res: unknown) => {
-        const arr = Array.isArray(res) ? res : (Array.isArray((res as { data?: unknown })?.data) ? (res as { data: PriceCategory[] }).data : [])
-        setPrices(arr)
-      })
+    refreshMe()
+  }, [refreshMe])
+
+  useEffect(() => {
+    apiFetch<CompanySettings>('/api/settings')
+      .then(setCompanySettings)
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    apiFetch<PriceCategory[]>('/api/prices')
+      .then(setPrices)
       .catch(() => setPrices([]))
   }, [])
 
@@ -75,16 +91,13 @@ export default function GeneratePage() {
     setDoc(d)
     if (body) setLastRequest(body)
     showToast('견적서 생성 완료!')
+    refreshMe()
   }
 
   const openLoadModal = useCallback(() => {
     setLoadModalOpen(true)
-    fetch('/api/history')
-      .then(r => r.json())
-      .then((res: { ok?: boolean; data?: HistoryRecord[] }) => {
-        if (res?.ok && Array.isArray(res.data)) setHistoryList([...res.data].reverse().slice(0, 50))
-        else setHistoryList([])
-      })
+    apiFetch<HistoryRecord[]>('/api/history')
+      .then((list) => setHistoryList([...list].reverse().slice(0, 50)))
       .catch(() => setHistoryList([]))
   }, [])
 
@@ -102,22 +115,15 @@ export default function GeneratePage() {
     if (!lastRequest) return
     setRegenerating(true)
     try {
-      const res = await fetch('/api/generate', {
+      const data = await apiFetch<{ doc: QuoteDoc; totals: Record<string, number> }>('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(lastRequest),
       })
-      const text = await res.text()
-      let data: { doc?: QuoteDoc; totals?: Record<string, number>; error?: string }
-      try { data = text ? JSON.parse(text) : {} } catch {
-        if (text.startsWith('<!')) throw new Error('서버 응답 오류입니다. 개발 서버가 실행 중인지 확인해 주세요.')
-        throw new Error(text || '응답을 읽을 수 없습니다.')
-      }
-      if (!res.ok) throw new Error(data.error || '재작성 실패')
-      setDoc(data.doc!)
+      setDoc(data.doc)
       showToast('견적서 재작성 완료!')
     } catch (e) {
-      showToast(e instanceof Error ? e.message : '재작성 실패')
+      showToast(toUserMessage(e, '견적서 재작성에 실패했습니다.'))
     } finally {
       setRegenerating(false)
     }
@@ -150,6 +156,20 @@ export default function GeneratePage() {
 
       {/* 우: 결과 */}
       <div className="flex-1 flex flex-col overflow-hidden bg-slate-50/50">
+        {me?.subscription?.planType === 'FREE' && (
+          <div className="flex items-center justify-between gap-3 px-4 py-2 text-xs bg-amber-50 border-b border-amber-100 text-amber-900">
+            <span>
+              무료 플랜 사용 중 · 이번 달 견적 {me.usage.quoteGeneratedCount}/{me.limits.monthlyQuoteGenerateLimit}건 사용
+            </span>
+            <button
+              type="button"
+              className="text-xs font-semibold text-amber-900 underline"
+              onClick={() => (window.location.href = '/plans')}
+            >
+              업그레이드 →
+            </button>
+          </div>
+        )}
         {isGenerating && (
           <div className="flex items-center gap-2 px-4 py-2 text-xs text-primary-800 bg-primary-50 border-b border-primary-100">
             <span className="w-2 h-2 rounded-full bg-primary-500 animate-pulse" />
@@ -175,20 +195,31 @@ export default function GeneratePage() {
             doc={doc}
             companySettings={companySettings}
             prices={prices}
+            planType={me?.subscription?.planType ?? 'FREE'}
             onChange={setDoc}
             onRegenerate={lastRequest ? handleRegenerate : undefined}
             regenerating={regenerating}
-            onLoadPrevious={openLoadModal}
+            onLoadPrevious={me?.subscription?.planType === 'FREE'
+              ? () => {
+                  showToast('견적 복제/재편집(이력 불러오기)은 BASIC 플랜부터 이용할 수 있어요.')
+                  setTimeout(() => (window.location.href = '/plans'), 700)
+                }
+              : openLoadModal}
             onExcel={() => {
               exportToExcel(doc, companySettings ?? undefined)
               showToast('Excel 다운로드 완료!')
             }}
             onPdf={async () => {
+              if (me?.subscription?.planType === 'FREE') {
+                showToast('PDF 다운로드는 BASIC 플랜부터 이용할 수 있어요. 업그레이드 페이지로 이동합니다.')
+                setTimeout(() => (window.location.href = '/plans'), 700)
+                return
+              }
               try {
                 await exportToPdf(doc, companySettings ?? undefined)
                 showToast('PDF 저장 완료!')
               } catch (e) {
-                showToast('PDF 저장 실패: ' + (e instanceof Error ? e.message : ''))
+                showToast('PDF 저장 실패: ' + toUserMessage(e, '저장에 실패했습니다.'))
               }
             }}
           />

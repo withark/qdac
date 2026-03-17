@@ -11,6 +11,38 @@ import {
 export type { GenerateInput, QuoteDoc, PriceCategory }
 
 export async function generateQuote(input: GenerateInput): Promise<QuoteDoc> {
+  const mock = (process.env.AI_MODE || '').trim().toLowerCase() === 'mock'
+  if (mock) {
+    // E2E/개발 환경에서 결제/권한/한도 시나리오 검증을 위해 deterministic doc 반환
+    return ensureProgramFallback({
+      eventName: input.eventName,
+      clientName: input.clientName || '',
+      clientManager: input.clientManager || '',
+      clientTel: input.clientTel || '',
+      quoteDate: input.quoteDate,
+      eventDate: input.eventDate || '',
+      eventDuration: input.eventDuration || '',
+      venue: input.venue || '',
+      headcount: input.headcount || '',
+      eventType: input.eventType,
+      quoteItems: [
+        {
+          category: '기본',
+          items: [
+            { name: '기획/운영', spec: '총괄', qty: 1, unit: '식', unitPrice: 1000000, total: 1000000, note: '', kind: '필수' },
+          ],
+        },
+      ],
+      expenseRate: input.settings.expenseRate,
+      profitRate: input.settings.profitRate,
+      cutAmount: 0,
+      notes: '계약 조건은 협의 후 확정합니다.',
+      paymentTerms: input.settings.paymentTerms,
+      validDays: input.settings.validDays,
+      program: { concept: '', timeline: [], staffing: [], tips: [] },
+      quoteTemplate: 'default',
+    } as QuoteDoc)
+  }
   const prompt = buildGeneratePrompt(input)
   const text = await callLLM(prompt, { maxTokens: 4000 })
 

@@ -4,11 +4,16 @@ import { extractTextFromFile } from '@/lib/file-utils'
 import { uid } from '@/lib/calc'
 import { okResponse, errorResponse } from '@/lib/api/response'
 import { logError } from '@/lib/utils/logger'
-import { scenarioRefsRepository } from '@/lib/repositories/scenario-refs-repository'
+import { getUserIdFromSession } from '@/lib/auth-server'
+import { ensureFreeSubscription } from '@/lib/db/subscriptions-db'
+import { listScenarioRefs, insertScenarioRef, deleteScenarioRef } from '@/lib/db/scenario-refs-db'
 
 export async function GET() {
   try {
-    const refs = await scenarioRefsRepository.getAll()
+    const userId = await getUserIdFromSession()
+    if (!userId) return errorResponse(401, 'UNAUTHORIZED', '로그인이 필요합니다.')
+    await ensureFreeSubscription(userId)
+    const refs = await listScenarioRefs(userId)
     return okResponse(refs)
   } catch (e) {
     logError('scenario-references:GET', e)
@@ -18,6 +23,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getUserIdFromSession()
+    if (!userId) return errorResponse(401, 'UNAUTHORIZED', '로그인이 필요합니다.')
+    await ensureFreeSubscription(userId)
     const formData = await req.formData()
     const file = formData.get('file') as File | null
     if (!file) {
@@ -40,15 +48,12 @@ export async function POST(req: NextRequest) {
     }
 
     const summary = await summarizeScenarioRef(rawText, file.name)
-    const refs = await scenarioRefsRepository.getAll()
-    refs.push({
-      id: uid(),
+    await insertScenarioRef(userId, {
       filename: file.name,
       uploadedAt: new Date().toISOString(),
       summary,
       rawText: rawText.slice(0, 5000),
     })
-    await scenarioRefsRepository.saveAll(refs)
     return okResponse({ ok: true, summary })
   } catch (e) {
     logError('scenario-references:POST', e)
@@ -59,12 +64,14 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const userId = await getUserIdFromSession()
+    if (!userId) return errorResponse(401, 'UNAUTHORIZED', '로그인이 필요합니다.')
+    await ensureFreeSubscription(userId)
     const { id } = (await req.json()) as { id?: string }
     if (!id) {
       return errorResponse(400, 'INVALID_REQUEST', 'id가 없습니다.')
     }
-    const refs = (await scenarioRefsRepository.getAll()).filter(r => r.id !== id)
-    await scenarioRefsRepository.saveAll(refs)
+    await deleteScenarioRef(userId, id)
     return okResponse({ ok: true })
   } catch (e) {
     logError('scenario-references:DELETE', e)

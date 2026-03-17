@@ -5,6 +5,9 @@ import { Button, Input, Field, Toast } from '@/components/ui'
 import type { CompanySettings } from '@/lib/types'
 import { DEFAULT_SETTINGS } from '@/lib/defaults'
 import Link from 'next/link'
+import { apiFetch } from '@/lib/api/client'
+import { toUserMessage } from '@/lib/errors/toUserMessage'
+import type { PlanType } from '@/lib/plans'
 
 const DAUM_POSTCODE_SCRIPT = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js'
 
@@ -84,28 +87,37 @@ function formatPhoneDisplay(value: string): string {
 export default function SettingsPage() {
   const [cfg,  setCfg]  = useState<CompanySettings>(DEFAULT_SETTINGS)
   const [toast, setToast] = useState('')
+  const [me, setMe] = useState<{ subscription: { planType: PlanType }; usage: { companyProfileCount: number }; limits: { companyProfileLimit: number } } | null>(null)
 
   const showToast = useCallback((m: string) => {
     setToast(m); setTimeout(() => setToast(''), 2500)
   }, [])
 
   useEffect(() => {
-    fetch('/api/settings').then(r => r.json()).then(setCfg)
+    apiFetch<CompanySettings>('/api/settings')
+      .then(setCfg)
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    apiFetch<{ subscription: { planType: PlanType }; usage: { companyProfileCount: number }; limits: { companyProfileLimit: number } }>('/api/me')
+      .then(setMe)
+      .catch(() => {})
   }, [])
 
   async function saveCfg() {
     try {
-      const res = await fetch('/api/settings', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cfg)
+      await apiFetch<null>('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cfg),
       })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error((err as { error?: string }).error || '저장에 실패했습니다.')
-      }
       showToast('설정 저장 완료!')
+      apiFetch<{ subscription: { planType: PlanType }; usage: { companyProfileCount: number }; limits: { companyProfileLimit: number } }>('/api/me')
+        .then(setMe)
+        .catch(() => {})
     } catch (e) {
-      showToast(e instanceof Error ? e.message : '설정 저장 실패')
+      showToast(toUserMessage(e, '설정 저장에 실패했습니다.'))
     }
   }
 
@@ -125,6 +137,12 @@ export default function SettingsPage() {
         </header>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6 max-w-2xl">
+          {me?.subscription?.planType === 'FREE' && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+              무료 플랜은 기업정보를 {me.limits.companyProfileLimit}개까지 저장할 수 있어요. (현재 {me.usage.companyProfileCount}개)
+              <Link href="/plans" className="ml-2 font-semibold underline">업그레이드 →</Link>
+            </div>
+          )}
 
           <section className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-card">
             <div className="px-4 py-3 bg-primary-50/50 border-b border-gray-100">

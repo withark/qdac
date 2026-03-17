@@ -5,6 +5,7 @@ import clsx from 'clsx'
 import { EvQuoteLogo } from '@/components/EvQuoteLogo'
 
 const NAVS = [
+  { href: '/dashboard',  text: '홈', label: '대시보드' },
   { href: '/generate',   text: '견적', label: '견적 생성' },
   { href: '/references', text: '참고', label: '참고 견적서' },
   { href: '/prices',     text: '단가', label: '단가표' },
@@ -16,7 +17,7 @@ export function GNB() {
   const path = usePathname()
   return (
     <div className="pl-4 flex-shrink-0 flex flex-col items-stretch min-h-0">
-      <Link href="/generate" className="pt-4 pb-2 px-1 flex flex-col items-center gap-1 group">
+      <Link href="/dashboard" className="pt-4 pb-2 px-1 flex flex-col items-center gap-1 group">
         <EvQuoteLogo showText size="sm" className="group-hover:[&_svg]:text-primary-600 group-hover:[&_span]:text-primary-600 transition-colors" />
         <span className="text-[9px] text-gray-400 tracking-wide">행사 문서 올인원</span>
       </Link>

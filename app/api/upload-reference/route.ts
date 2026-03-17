@@ -4,13 +4,18 @@ import { extractTextFromFile } from '@/lib/file-utils'
 import { uid } from '@/lib/calc'
 import type { PriceCategory, PriceItem } from '@/lib/types'
 import { okResponse, errorResponse } from '@/lib/api/response'
-import { referencesRepository } from '@/lib/repositories/references-repository'
-import { pricesRepository } from '@/lib/repositories/prices-repository'
 import { logError } from '@/lib/utils/logger'
+import { getUserIdFromSession } from '@/lib/auth-server'
+import { ensureFreeSubscription } from '@/lib/db/subscriptions-db'
+import { insertReferenceDoc, listReferenceDocs, deleteReferenceDoc } from '@/lib/db/reference-docs-db'
+import { getUserPrices, replaceUserPrices } from '@/lib/db/prices-db'
 
 export async function GET() {
   try {
-    const refs = await referencesRepository.getAll()
+    const userId = await getUserIdFromSession()
+    if (!userId) return errorResponse(401, 'UNAUTHORIZED', '로그인이 필요합니다.')
+    await ensureFreeSubscription(userId)
+    const refs = await listReferenceDocs(userId)
     return okResponse(refs)
   } catch (e) {
     logError('upload-reference:GET', e)
@@ -20,6 +25,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getUserIdFromSession()
+    if (!userId) return errorResponse(401, 'UNAUTHORIZED', '로그인이 필요합니다.')
+    await ensureFreeSubscription(userId)
     const formData = await req.formData()
     const file = formData.get('file') as File | null
     if (!file) {
@@ -46,21 +54,15 @@ export async function POST(req: NextRequest) {
       extractPricesFromReference(rawText, file.name),
     ])
 
-    const refs = await referencesRepository.getAll()
-    const nextRefs = [
-      ...refs,
-      {
-        id: uid(),
-        filename: file.name,
-        uploadedAt: new Date().toISOString(),
-        summary,
-        rawText: rawText.slice(0, 5000),
-      },
-    ]
-    await referencesRepository.saveAll(nextRefs)
+    await insertReferenceDoc(userId, {
+      filename: file.name,
+      uploadedAt: new Date().toISOString(),
+      summary,
+      rawText: rawText.slice(0, 5000),
+    })
 
     if (extracted.length > 0) {
-      const prices = await pricesRepository.getAll()
+      const prices = await getUserPrices(userId)
       const baseName = file.name.replace(/\.[^.]+$/, '')
       extracted.forEach(
         ({
@@ -86,7 +88,7 @@ export async function POST(req: NextRequest) {
           prices.push(newCat)
         },
       )
-      await pricesRepository.saveAll(prices)
+      await replaceUserPrices(userId, prices)
     }
 
     return okResponse({
@@ -102,13 +104,14 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const userId = await getUserIdFromSession()
+    if (!userId) return errorResponse(401, 'UNAUTHORIZED', '로그인이 필요합니다.')
+    await ensureFreeSubscription(userId)
     const { id } = (await req.json()) as { id?: string }
     if (!id) {
       return errorResponse(400, 'INVALID_REQUEST', 'id가 없습니다.')
     }
-    const refs = await referencesRepository.getAll()
-    const nextRefs = refs.filter(r => r.id !== id)
-    await referencesRepository.saveAll(nextRefs)
+    await deleteReferenceDoc(userId, id)
     return okResponse({ ok: true })
   } catch (e) {
     logError('upload-reference:DELETE', e)

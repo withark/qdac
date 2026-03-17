@@ -4,11 +4,16 @@ import { extractTextFromFile } from '@/lib/file-utils'
 import { uid } from '@/lib/calc'
 import { okResponse, errorResponse } from '@/lib/api/response'
 import { logError } from '@/lib/utils/logger'
-import { taskOrderRefsRepository } from '@/lib/repositories/task-order-refs-repository'
+import { getUserIdFromSession } from '@/lib/auth-server'
+import { ensureFreeSubscription } from '@/lib/db/subscriptions-db'
+import { listTaskOrderRefs, insertTaskOrderRef, deleteTaskOrderRef } from '@/lib/db/task-order-refs-db'
 
 export async function GET() {
   try {
-    const refs = await taskOrderRefsRepository.getAll()
+    const userId = await getUserIdFromSession()
+    if (!userId) return errorResponse(401, 'UNAUTHORIZED', '로그인이 필요합니다.')
+    await ensureFreeSubscription(userId)
+    const refs = await listTaskOrderRefs(userId)
     return okResponse(refs)
   } catch (e) {
     logError('task-order-references:GET', e)
@@ -18,6 +23,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getUserIdFromSession()
+    if (!userId) return errorResponse(401, 'UNAUTHORIZED', '로그인이 필요합니다.')
+    await ensureFreeSubscription(userId)
     const formData = await req.formData()
     const file = formData.get('file') as File | null
     if (!file) {
@@ -40,15 +48,12 @@ export async function POST(req: NextRequest) {
     }
 
     const summary = await summarizeTaskOrderRef(rawText, file.name)
-    const refs = await taskOrderRefsRepository.getAll()
-    refs.push({
-      id: uid(),
+    await insertTaskOrderRef(userId, {
       filename: file.name,
       uploadedAt: new Date().toISOString(),
       summary,
       rawText: rawText.slice(0, 5000),
     })
-    await taskOrderRefsRepository.saveAll(refs)
     return okResponse({ ok: true, summary })
   } catch (e) {
     logError('task-order-references:POST', e)
@@ -59,12 +64,14 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const userId = await getUserIdFromSession()
+    if (!userId) return errorResponse(401, 'UNAUTHORIZED', '로그인이 필요합니다.')
+    await ensureFreeSubscription(userId)
     const { id } = (await req.json()) as { id?: string }
     if (!id) {
       return errorResponse(400, 'INVALID_REQUEST', 'id가 없습니다.')
     }
-    const refs = (await taskOrderRefsRepository.getAll()).filter(r => r.id !== id)
-    await taskOrderRefsRepository.saveAll(refs)
+    await deleteTaskOrderRef(userId, id)
     return okResponse({ ok: true })
   } catch (e) {
     logError('task-order-references:DELETE', e)

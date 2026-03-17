@@ -4,6 +4,8 @@ import { GNB } from '@/components/GNB'
 import { Button, Toast } from '@/components/ui'
 import type { HistoryRecord } from '@/lib/types'
 import { fmtKRW } from '@/lib/calc'
+import { apiFetch } from '@/lib/api/client'
+import { toUserMessage } from '@/lib/errors/toUserMessage'
 
 export default function HistoryPage() {
   const [history, setHistory] = useState<HistoryRecord[]>([])
@@ -14,23 +16,31 @@ export default function HistoryPage() {
   }, [])
 
   useEffect(() => {
-    fetch('/api/history').then(r => r.json()).then((d: HistoryRecord[]) =>
-      setHistory([...d].reverse())
-    )
+    apiFetch<HistoryRecord[]>('/api/history')
+      .then((d) => setHistory([...d].reverse()))
+      .catch(() => setHistory([]))
   }, [])
 
   async function delOne(id: string) {
     if (!confirm('삭제할까요?')) return
-    await fetch(`/api/history/${id}`, { method: 'DELETE' })
-    setHistory(h => h.filter(r => r.id !== id))
-    showToast('삭제 완료')
+    try {
+      await apiFetch<unknown>(`/api/history/${id}`, { method: 'DELETE' })
+      setHistory(h => h.filter(r => r.id !== id))
+      showToast('삭제 완료')
+    } catch (e) {
+      showToast(toUserMessage(e, '삭제에 실패했습니다.'))
+    }
   }
 
   async function clearAll() {
     if (!confirm('전체 이력을 삭제할까요?')) return
-    await fetch('/api/history', { method: 'DELETE' })
-    setHistory([])
-    showToast('전체 삭제 완료')
+    try {
+      await apiFetch<unknown>('/api/history', { method: 'DELETE' })
+      setHistory([])
+      showToast('전체 삭제 완료')
+    } catch (e) {
+      showToast(toUserMessage(e, '삭제에 실패했습니다.'))
+    }
   }
 
   // 통계

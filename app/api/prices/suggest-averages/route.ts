@@ -4,9 +4,14 @@ import type { PriceCategory } from '@/lib/types'
 import { okResponse, errorResponse } from '@/lib/api/response'
 import { getEnv } from '@/lib/env'
 import { logError } from '@/lib/utils/logger'
+import { getUserIdFromSession } from '@/lib/auth-server'
+import { ensureFreeSubscription } from '@/lib/db/subscriptions-db'
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getUserIdFromSession()
+    if (!userId) return errorResponse(401, 'UNAUTHORIZED', '로그인이 필요합니다.')
+    await ensureFreeSubscription(userId)
     const env = getEnv()
     if (!env.ANTHROPIC_API_KEY && !env.OPENAI_API_KEY) {
       return errorResponse(

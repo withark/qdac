@@ -4,6 +4,8 @@ import { Input, Select, Textarea, SectionLabel, Btn, Spinner } from '@/component
 import CalendarPicker, { formatKorDate } from '@/components/ui/CalendarPicker'
 import DurationInput, { durationToString, type DurationValue } from '@/components/ui/DurationInput'
 import type { QuoteDoc } from '@/lib/types'
+import { apiFetch } from '@/lib/api/client'
+import { toUserMessage } from '@/lib/errors/toUserMessage'
 
 /** 전화번호 숫자만 추출 후 자동 하이픈 포맷 (한국 형식) */
 function formatPhoneDisplay(value: string): string {
@@ -198,23 +200,14 @@ export default function InputForm({ onGenerated, onLoadingChange, onStatusChange
       requirements,
     }
     try {
-      const res = await fetch('/api/generate', {
+      const data = await apiFetch<{ doc: QuoteDoc; totals: Record<string, number> }>('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
       })
-      const text = await res.text()
-      let data: { doc?: QuoteDoc; totals?: Record<string, number>; error?: string }
-      try {
-        data = text ? JSON.parse(text) : {}
-      } catch {
-        if (text.startsWith('<!')) throw new Error('서버 응답 오류입니다. 개발 서버가 실행 중인지 확인해 주세요.')
-        throw new Error(text || '응답을 읽을 수 없습니다.')
-      }
-      if (!res.ok) throw new Error(data.error || '생성 실패')
-      onGenerated(data.doc!, data.totals!, requestBody)
+      onGenerated(data.doc, data.totals, requestBody)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '오류가 발생했습니다.')
+      setError(toUserMessage(e, '견적서 생성에 실패했습니다.'))
     } finally {
       clearInterval(interval)
       setLoading(false)

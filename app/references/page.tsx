@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'react'
 import { GNB } from '@/components/GNB'
 import { Btn, Toast } from '@/components/ui'
 import type { ReferenceDoc, CuesheetSample, ScenarioRefDoc, TaskOrderDoc } from '@/lib/types'
+import { apiFetch } from '@/lib/api/client'
+import { toUserMessage } from '@/lib/errors/toUserMessage'
 
 export default function ReferencesPage() {
   const [refs, setRefs] = useState<ReferenceDoc[]>([])
@@ -30,33 +32,26 @@ export default function ReferencesPage() {
   }
 
   useEffect(() => {
-    fetch('/api/upload-reference')
-      .then(async r => {
-        const text = await r.text()
-        if (!r.ok || (text && text.trimStart().startsWith('<'))) return []
-        try { return toArray<ReferenceDoc>(text ? JSON.parse(text) : []) } catch { return [] }
-      })
+    apiFetch<ReferenceDoc[]>('/api/upload-reference')
       .then(setRefs)
+      .catch(() => setRefs([]))
   }, [])
 
   useEffect(() => {
-    fetch('/api/cuesheet-samples')
-      .then(async r => (r.ok ? r.json() : null))
-      .then((raw) => setCuesheetSamples(toArray<CuesheetSample>(raw)))
+    apiFetch<CuesheetSample[]>('/api/cuesheet-samples')
+      .then(setCuesheetSamples)
       .catch(() => setCuesheetSamples([]))
   }, [])
 
   useEffect(() => {
-    fetch('/api/scenario-references')
-      .then(async r => (r.ok ? r.json() : null))
-      .then((raw) => setScenarioRefs(toArray<ScenarioRefDoc>(raw)))
+    apiFetch<ScenarioRefDoc[]>('/api/scenario-references')
+      .then(setScenarioRefs)
       .catch(() => setScenarioRefs([]))
   }, [])
 
   useEffect(() => {
-    fetch('/api/task-order-references')
-      .then(async r => (r.ok ? r.json() : null))
-      .then((raw) => setTaskOrderRefs(toArray<TaskOrderDoc>(raw)))
+    apiFetch<TaskOrderDoc[]>('/api/task-order-references')
+      .then(setTaskOrderRefs)
       .catch(() => setTaskOrderRefs([]))
   }, [])
 
@@ -65,29 +60,29 @@ export default function ReferencesPage() {
     setUploading(true)
     const fd = new FormData(); fd.append('file', file)
     try {
-      const res = await fetch('/api/upload-reference', { method: 'POST', body: fd })
-      const text = await res.text()
-      let d: { ok?: boolean; error?: string; pricesApplied?: boolean }
-      try { d = text ? JSON.parse(text) : {} } catch { throw new Error('서버 응답을 읽을 수 없습니다.') }
-      if (!res.ok) throw new Error(d.error || '업로드 실패')
+      const d = await apiFetch<{ pricesApplied?: boolean; list?: ReferenceDoc[] }>('/api/upload-reference', { method: 'POST', body: fd })
       showToast(
-        d.pricesApplied
+        (d as any)?.pricesApplied
           ? '업로드 완료! 단가표에 자동 반영되었습니다. 이후 생성되는 견적서에 적용됩니다.'
           : '업로드 완료! 참고 견적서가 AI에 학습되었습니다. 이후 생성되는 견적서에 반영됩니다.'
       )
-      fetch('/api/upload-reference')
-        .then(async r => { const t = await r.text(); try { return toArray<ReferenceDoc>(t ? JSON.parse(t) : null) } catch { return [] } })
+      apiFetch<ReferenceDoc[]>('/api/upload-reference')
         .then(setRefs)
+        .catch(() => {})
     } catch(e) {
-      showToast(e instanceof Error ? e.message : '업로드 실패', 'err')
+      showToast(toUserMessage(e, '업로드에 실패했습니다.'), 'err')
     } finally { setUploading(false) }
   }
 
   async function deleteRef(id: string) {
     if (!confirm('삭제할까요?')) return
-    await fetch('/api/upload-reference', { method: 'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id}) })
-    setRefs(r => r.filter(x => x.id !== id))
-    showToast('삭제 완료')
+    try {
+      await apiFetch<null>('/api/upload-reference', { method: 'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id}) })
+      setRefs(r => r.filter(x => x.id !== id))
+      showToast('삭제 완료')
+    } catch (e) {
+      showToast(toUserMessage(e, '삭제에 실패했습니다.'), 'err')
+    }
   }
 
   async function uploadCuesheetSample(file: File) {
@@ -96,14 +91,12 @@ export default function ReferencesPage() {
     const fd = new FormData()
     fd.append('file', file)
     try {
-      const res = await fetch('/api/cuesheet-samples', { method: 'POST', body: fd })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || '업로드 실패')
+      await apiFetch<null>('/api/cuesheet-samples', { method: 'POST', body: fd })
       showToast('큐시트 샘플이 추가되었습니다.')
-      const raw = await fetch('/api/cuesheet-samples').then(r => r.json())
-      setCuesheetSamples(toArray<CuesheetSample>(raw))
+      const list = await apiFetch<CuesheetSample[]>('/api/cuesheet-samples')
+      setCuesheetSamples(list)
     } catch (e) {
-      showToast(e instanceof Error ? e.message : '업로드 실패', 'err')
+      showToast(toUserMessage(e, '업로드에 실패했습니다.'), 'err')
     } finally {
       setCuesheetUploading(false)
     }
@@ -111,9 +104,13 @@ export default function ReferencesPage() {
 
   async function deleteCuesheetSample(id: string) {
     if (!confirm('이 큐시트 샘플을 삭제할까요?')) return
-    await fetch('/api/cuesheet-samples', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
-    setCuesheetSamples(s => s.filter(x => x.id !== id))
-    showToast('삭제 완료')
+    try {
+      await apiFetch<null>('/api/cuesheet-samples', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+      setCuesheetSamples(s => s.filter(x => x.id !== id))
+      showToast('삭제 완료')
+    } catch (e) {
+      showToast(toUserMessage(e, '삭제에 실패했습니다.'), 'err')
+    }
   }
 
   async function uploadScenario(file: File) {
@@ -121,22 +118,24 @@ export default function ReferencesPage() {
     setScenarioUploading(true)
     const fd = new FormData(); fd.append('file', file)
     try {
-      const res = await fetch('/api/scenario-references', { method: 'POST', body: fd })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || '업로드 실패')
+      await apiFetch<null>('/api/scenario-references', { method: 'POST', body: fd })
       showToast('시나리오 참고가 추가되었습니다. 이후 생성되는 기획안·큐시트에 반영됩니다.')
-      const raw = await fetch('/api/scenario-references').then(r => r.json())
-      setScenarioRefs(toArray<ScenarioRefDoc>(raw))
+      const list = await apiFetch<ScenarioRefDoc[]>('/api/scenario-references')
+      setScenarioRefs(list)
     } catch (e) {
-      showToast(e instanceof Error ? e.message : '업로드 실패', 'err')
+      showToast(toUserMessage(e, '업로드에 실패했습니다.'), 'err')
     } finally { setScenarioUploading(false) }
   }
 
   async function deleteScenario(id: string) {
     if (!confirm('삭제할까요?')) return
-    await fetch('/api/scenario-references', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
-    setScenarioRefs(s => s.filter(x => x.id !== id))
-    showToast('삭제 완료')
+    try {
+      await apiFetch<null>('/api/scenario-references', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+      setScenarioRefs(s => s.filter(x => x.id !== id))
+      showToast('삭제 완료')
+    } catch (e) {
+      showToast(toUserMessage(e, '삭제에 실패했습니다.'), 'err')
+    }
   }
 
   async function uploadTaskOrder(file: File) {
@@ -144,22 +143,24 @@ export default function ReferencesPage() {
     setTaskOrderUploading(true)
     const fd = new FormData(); fd.append('file', file)
     try {
-      const res = await fetch('/api/task-order-references', { method: 'POST', body: fd })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || '업로드 실패')
+      await apiFetch<null>('/api/task-order-references', { method: 'POST', body: fd })
       showToast('과업지시서·기획안 참고가 추가되었습니다. 이후 생성되는 견적서·기획안에 반영됩니다.')
-      const raw = await fetch('/api/task-order-references').then(r => r.json())
-      setTaskOrderRefs(toArray<TaskOrderDoc>(raw))
+      const list = await apiFetch<TaskOrderDoc[]>('/api/task-order-references')
+      setTaskOrderRefs(list)
     } catch (e) {
-      showToast(e instanceof Error ? e.message : '업로드 실패', 'err')
+      showToast(toUserMessage(e, '업로드에 실패했습니다.'), 'err')
     } finally { setTaskOrderUploading(false) }
   }
 
   async function deleteTaskOrder(id: string) {
     if (!confirm('삭제할까요?')) return
-    await fetch('/api/task-order-references', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
-    setTaskOrderRefs(s => s.filter(x => x.id !== id))
-    showToast('삭제 완료')
+    try {
+      await apiFetch<null>('/api/task-order-references', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+      setTaskOrderRefs(s => s.filter(x => x.id !== id))
+      showToast('삭제 완료')
+    } catch (e) {
+      showToast(toUserMessage(e, '삭제에 실패했습니다.'), 'err')
+    }
   }
 
   return (

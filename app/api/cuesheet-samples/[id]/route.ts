@@ -1,22 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { readCuesheetSamples, getCuesheetSampleFilePath } from '@/lib/storage'
 import { logError } from '@/lib/utils/logger'
+import { getUserIdFromSession } from '@/lib/auth-server'
+import { ensureFreeSubscription } from '@/lib/db/subscriptions-db'
+import { assertCuesheetSampleOwner, getCuesheetFile } from '@/lib/db/cuesheet-samples-db'
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const userId = await getUserIdFromSession()
+    if (!userId) return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 })
+    await ensureFreeSubscription(userId)
+
     const { id } = await params
-    const list = readCuesheetSamples()
-    const item = list.find((s) => s.id === id)
-    if (!item) return NextResponse.json({ error: '샘플을 찾을 수 없습니다.' }, { status: 404 })
-
-    const filePath = getCuesheetSampleFilePath(item.id, item.ext)
-    if (!filePath) return NextResponse.json({ error: '파일이 없습니다.' }, { status: 404 })
-
-    const fs = await import('fs')
-    const buf = fs.readFileSync(filePath)
+    const ok = await assertCuesheetSampleOwner(userId, id)
+    if (!ok) return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 })
+    const file = await getCuesheetFile(id)
+    if (!file) return NextResponse.json({ error: '파일이 없습니다.' }, { status: 404 })
     const mime: Record<string, string> = {
       pdf: 'application/pdf',
       xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -30,12 +31,13 @@ export async function GET(
       csv: 'text/csv',
       md: 'text/markdown',
     }
-    const contentType = mime[item.ext] || 'application/octet-stream'
+    const contentType = mime[file.ext] || 'application/octet-stream'
 
-    return new NextResponse(buf, {
+    // Buffer는 BodyInit로 직접 안 잡히는 경우가 있어 Uint8Array로 변환
+    return new NextResponse(new Uint8Array(file.content), {
       headers: {
         'Content-Type': contentType,
-        'Content-Disposition': `inline; filename="${encodeURIComponent(item.filename)}"`,
+        'Content-Disposition': `inline; filename="${encodeURIComponent(file.filename)}"`,
       },
     })
   } catch (e) {

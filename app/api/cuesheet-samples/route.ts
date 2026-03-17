@@ -1,14 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
-import {
-  readCuesheetSamples,
-  writeCuesheetSamples,
-  saveCuesheetSampleFile,
-  deleteCuesheetSampleFile,
-} from '@/lib/storage'
-import { uid } from '@/lib/calc'
-import type { CuesheetSample } from '@/lib/types'
-import { CuesheetSamplesSchema } from '@/lib/schemas/cuesheet-samples'
+import { NextRequest } from 'next/server'
+import { okResponse, errorResponse } from '@/lib/api/response'
 import { logError } from '@/lib/utils/logger'
+import { getUserIdFromSession } from '@/lib/auth-server'
+import { ensureFreeSubscription } from '@/lib/db/subscriptions-db'
+import { insertCuesheetSampleWithFile, listCuesheetSamples, deleteCuesheetSample } from '@/lib/db/cuesheet-samples-db'
 
 const ALLOWED_EXT = ['pdf', 'xlsx', 'xls', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'txt', 'csv', 'md', 'ppt', 'pptx', 'doc', 'docx']
 
@@ -18,56 +13,45 @@ function getExt(filename: string): string {
 }
 
 export async function GET() {
-  return NextResponse.json(readCuesheetSamples())
+  const userId = await getUserIdFromSession()
+  if (!userId) return errorResponse(401, 'UNAUTHORIZED', '로그인이 필요합니다.')
+  await ensureFreeSubscription(userId)
+  const list = await listCuesheetSamples(userId)
+  return okResponse(list)
 }
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getUserIdFromSession()
+    if (!userId) return errorResponse(401, 'UNAUTHORIZED', '로그인이 필요합니다.')
+    await ensureFreeSubscription(userId)
+
     const formData = await req.formData()
     const file = formData.get('file') as File | null
-    if (!file) return NextResponse.json({ error: '파일이 없습니다.' }, { status: 400 })
+    if (!file) return errorResponse(400, 'INVALID_REQUEST', '파일이 없습니다.')
 
     const filename = file.name || 'unnamed'
     const ext = getExt(filename)
     const buffer = Buffer.from(await file.arrayBuffer())
-    const id = uid()
-
-    saveCuesheetSampleFile(id, ext, buffer)
-
-    const list = readCuesheetSamples()
-    const sample: CuesheetSample = {
-      id,
-      filename,
-      uploadedAt: new Date().toISOString(),
-      ext,
-    }
-    const nextList = [...list, sample]
-    const parsed = CuesheetSamplesSchema.parse(nextList) as CuesheetSample[]
-    writeCuesheetSamples(parsed)
-
-    return NextResponse.json({ ok: true, id, filename })
+    const sample = await insertCuesheetSampleWithFile(userId, { filename, ext, content: buffer })
+    return okResponse(sample)
   } catch (e) {
     logError('cuesheet-samples:POST', e)
-    return NextResponse.json({ error: '업로드에 실패했습니다.' }, { status: 500 })
+    return errorResponse(500, 'INTERNAL_ERROR', '업로드에 실패했습니다.')
   }
 }
 
 export async function DELETE(req: NextRequest) {
   try {
+    const userId = await getUserIdFromSession()
+    if (!userId) return errorResponse(401, 'UNAUTHORIZED', '로그인이 필요합니다.')
+    await ensureFreeSubscription(userId)
     const { id } = await req.json() as { id: string }
-    if (!id) return NextResponse.json({ error: 'id가 없습니다.' }, { status: 400 })
-
-    const list = readCuesheetSamples()
-    const item = list.find((s) => s.id === id)
-    if (!item) return NextResponse.json({ error: '샘플을 찾을 수 없습니다.' }, { status: 404 })
-
-    deleteCuesheetSampleFile(item.id, item.ext)
-    const nextList = list.filter((s) => s.id !== id)
-    const parsed = CuesheetSamplesSchema.parse(nextList) as CuesheetSample[]
-    writeCuesheetSamples(parsed)
-    return NextResponse.json({ ok: true })
+    if (!id) return errorResponse(400, 'INVALID_REQUEST', 'id가 없습니다.')
+    await deleteCuesheetSample(userId, id)
+    return okResponse(null)
   } catch (e) {
     logError('cuesheet-samples:DELETE', e)
-    return NextResponse.json({ error: '삭제에 실패했습니다.' }, { status: 500 })
+    return errorResponse(500, 'INTERNAL_ERROR', '삭제에 실패했습니다.')
   }
 }

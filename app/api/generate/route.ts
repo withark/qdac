@@ -4,12 +4,19 @@ import { generateQuote, type GenerateInput } from '@/lib/ai'
 import { calcTotals, uid } from '@/lib/calc'
 import { okResponse, errorResponse } from '@/lib/api/response'
 import { getEnv } from '@/lib/env'
-import { pricesRepository } from '@/lib/repositories/prices-repository'
-import { settingsRepository } from '@/lib/repositories/settings-repository'
-import { referencesRepository } from '@/lib/repositories/references-repository'
-import { taskOrderRefsRepository } from '@/lib/repositories/task-order-refs-repository'
-import { historyRepository } from '@/lib/repositories/history-repository'
 import { logError } from '@/lib/utils/logger'
+import { getUserIdFromSession } from '@/lib/auth-server'
+import { ensureFreeSubscription, getActiveSubscription } from '@/lib/db/subscriptions-db'
+import { getOrCreateUsage, incQuoteGenerated } from '@/lib/db/usage-db'
+import { assertQuoteGenerateAllowed } from '@/lib/entitlements'
+import { getDefaultCompanyProfile, profileToCompanySettings } from '@/lib/db/company-profiles-db'
+import { DEFAULT_SETTINGS } from '@/lib/defaults'
+import { quotesDbAppend } from '@/lib/db/quotes-db'
+import { PLAN_LIMITS } from '@/lib/plans'
+import { normalizeTemplateForPlan } from '@/lib/plan-entitlements'
+import { getUserPrices } from '@/lib/db/prices-db'
+import { listReferenceDocs } from '@/lib/db/reference-docs-db'
+import { listTaskOrderRefs } from '@/lib/db/task-order-refs-db'
 
 const GenerateRequestSchema = z.object({
   eventName: z.string().min(1, '행사명을 입력해주세요.'),
@@ -28,6 +35,14 @@ const GenerateRequestSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const userId = await getUserIdFromSession()
+    if (!userId) {
+      return errorResponse(401, 'UNAUTHORIZED', '로그인이 필요합니다.')
+    }
+    await ensureFreeSubscription(userId)
+    const sub = await getActiveSubscription(userId)
+    const plan = sub?.planType ?? 'FREE'
+
     const json = await req.json()
     const parsed = GenerateRequestSchema.safeParse(json)
     if (!parsed.success) {
@@ -42,9 +57,10 @@ export async function POST(req: NextRequest) {
     const body: Omit<GenerateInput, 'prices' | 'settings' | 'references'> = parsed.data
 
     const env = getEnv()
+    const isMockAi = (process.env.AI_MODE || '').trim().toLowerCase() === 'mock'
     const hasAnthropic = !!env.ANTHROPIC_API_KEY
     const hasOpenAI = !!env.OPENAI_API_KEY
-    if (!hasAnthropic && !hasOpenAI) {
+    if (!isMockAi && !hasAnthropic && !hasOpenAI) {
       return errorResponse(
         500,
         'NO_AI_KEY',
@@ -52,15 +68,24 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // 월간 견적 생성 한도 체크
+    const usage = await getOrCreateUsage(userId)
+    assertQuoteGenerateAllowed(plan, usage.quoteGeneratedCount)
+
     const [prices, settings, references, taskOrderRefs] = await Promise.all([
-      pricesRepository.getAll(),
-      settingsRepository.get(),
-      referencesRepository.getAll(),
-      taskOrderRefsRepository.getAll(),
+      getUserPrices(userId),
+      (async () => {
+        const p = await getDefaultCompanyProfile(userId)
+        return p ? profileToCompanySettings(p) : DEFAULT_SETTINGS
+      })(),
+      listReferenceDocs(userId),
+      listTaskOrderRefs(userId),
     ])
 
     const input: GenerateInput = { ...body, prices, settings, references, taskOrderRefs }
     let doc = await generateQuote(input)
+    // 플랜별 템플릿 제한 (FREE는 default만)
+    ;(doc as any).quoteTemplate = normalizeTemplateForPlan(plan, doc.quoteTemplate as any)
     // 제안 프로그램이 비어 있으면 기본 구조로 채우기
     if (!doc.program || !doc.program.concept?.trim()) {
       doc = {
@@ -81,7 +106,7 @@ export async function POST(req: NextRequest) {
     }
     const totals = calcTotals(doc)
 
-    await historyRepository.append({
+    await quotesDbAppend({
       id: uid(),
       eventName:  doc.eventName,
       clientName: doc.clientName,
@@ -93,12 +118,15 @@ export async function POST(req: NextRequest) {
       total:      totals.grand,
       savedAt:    new Date().toISOString(),
       doc,
-    })
+    }, userId)
+
+    await incQuoteGenerated(userId, 1)
 
     return okResponse({ doc, totals })
   } catch (e) {
     logError('generate', e)
     const msg = e instanceof Error ? e.message : '견적서 생성에 실패했습니다.'
-    return errorResponse(500, 'INTERNAL_ERROR', msg)
+    const status = msg.includes('로그인') ? 401 : msg.includes('월') ? 403 : 500
+    return errorResponse(status, 'INTERNAL_ERROR', msg)
   }
 }

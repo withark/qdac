@@ -5,6 +5,8 @@ import { Button, Input, Toast } from '@/components/ui'
 import type { PriceCategory, PriceItem } from '@/lib/types'
 import { uid } from '@/lib/calc'
 import clsx from 'clsx'
+import { apiFetch } from '@/lib/api/client'
+import { toUserMessage } from '@/lib/errors/toUserMessage'
 
 const ALL_TYPES = [
   '기념식/개교기념','시상식/수료식','창립기념',
@@ -22,12 +24,8 @@ export default function PricesPage() {
   const [suggesting, setSuggesting] = useState(false)
 
   useEffect(() => {
-    fetch('/api/prices')
-      .then(r => r.json())
-      .then((res: unknown) => {
-        const arr = Array.isArray(res) ? res : (Array.isArray((res as { data?: unknown })?.data) ? (res as { data: PriceCategory[] }).data : [])
-        setPrices(arr)
-      })
+    apiFetch<PriceCategory[]>('/api/prices')
+      .then(setPrices)
       .catch(() => setPrices([]))
   }, [])
 
@@ -38,18 +36,14 @@ export default function PricesPage() {
   async function save() {
     setSaving(true)
     try {
-      const res = await fetch('/api/prices', {
+      await apiFetch<null>('/api/prices', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(prices)
       })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error((err as { error?: string }).error || '저장에 실패했습니다.')
-      }
       setDirty(false)
       showToast('단가표 저장 완료!')
     } catch (e) {
-      showToast(e instanceof Error ? e.message : '단가표 저장 실패')
+      showToast(toUserMessage(e, '단가표 저장에 실패했습니다.'))
     } finally {
       setSaving(false)
     }
@@ -109,25 +103,18 @@ export default function PricesPage() {
     }
     setSuggesting(true)
     try {
-      const res = await fetch('/api/prices/suggest-averages', {
+      const data = await apiFetch<PriceCategory[]>('/api/prices/suggest-averages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(prices),
       })
-      const text = await res.text()
-      let data: PriceCategory[] | { error?: string }
-      try { data = text ? JSON.parse(text) : [] } catch { throw new Error('서버 응답을 읽을 수 없습니다.') }
-      if (!res.ok) {
-        const err = typeof data === 'object' && data && 'error' in data ? (data as { error: string }).error : '평균 단가 적용 실패'
-        throw new Error(err)
-      }
       if (Array.isArray(data)) {
         setPrices(data)
         setDirty(true)
         showToast('시장 평균 단가로 적용했습니다. 저장 버튼을 눌러 반영하세요.')
       }
     } catch (e) {
-      showToast(e instanceof Error ? e.message : '평균 단가 적용 실패')
+      showToast(toUserMessage(e, '평균 단가 적용에 실패했습니다.'))
     } finally {
       setSuggesting(false)
     }

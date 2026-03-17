@@ -28,6 +28,147 @@ export async function initDb(): Promise<void> {
   await sql`CREATE TABLE IF NOT EXISTS app_kv ( key text PRIMARY KEY, value jsonb NOT NULL DEFAULT '{}' )`
   await sql`CREATE TABLE IF NOT EXISTS cuesheet_files ( id text PRIMARY KEY, ext text NOT NULL DEFAULT 'bin', filename text NOT NULL DEFAULT '', content bytea NOT NULL, uploaded_at timestamptz NOT NULL DEFAULT now() )`
   await sql`
+    CREATE TABLE IF NOT EXISTS users (
+      id text PRIMARY KEY,
+      email text NOT NULL DEFAULT '',
+      name text NOT NULL DEFAULT '',
+      image text NOT NULL DEFAULT '',
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `
+  await sql`CREATE INDEX IF NOT EXISTS idx_users_email ON users (email)`
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id text PRIMARY KEY,
+      user_id text NOT NULL,
+      plan_type text NOT NULL,
+      billing_cycle text,
+      status text NOT NULL,
+      started_at timestamptz,
+      expires_at timestamptz,
+      canceled_at timestamptz,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `
+  await sql`CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions (user_id)`
+  await sql`CREATE INDEX IF NOT EXISTS idx_subscriptions_user_status ON subscriptions (user_id, status)`
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS uidx_subscriptions_user_active ON subscriptions (user_id) WHERE status = 'active'`
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS usage_quotas (
+      id text PRIMARY KEY,
+      user_id text NOT NULL,
+      period_key text NOT NULL,
+      quote_generated_count int NOT NULL DEFAULT 0,
+      company_profile_count int NOT NULL DEFAULT 0,
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS uidx_usage_user_period ON usage_quotas (user_id, period_key)`
+  await sql`CREATE INDEX IF NOT EXISTS idx_usage_user_id ON usage_quotas (user_id)`
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS company_profiles (
+      id text PRIMARY KEY,
+      user_id text NOT NULL,
+      company_name text NOT NULL DEFAULT '',
+      biz_no text NOT NULL DEFAULT '',
+      ceo text NOT NULL DEFAULT '',
+      contact_name text NOT NULL DEFAULT '',
+      tel text NOT NULL DEFAULT '',
+      addr text NOT NULL DEFAULT '',
+      expense_rate int NOT NULL DEFAULT 0,
+      profit_rate int NOT NULL DEFAULT 0,
+      valid_days int NOT NULL DEFAULT 7,
+      payment_terms text NOT NULL DEFAULT '',
+      is_default boolean NOT NULL DEFAULT true,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `
+  await sql`CREATE INDEX IF NOT EXISTS idx_company_profiles_user_id ON company_profiles (user_id)`
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS uidx_company_profiles_default ON company_profiles (user_id) WHERE is_default = true`
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS reference_docs (
+      id text PRIMARY KEY,
+      user_id text NOT NULL,
+      filename text NOT NULL DEFAULT '',
+      uploaded_at timestamptz NOT NULL DEFAULT now(),
+      summary text NOT NULL DEFAULT '',
+      raw_text text NOT NULL DEFAULT ''
+    )
+  `
+  await sql`CREATE INDEX IF NOT EXISTS idx_reference_docs_user_id ON reference_docs (user_id)`
+  await sql`CREATE INDEX IF NOT EXISTS idx_reference_docs_uploaded_at ON reference_docs (user_id, uploaded_at DESC)`
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS scenario_refs (
+      id text PRIMARY KEY,
+      user_id text NOT NULL,
+      filename text NOT NULL DEFAULT '',
+      uploaded_at timestamptz NOT NULL DEFAULT now(),
+      summary text NOT NULL DEFAULT '',
+      raw_text text NOT NULL DEFAULT ''
+    )
+  `
+  await sql`CREATE INDEX IF NOT EXISTS idx_scenario_refs_user_id ON scenario_refs (user_id)`
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS task_order_refs (
+      id text PRIMARY KEY,
+      user_id text NOT NULL,
+      filename text NOT NULL DEFAULT '',
+      uploaded_at timestamptz NOT NULL DEFAULT now(),
+      summary text NOT NULL DEFAULT '',
+      raw_text text NOT NULL DEFAULT ''
+    )
+  `
+  await sql`CREATE INDEX IF NOT EXISTS idx_task_order_refs_user_id ON task_order_refs (user_id)`
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS price_categories (
+      id text PRIMARY KEY,
+      user_id text NOT NULL,
+      name text NOT NULL DEFAULT '',
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `
+  await sql`CREATE INDEX IF NOT EXISTS idx_price_categories_user_id ON price_categories (user_id)`
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS price_items (
+      id text PRIMARY KEY,
+      user_id text NOT NULL,
+      category_id text NOT NULL,
+      name text NOT NULL DEFAULT '',
+      spec text NOT NULL DEFAULT '',
+      unit text NOT NULL DEFAULT '',
+      price int NOT NULL DEFAULT 0,
+      note text NOT NULL DEFAULT '',
+      types jsonb NOT NULL DEFAULT '[]'::jsonb,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `
+  await sql`CREATE INDEX IF NOT EXISTS idx_price_items_user_id ON price_items (user_id)`
+  await sql`CREATE INDEX IF NOT EXISTS idx_price_items_category_id ON price_items (user_id, category_id)`
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS cuesheet_samples (
+      id text PRIMARY KEY,
+      user_id text NOT NULL,
+      filename text NOT NULL DEFAULT '',
+      ext text NOT NULL DEFAULT 'bin',
+      uploaded_at timestamptz NOT NULL DEFAULT now()
+    )
+  `
+  await sql`CREATE INDEX IF NOT EXISTS idx_cuesheet_samples_user_id ON cuesheet_samples (user_id)`
+  await sql`
     CREATE TABLE IF NOT EXISTS quotes (
       id text PRIMARY KEY,
       user_id text NOT NULL,

@@ -6,6 +6,8 @@ import { QUOTE_TEMPLATES, QUOTE_TEMPLATE_IDS, type QuoteTemplateId } from '@/lib
 import { calcTotals, fmtKRW } from '@/lib/calc'
 import { Button } from '@/components/ui'
 import clsx from 'clsx'
+import type { PlanType } from '@/lib/plans'
+import { allowedQuoteTemplates } from '@/lib/plan-entitlements'
 
 type Tab = 'quote' | 'program' | 'timeline' | 'cuesheet' | 'scenario'
 
@@ -14,6 +16,7 @@ interface Props {
   companySettings?: CompanySettings | null
   /** 단가표(품목) 목록 - 품목에서 선택하여 추가할 때 사용 */
   prices?: PriceCategory[]
+  planType?: PlanType
   onChange: (doc: QuoteDoc) => void
   onRegenerate?: () => void
   regenerating?: boolean
@@ -23,7 +26,7 @@ interface Props {
   onLoadPrevious?: () => void
 }
 
-export function QuoteResult({ doc, companySettings, prices = [], onChange, onRegenerate, regenerating, onExcel, onPdf, onLoadPrevious }: Props) {
+export function QuoteResult({ doc, companySettings, prices = [], planType = 'FREE', onChange, onRegenerate, regenerating, onExcel, onPdf, onLoadPrevious }: Props) {
   const [tab, setTab] = useState<Tab>('quote')
   const [openPriceForKind, setOpenPriceForKind] = useState<QuoteItemKind | null>(null)
   const priceDropdownRef = useRef<HTMLDivElement>(null)
@@ -139,7 +142,7 @@ export function QuoteResult({ doc, companySettings, prices = [], onChange, onReg
                 className="text-xs border border-gray-200 rounded-md px-2 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-primary-200"
                 title="견적서 템플릿"
               >
-                {QUOTE_TEMPLATE_IDS.map(id => (
+                {allowedQuoteTemplates(planType).map(id => (
                   <option key={id} value={id}>{QUOTE_TEMPLATES[id].name}</option>
                 ))}
               </select>
@@ -157,6 +160,15 @@ export function QuoteResult({ doc, companySettings, prices = [], onChange, onReg
           )}
           <Button size="sm" onClick={onExcel}>Excel 다운로드</Button>
           <Button size="sm" variant="primary" onClick={onPdf}>PDF 저장</Button>
+          {planType !== 'FREE' && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => alert('이메일 공유 기능은 준비 중입니다. (BASIC 이상)')}
+            >
+              이메일 공유
+            </Button>
+          )}
         </div>
       </div>
       <p className="text-[10px] text-slate-500 px-4 pb-1.5 flex-shrink-0">
