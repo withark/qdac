@@ -60,7 +60,7 @@ export default function IntroPage() {
       </main>
 
       <footer className="flex-shrink-0 py-6 text-center text-xs text-slate-400">
-        쿼트 · 행사 문서 올인원
+        플래닉 Planic · 행사 문서 올인원
       </footer>
     </div>
   )

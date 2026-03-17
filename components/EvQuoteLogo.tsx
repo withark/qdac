@@ -1,6 +1,6 @@
 'use client'
 
-/** 쿼트 로고: 문서+견적 아이콘 + 텍스트(선택) */
+/** 플래닉 Planic 로고: 문서+견적 아이콘 + 텍스트(선택) */
 interface EvQuoteLogoProps {
   showText?: boolean
   size?: 'sm' | 'md' | 'lg'
@@ -34,7 +34,7 @@ export function EvQuoteLogo({
       </svg>
       {showText && (
         <span className={`font-bold tracking-tight text-gray-800 ${textSize}`}>
-          쿼트
+          플래닉 <span className="font-normal text-primary-600">Planic</span>
         </span>
       )}
     </div>

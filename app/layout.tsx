@@ -3,7 +3,7 @@ import './globals.css'
 import { SessionProvider } from '@/components/auth/SessionProvider'
 
 export const metadata: Metadata = {
-  title: '쿼트 · 행사 문서 올인원',
+  title: '플래닉 Planic · 행사 문서 올인원',
   description: '견적서, 제안 프로그램, 타임테이블, 큐시트를 한 번에. AI 기반 행사 문서 생성',
 }
 
