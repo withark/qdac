@@ -12,6 +12,16 @@ const PROTECTED_PREFIXES = ['/generate', '/settings', '/history', '/references',
  */
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
+  const host = request.headers.get('host') || ''
+
+  // 운영 도메인 canonicalize: planic.cloud → www.planic.cloud
+  // (NEXTAUTH_URL이 www 기준일 때 쿠키/콜백 도메인 불일치를 방지)
+  if (host === 'planic.cloud') {
+    const url = request.nextUrl.clone()
+    url.host = 'www.planic.cloud'
+    url.protocol = 'https'
+    return NextResponse.redirect(url, 308)
+  }
 
   // 1) 관리자 페이지 보호
   if (pathname.startsWith('/admin')) {
