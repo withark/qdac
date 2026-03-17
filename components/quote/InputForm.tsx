@@ -369,7 +369,7 @@ export default function InputForm({ onGenerated, onLoadingChange, onStatusChange
         disabled={loading}
         className="w-full justify-center py-2.5 text-sm mt-1"
       >
-        {loading ? <Spinner label={statusMsg} /> : '이쿼로 견적서 · 기획안 생성하기'}
+        {loading ? <Spinner label={statusMsg} /> : '쿼트로 견적서 · 기획안 생성하기'}
       </Btn>
     </form>
   )

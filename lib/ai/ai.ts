@@ -18,7 +18,7 @@ export async function generateQuote(input: GenerateInput): Promise<QuoteDoc> {
   try {
     jsonText = extractQuoteJson(text)
   } catch {
-    throw new Error('이쿼 응답에서 견적 JSON을 찾을 수 없습니다. 한 번만 다시 시도해 주세요.')
+    throw new Error('쿼트 응답에서 견적 JSON을 찾을 수 없습니다. 한 번만 다시 시도해 주세요.')
   }
 
   const doc = ensureProgramFallback(safeParseQuoteJson(jsonText))

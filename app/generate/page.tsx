@@ -147,7 +147,7 @@ export default function GeneratePage() {
         {isGenerating && (
           <div className="flex items-center gap-2 px-4 py-2 text-xs text-primary-800 bg-primary-50 border-b border-primary-100">
             <span className="w-2 h-2 rounded-full bg-primary-500 animate-pulse" />
-            <span>이쿼가 견적서·기획안을 생성 중입니다: {statusMsg || '분석 중...'}</span>
+            <span>쿼트가 견적서·기획안을 생성 중입니다: {statusMsg || '분석 중...'}</span>
           </div>
         )}
         {isGenerating ? (
@@ -156,7 +156,7 @@ export default function GeneratePage() {
               <span className="w-4 h-4 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
             </div>
             <div className="space-y-1">
-              <p className="text-base font-medium text-gray-700">이쿼가 새 견적서·기획안을 만드는 중입니다</p>
+              <p className="text-base font-medium text-gray-700">쿼트가 새 견적서·기획안을 만드는 중입니다</p>
               <p className="text-xs text-gray-500">{statusMsg || '행사 기본 정보 분석 중...'}</p>
               <p className="text-[11px] text-gray-400">
                 참고 자료(과업지시서·시나리오·견적서)를 함께 분석해서 견적 항목·기획안·타임테이블·큐시트를 구성하고 있습니다.
@@ -189,12 +189,12 @@ export default function GeneratePage() {
         ) : (
           <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-6">
             <div className="w-16 h-16 rounded-2xl bg-primary-100 flex items-center justify-center">
-              <span className="text-2xl font-light text-primary-600">이쿼</span>
+              <span className="text-2xl font-light text-primary-600">쿼트</span>
             </div>
             <div className="space-y-1">
-              <p className="text-base font-medium text-gray-700">이쿼가 만든 견적서·기획안이 여기에 표시됩니다</p>
+              <p className="text-base font-medium text-gray-700">쿼트가 만든 견적서·기획안이 여기에 표시됩니다</p>
               <p className="text-sm text-gray-500">
-                왼쪽에 행사 기본 정보를 입력한 뒤 「이쿼로 견적서 · 기획안 생성하기」를 누르거나, 비슷한 행사가 있으면 기존 견적서를
+                왼쪽에 행사 기본 정보를 입력한 뒤 「쿼트로 견적서 · 기획안 생성하기」를 누르거나, 비슷한 행사가 있으면 기존 견적서를
                 불러와 수정하세요.
               </p>
             </div>

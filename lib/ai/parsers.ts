@@ -57,7 +57,7 @@ export function safeParseQuoteJson(raw: string): QuoteDoc {
     // ignore
   }
 
-  throw new Error('이쿼가 만든 견적 JSON을 해석하는 데 반복적으로 실패했습니다.')
+  throw new Error('쿼트가 만든 견적 JSON을 해석하는 데 반복적으로 실패했습니다.')
 }
 
 export function extractSuggestedPrices(text: string, expectedCount: number): number[] {
