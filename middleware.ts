@@ -3,7 +3,8 @@ import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 
 const ADMIN_COOKIE_NAME = 'planic_admin'
-const PROTECTED_PREFIXES = ['/generate', '/settings', '/history', '/references', '/prices', '/dashboard', '/billing']
+// /generate는 비로그인도 진입 가능(생성 시도 시 API에서 401 → 로그인 유도)
+const PROTECTED_PREFIXES = ['/settings', '/history', '/references', '/prices', '/dashboard', '/billing']
 
 /**
  * /admin 이하 경로는 관리자 쿠키가 있을 때만 접근 허용.
@@ -21,7 +22,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // 2) 일반 사용자 보호 페이지: 로그인 필요
+  // 2) /generate는 로그인 없이 페이지 진입 허용
+  if (pathname === '/generate' || pathname.startsWith('/generate/')) return NextResponse.next()
+  // 3) 그 외 보호 페이지: 로그인 필요
   const needsAuth = PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'))
   if (!needsAuth) return NextResponse.next()
 

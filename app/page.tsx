@@ -3,9 +3,9 @@ import { getServerSession } from 'next-auth/next'
 import { EvQuoteLogo } from '@/components/EvQuoteLogo'
 import { authOptions } from '@/lib/auth'
 
-function startUrl(session: unknown): string {
-  if (session) return '/generate'
-  return `/auth?callbackUrl=${encodeURIComponent('/generate')}&reason=login_required`
+/** 바로 시작하기 / 견적 만들기 → 항상 /generate로 이동 (비로그인도 진입 가능, 생성 시도 시 로그인 유도) */
+function startUrl(_session: unknown): string {
+  return '/generate'
 }
 
 export default async function IntroPage() {
