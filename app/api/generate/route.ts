@@ -12,11 +12,15 @@ import { assertQuoteGenerateAllowed } from '@/lib/entitlements'
 import { getDefaultCompanyProfile, profileToCompanySettings } from '@/lib/db/company-profiles-db'
 import { DEFAULT_SETTINGS } from '@/lib/defaults'
 import { quotesDbAppend } from '@/lib/db/quotes-db'
-import { PLAN_LIMITS } from '@/lib/plans'
 import { normalizeTemplateForPlan } from '@/lib/plan-entitlements'
 import { getUserPrices } from '@/lib/db/prices-db'
 import { listReferenceDocs } from '@/lib/db/reference-docs-db'
 import { listTaskOrderRefs } from '@/lib/db/task-order-refs-db'
+import { listCuesheetSamples, getCuesheetFile } from '@/lib/db/cuesheet-samples-db'
+import { listScenarioRefs } from '@/lib/db/scenario-refs-db'
+import { extractTextFromBuffer } from '@/lib/file-utils'
+import { normalizeQuoteDoc } from '@/lib/ai/parsers'
+import type { QuoteDoc } from '@/lib/types'
 
 const GenerateRequestSchema = z.object({
   eventName: z.string().min(1, '행사명을 입력해주세요.'),
@@ -26,6 +30,9 @@ const GenerateRequestSchema = z.object({
   quoteDate: z.string().min(1, '견적일을 입력해주세요.'),
   eventDate: z.string().optional().default(''),
   eventDuration: z.string().optional().default(''),
+  /** HH:mm — 타임테이블·프롬프트 연동 */
+  eventStartHHmm: z.string().optional().default(''),
+  eventEndHHmm: z.string().optional().default(''),
   headcount: z.string().optional().default(''),
   venue: z.string().optional().default(''),
   eventType: z.string().min(1, '행사 종류를 선택해주세요.'),
@@ -54,7 +61,7 @@ export async function POST(req: NextRequest) {
         parsed.error.flatten(),
       )
     }
-    const body: Omit<GenerateInput, 'prices' | 'settings' | 'references'> = parsed.data
+    const body = parsed.data
 
     const env = getEnv()
     const isMockAi = (process.env.AI_MODE || '').trim().toLowerCase() === 'mock'
@@ -64,15 +71,14 @@ export async function POST(req: NextRequest) {
       return errorResponse(
         500,
         'NO_AI_KEY',
-        'AI API 키가 없습니다. .env.local에 ANTHROPIC_API_KEY 또는 OPENAI_API_KEY 중 하나를 넣으세요. OpenAI 사용 시 OPENAI_API_KEY만 넣거나 AI_PROVIDER=openai 로 지정하세요.',
+        'AI API 키가 없습니다. .env.local에 ANTHROPIC_API_KEY 또는 OPENAI_API_KEY 중 하나를 넣으세요.',
       )
     }
 
-    // 월간 견적 생성 한도 체크
     const usage = await getOrCreateUsage(userId)
     assertQuoteGenerateAllowed(plan, usage.quoteGeneratedCount)
 
-    const [prices, settings, references, taskOrderRefs] = await Promise.all([
+    const [prices, settings, references, taskOrderRefs, cuesheetList, scenarioRefsList] = await Promise.all([
       getUserPrices(userId),
       (async () => {
         const p = await getDefaultCompanyProfile(userId)
@@ -80,45 +86,103 @@ export async function POST(req: NextRequest) {
       })(),
       listReferenceDocs(userId),
       listTaskOrderRefs(userId),
+      listCuesheetSamples(userId),
+      listScenarioRefs(userId),
     ])
 
-    const input: GenerateInput = { ...body, prices, settings, references, taskOrderRefs }
-    let doc = await generateQuote(input)
-    // 플랜별 템플릿 제한 (FREE는 default만)
-    ;(doc as any).quoteTemplate = normalizeTemplateForPlan(plan, doc.quoteTemplate as any)
-    // 제안 프로그램이 비어 있으면 기본 구조로 채우기
-    if (!doc.program || !doc.program.concept?.trim()) {
-      doc = {
-        ...doc,
-        program: {
-          concept: doc.program?.concept?.trim() || `${doc.eventName}에 맞는 진행 흐름과 세부 일정은 견적서 내 제안 프로그램·타임테이블·큐시트 탭에서 수정·보완해 주세요.`,
-          timeline: Array.isArray(doc.program?.timeline) && doc.program.timeline.length > 0 ? doc.program.timeline : [
-            { time: '', content: '개회', detail: '', manager: '' },
-            { time: '', content: '본 프로그램', detail: '', manager: '' },
-            { time: '', content: '마무리', detail: '', manager: '' },
-          ],
-          staffing: Array.isArray(doc.program?.staffing) && doc.program.staffing.length > 0 ? doc.program.staffing : [
-            { role: '진행요원', count: 1, note: '추가 인력은 수정 가능' },
-          ],
-          tips: Array.isArray(doc.program?.tips) && doc.program.tips.length > 0 ? doc.program.tips : ['진행 전 장비·연락망 점검'],
-        },
+    let cuesheetSampleContext = ''
+    if (cuesheetList.length > 0) {
+      const latest = cuesheetList[0]
+      const file = await getCuesheetFile(latest.id)
+      if (file?.content?.length) {
+        try {
+          cuesheetSampleContext = await extractTextFromBuffer(file.content, file.ext, file.filename)
+          if (!cuesheetSampleContext.trim()) cuesheetSampleContext = `[파일: ${latest.filename} — 텍스트 추출 없음]`
+        } catch (e) {
+          cuesheetSampleContext = `[큐시트 파일 ${latest.filename} 추출 오류: ${e instanceof Error ? e.message : String(e)}]`
+        }
       }
     }
+
+    const pptxPlaceholder = /PPT\/PPTX 파일입니다|슬라이드 내용은 업로드된 원본/
+    const scenarioRefs = scenarioRefsList.slice(0, 2).map(ref => ({
+      ...ref,
+      rawText:
+        pptxPlaceholder.test(ref.rawText) && /\.pptx$/i.test(ref.filename)
+          ? '[이전 업로드는 PPT 텍스트 미추출 상태입니다. 참고 자료에서 시나리오 pptx를 한 번 더 업로드하면 슬라이드 내용이 반영됩니다.]'
+          : ref.rawText,
+    }))
+
+    const input: GenerateInput = {
+      ...body,
+      prices,
+      settings,
+      references,
+      taskOrderRefs,
+      cuesheetSampleContext: cuesheetSampleContext || undefined,
+      scenarioRefs: scenarioRefs.length ? scenarioRefs : undefined,
+    }
+
+    let doc = await generateQuote(input)
+    ;(doc as QuoteDoc).quoteTemplate = normalizeTemplateForPlan(plan, (doc as QuoteDoc).quoteTemplate as any)
+
+    if (!doc.program?.concept?.trim() && (!doc.program?.programRows?.length)) {
+      doc = normalizeQuoteDoc(
+        {
+          ...doc,
+          program: {
+            concept: `${doc.eventName} 제안·타임라인·큐시트는 각 탭에서 수정하세요.`,
+            programRows: doc.program?.programRows || [],
+            timeline: doc.program?.timeline || [
+              { time: body.eventStartHHmm || '', content: '개회', detail: '', manager: '' },
+              { time: '', content: '본 프로그램', detail: '', manager: '' },
+              { time: body.eventEndHHmm || '', content: '마무리', detail: '', manager: '' },
+            ],
+            staffing: doc.program?.staffing || [{ role: '진행요원', count: 1, note: '' }],
+            tips: doc.program?.tips || ['사전 점검'],
+            cueRows: doc.program?.cueRows || [],
+            cueSummary: doc.program?.cueSummary || '',
+          },
+          scenario: doc.scenario,
+        } as QuoteDoc,
+        {
+          eventStartHHmm: body.eventStartHHmm,
+          eventEndHHmm: body.eventEndHHmm,
+          eventName: doc.eventName,
+          eventType: doc.eventType,
+          headcount: doc.headcount,
+          eventDuration: doc.eventDuration,
+        },
+      )
+    } else {
+      doc = normalizeQuoteDoc(doc, {
+        eventStartHHmm: body.eventStartHHmm,
+        eventEndHHmm: body.eventEndHHmm,
+        eventName: doc.eventName,
+        eventType: doc.eventType,
+        headcount: doc.headcount,
+        eventDuration: doc.eventDuration,
+      })
+    }
+
     const totals = calcTotals(doc)
 
-    await quotesDbAppend({
-      id: uid(),
-      eventName:  doc.eventName,
-      clientName: doc.clientName,
-      quoteDate:  doc.quoteDate,
-      eventDate:  doc.eventDate,
-      duration:   doc.eventDuration,
-      type:       doc.eventType,
-      headcount:  doc.headcount,
-      total:      totals.grand,
-      savedAt:    new Date().toISOString(),
-      doc,
-    }, userId)
+    await quotesDbAppend(
+      {
+        id: uid(),
+        eventName: doc.eventName,
+        clientName: doc.clientName,
+        quoteDate: doc.quoteDate,
+        eventDate: doc.eventDate,
+        duration: doc.eventDuration,
+        type: doc.eventType,
+        headcount: doc.headcount,
+        total: totals.grand,
+        savedAt: new Date().toISOString(),
+        doc,
+      },
+      userId,
+    )
 
     await incQuoteGenerated(userId, 1)
 

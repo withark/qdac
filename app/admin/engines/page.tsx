@@ -90,7 +90,7 @@ export default function AdminEnginesPage() {
 
       <section className="border border-slate-200 rounded-lg bg-white p-4">
         <h2 className="text-sm font-medium text-gray-700 mb-3">DB 오버레이 저장 (env보다 우선)</h2>
-        <p className="text-xs text-gray-500 mb-3">DB가 있을 때만 저장됩니다. 생성 API에서 아직 오버레이를 읽지 않으면 다음 단계에서 연동 예정입니다.</p>
+        <p className="text-xs text-gray-500 mb-3">DB가 있을 때 저장됩니다. 견적·AI 호출 시 <code className="bg-slate-100 px-1 rounded">callLLM</code>가 이 값(provider/model/maxTokens)을 그대로 사용합니다.</p>
         <div className="space-y-2 max-w-sm">
           <div>
             <label className="block text-xs text-gray-600 mb-1">provider</label>

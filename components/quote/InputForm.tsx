@@ -102,6 +102,9 @@ export type GenerateRequestBody = {
   quoteDate: string
   eventDate: string
   eventDuration: string
+  /** 24h HH:mm — 타임테이블·AI 프롬프트에 전달 */
+  eventStartHHmm?: string
+  eventEndHHmm?: string
   headcount: string
   venue: string
   eventType: string
@@ -196,6 +199,8 @@ export default function InputForm({ onGenerated, onLoadingChange, onStatusChange
       quoteDate:     formatKorDate(quoteDate),
       eventDate:     formatKorDate(eventDate),
       eventDuration,
+      eventStartHHmm: startTime || undefined,
+      eventEndHHmm: endTime || undefined,
       headcount, venue, eventType,
       budget: budgetLabel,
       requirements,

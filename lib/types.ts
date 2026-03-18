@@ -18,15 +18,55 @@ export interface QuoteCategory {
   items: QuoteLineItem[]
 }
 
+/** 제안 프로그램 표 행 (엑셀형) */
+export interface ProgramTableRow {
+  /** 프로그램 종류 */
+  kind: string
+  /** 내용 */
+  content: string
+  /** 성격 */
+  tone: string
+  /** 이미지 URL 또는 placeholder */
+  image: string
+  /** 시간 (선택) */
+  time: string
+  /** 대상/인원 */
+  audience: string
+  /** 비고 */
+  notes: string
+}
+
+/** 큐시트 운영표 행 */
+export interface CueSheetRow {
+  time: string
+  order: string
+  content: string
+  staff: string
+  prep: string
+  script: string
+  special: string
+}
+
+/** 시나리오·연출 구조 */
+export interface ScenarioDoc {
+  /** 상단 한 줄 요약 */
+  summaryTop: string
+  opening: string
+  development: string
+  mainPoints: string[]
+  closing: string
+  directionNotes: string
+}
+
 // ─── 견적서 ──────────────────────────────────
 export interface QuoteDoc {
   eventName: string
   clientName: string
   clientManager: string
   clientTel: string
-  quoteDate: string        // "2025년 5월 15일(목)"
+  quoteDate: string
   eventDate: string
-  eventDuration: string    // "2시간 30분" | "1박 2일"
+  eventDuration: string
   venue: string
   headcount: string
   eventType: string
@@ -38,15 +78,25 @@ export interface QuoteDoc {
   paymentTerms: string
   validDays: number
   program: ProgramPlan
+  /** 시나리오·연출 흐름 (PPT 샘플 반영) */
+  scenario?: ScenarioDoc
   /** 견적서 스타일 템플릿 (구독/판매용) */
   quoteTemplate?: string
 }
 
 export interface ProgramPlan {
+  /** 보조 설명(전체 컨셉) — 표와 병행 */
   concept: string
+  /** 제안 프로그램 구성표 (핵심) */
+  programRows: ProgramTableRow[]
   timeline: TimelineRow[]
+  /** 레거시: 투입 인력 카드 (유지) */
   staffing: StaffItem[]
   tips: string[]
+  /** 큐시트 운영 문서 본표 */
+  cueRows: CueSheetRow[]
+  /** 큐시트 상단 요약 */
+  cueSummary: string
 }
 
 export interface TimelineRow {
@@ -79,7 +129,7 @@ export interface PriceCategory {
   items: PriceItem[]
 }
 
-// ─── 견적 이력 ────────────────────────────────
+// ─── 견적 이력 ───────────────────────────────
 export interface HistoryRecord {
   id: string
   eventName: string
@@ -91,10 +141,10 @@ export interface HistoryRecord {
   headcount: string
   total: number
   savedAt: string
-  doc?: QuoteDoc   // 전체 견적서 저장 (PDF 재출력 등)
+  doc?: QuoteDoc
 }
 
-// ─── 회사 설정 ────────────────────────────────
+// ─── 회사 설정 ───────────────────────────────
 export interface CompanySettings {
   name: string
   biz: string
@@ -113,7 +163,7 @@ export interface ReferenceDoc {
   id: string
   filename: string
   uploadedAt: string
-  summary: string   // AI가 파싱한 요약
+  summary: string
   rawText: string
 }
 
@@ -122,7 +172,6 @@ export interface CuesheetSample {
   id: string
   filename: string
   uploadedAt: string
-  /** 저장된 파일 확장자 (다운로드/조회 시 사용) */
   ext: string
 }
 
@@ -135,7 +184,7 @@ export interface ScenarioRefDoc {
   rawText: string
 }
 
-// ─── 기획안·과업지시서 (AI 학습 → 견적·기획안 반영) ─────────────────
+// ─── 기획안·과업지시서 ─────────────────
 export interface TaskOrderDoc {
   id: string
   filename: string

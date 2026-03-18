@@ -2,6 +2,7 @@
 import { useState, useRef, Fragment } from 'react'
 import { Btn, Card } from '@/components/ui'
 import type { QuoteDoc, QuoteItemKind } from '@/lib/types'
+import { normalizeQuoteDoc } from '@/lib/ai/parsers'
 import { calcTotals, fmtKRW } from '@/lib/calc'
 import { KIND_ORDER, subtotalsByKind } from '@/lib/quoteGroup'
 
@@ -231,8 +232,9 @@ export default function QuoteView({ doc, onChange, companyName }: Props) {
                     <td className="px-2 py-2 w-8">
                       <button type="button" onClick={() => {
                         const updated = structuredClone(doc)
+                        if (!updated.program) return
                         updated.program.timeline.splice(i, 1)
-                        onChange(updated)
+                        onChange(normalizeQuoteDoc(updated, { eventName: doc.eventName, eventType: doc.eventType, headcount: doc.headcount, eventDuration: doc.eventDuration }))
                       }} className="opacity-0 group-hover:opacity-100 text-red-400 text-xs">✕</button>
                     </td>
                   </tr>
@@ -241,8 +243,9 @@ export default function QuoteView({ doc, onChange, companyName }: Props) {
             </table>
             <button type="button" onClick={() => {
               const updated = structuredClone(doc)
+              if (!updated.program) return
               updated.program.timeline.push({ time: '', content: '새 일정', detail: '', manager: '' })
-              onChange(updated)
+              onChange(normalizeQuoteDoc(updated, { eventName: doc.eventName, eventType: doc.eventType, headcount: doc.headcount, eventDuration: doc.eventDuration }))
             }} className="text-xs text-gray-400 hover:text-gray-600">+ 일정 추가</button>
 
             {(doc.program?.staffing || []).length > 0 && (

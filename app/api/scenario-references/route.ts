@@ -48,11 +48,12 @@ export async function POST(req: NextRequest) {
     }
 
     const summary = await summarizeScenarioRef(rawText, file.name)
+    const maxRaw = ext === 'pptx' || ext === 'pdf' ? 15000 : 8000
     await insertScenarioRef(userId, {
       filename: file.name,
       uploadedAt: new Date().toISOString(),
       summary,
-      rawText: rawText.slice(0, 5000),
+      rawText: rawText.slice(0, maxRaw),
     })
     return okResponse({ ok: true, summary })
   } catch (e) {
