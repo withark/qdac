@@ -31,6 +31,8 @@ import type { QuoteDoc } from '@/lib/types'
 import { hasDatabase } from '@/lib/db/client'
 import { buildGeneratePrompt } from '@/lib/ai/prompts'
 import { GENERATION_SYSTEM_PROMPT } from '@/lib/ai/prompts'
+import { getAIRuntimeSnapshot } from '@/lib/ai/client'
+import { logInfo } from '@/lib/utils/logger'
 
 type DocumentTab = 'proposal' | 'timetable' | 'cuesheet' | 'scenario'
 
@@ -180,6 +182,13 @@ export async function POST(req: NextRequest) {
         scenario: { id: scenarioSample.id || null, filename: scenarioSample.filename || null, hasParsed: (scenarioSample.parsedStructureSummary || '').trim().startsWith('{') },
       },
     }
+
+    // 운영/관리자에서 "실제로 어느 분기/모델/키 로드 상태"였는지 추적 가능한 스냅샷
+    const aiRuntime = await getAIRuntimeSnapshot().catch((e) => ({
+      error: e instanceof Error ? e.message : String(e),
+    }))
+    engineSnapshot.ai = aiRuntime
+    logInfo('generate.ai.snapshot', { userId, isMockAi, aiRuntime })
     const engineQuality = {
       structureFirst: engineOverlay?.structureFirst,
       toneFirst: engineOverlay?.toneFirst,
