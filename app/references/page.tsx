@@ -184,11 +184,6 @@ export default function ReferencesPage() {
             <h1 className="text-base font-semibold text-gray-900">참고 자료</h1>
             <p className="text-xs text-gray-500 mt-0.5">견적서·시나리오·기획안(과업지시서) 참고를 올리면 AI가 학습해 품질을 높입니다</p>
           </div>
-          <Btn variant="primary" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
-            {uploading ? '분석 중...' : '+ 파일 업로드'}
-          </Btn>
-          <input ref={fileRef} type="file" accept=".txt,.csv,.md,.pdf,.xlsx,.xls" className="hidden"
-            onChange={e => { const f = e.target.files?.[0]; if(f) upload(f); e.target.value='' }} />
         </header>
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-6 py-6 space-y-8">
@@ -374,21 +369,46 @@ export default function ReferencesPage() {
               )}
             </section>
 
-            {/* 참고 견적서 — 리스트만 (하단) */}
+            {/* 참고 견적서 */}
             <section className="pt-6 border-t border-gray-200">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-sm font-semibold text-gray-900">참고 견적서</h2>
-                <span className="text-xs text-gray-500">AI 학습용 · </span>
+              <div className="mb-3">
+                <h2 className="text-base font-semibold text-gray-900">참고 견적서</h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  견적서 파일을 올리면 AI가 학습해 이후 견적 품질을 높입니다. 참고 항목으로만 활용됩니다.
+                </p>
               </div>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".txt,.csv,.md,.pdf,.xlsx,.xls"
+                className="hidden"
+                onChange={e => {
+                  const f = e.target.files?.[0]
+                  if (f) upload(f)
+                  e.target.value = ''
+                }}
+              />
+              <button
+                type="button"
+                className="w-full mb-4 py-8 border-2 border-dashed border-gray-200 rounded-2xl bg-white text-xs text-gray-500 hover:border-primary-300 hover:text-primary-600 transition"
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+              >
+                견적서 파일을 이 영역에 끌어놓거나 클릭해서 업로드하세요.
+                <br />
+                {uploading ? '분석 중...' : '단가표에 반영될 수 있습니다.'}
+              </button>
               <p className="text-xs text-gray-500 mb-3">
-                .txt, .csv, .md, .pdf, .xlsx, .xls — 업로드된 견적서는 참고 항목으로만 표시됩니다.
+                지원 형식: .txt, .csv, .md, .pdf, .xlsx, .xls · 파일 크기 4MB 이하
               </p>
               {(Array.isArray(refs) ? refs : []).length === 0 ? (
-                <p className="text-sm text-gray-400 py-4">등록된 참고 견적서가 없습니다. 상단 헤더의 「+ 파일 업로드」로 추가하세요.</p>
+                <div className="text-center py-8 rounded-2xl border border-dashed border-gray-200 bg-gray-50 text-gray-500 text-sm">
+                  등록된 참고 견적서가 없습니다. 위 박스를 클릭해서 파일을 올려보세요.
+                </div>
               ) : (
                 <ul className="space-y-1">
                   {(Array.isArray(refs) ? refs : []).map(r => (
-                    <li key={r.id} className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg hover:bg-gray-50">
+                    <li key={r.id} className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg hover:bg-gray-50 bg-white border border-gray-100">
                       <div className="min-w-0 flex-1">
                         <span className="text-sm text-gray-800 truncate block">{r.filename}</span>
                         <span className="text-xs text-gray-400">{new Date(r.uploadedAt).toLocaleString('ko-KR')}</span>
