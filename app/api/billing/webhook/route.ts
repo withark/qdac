@@ -7,9 +7,10 @@ import {
   getBillingOrderByOrderId,
   markBillingOrderApproved,
   markBillingOrderCanceled,
+  markBillingOrderFailed,
   markBillingOrderExpired,
 } from '@/lib/billing/toss-orders-db'
-import { cancelActiveSubscription, setActiveSubscription } from '@/lib/db/subscriptions-db'
+import { cancelActiveSubscription, expireActiveSubscriptionByUserId, setActiveSubscription } from '@/lib/db/subscriptions-db'
 import type { BillingCycle, PlanType } from '@/lib/plans'
 
 export const dynamic = 'force-dynamic'
@@ -43,13 +44,16 @@ async function handleTossPaymentStatusChanged(data: TossPaymentStatusChangedData
   const status = (data.status ?? '').toUpperCase()
 
   if (status === 'DONE') {
-    if (order.status !== 'approved' && typeof data.paymentKey === 'string') {
-      await markBillingOrderApproved({
+    // 승인(유료 전환)은 "pending" 주문에서만 수행 (failed/canceled/expired 덮어쓰기 방지)
+    if (typeof data.paymentKey === 'string') {
+      const ok = await markBillingOrderApproved({
         orderId,
         paymentKey: data.paymentKey,
         raw: data,
         approvedAt: typeof data.approvedAt === 'string' ? data.approvedAt : undefined,
       })
+      if (!ok) return
+
       await setActiveSubscription({
         userId: order.userId,
         planType: order.planType as Exclude<PlanType, 'FREE'>,
@@ -63,13 +67,22 @@ async function handleTossPaymentStatusChanged(data: TossPaymentStatusChangedData
   }
 
   if (status === 'CANCELED' || status === 'PARTIAL_CANCELED') {
-    await markBillingOrderCanceled(orderId, data)
-    if (order.status === 'approved') await cancelActiveSubscription(order.userId)
+    // CANCELED는 (pending/approved)에서만 billing_orders 상태를 바꾸고,
+    // 주문 상태 변경이 성공했을 때만 active 구독을 취소한다.
+    const ok = await markBillingOrderCanceled(orderId, data)
+    if (ok) await cancelActiveSubscription(order.userId)
     return
   }
-  if (status === 'EXPIRED' || status === 'ABORTED') {
-    await markBillingOrderExpired(orderId, data)
-    if (order.status === 'approved') await cancelActiveSubscription(order.userId)
+  if (status === 'EXPIRED') {
+    // 만료는 billing_orders=expired + subscriptions=expired로 정리
+    const ok = await markBillingOrderExpired(orderId, data)
+    if (ok) await expireActiveSubscriptionByUserId(order.userId)
+    return
+  }
+  if (status === 'ABORTED') {
+    // ABORTED는 결제 실패로 반영
+    const ok = await markBillingOrderFailed(orderId, data)
+    if (ok) await cancelActiveSubscription(order.userId)
   }
 }
 
@@ -122,22 +135,24 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  await logBillingWebhook({
-    provider: 'toss',
-    eventType,
-    orderId: typeof data.orderId === 'string' ? data.orderId : undefined,
-    paymentKey: typeof data.paymentKey === 'string' ? data.paymentKey : undefined,
-    payload: payload,
-  })
-
   if (eventType !== 'PAYMENT_STATUS_CHANGED') {
+    // PAYMENT_STATUS_CHANGED 외 이벤트는 상태 처리 없이 로깅만 남김
+    await logBillingWebhook({
+      provider: 'toss',
+      eventType,
+      orderId: typeof data.orderId === 'string' ? data.orderId : undefined,
+      paymentKey: typeof data.paymentKey === 'string' ? data.paymentKey : undefined,
+      payload: payload,
+    })
     return new Response(JSON.stringify({ received: true }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     })
   }
 
-  const eventId = `toss_${data.paymentKey ?? ''}_${data.orderId ?? ''}_${data.status ?? ''}_${payload?.createdAt ?? ''}`
+  // idempotency: createdAt(재시도마다 달라질 수 있음) 제외하고 payload의 핵심 키만 사용
+  const statusForId = typeof data.status === 'string' ? data.status.toUpperCase() : ''
+  const eventId = `toss_${eventType}_${data.paymentKey ?? ''}_${data.orderId ?? ''}_${statusForId}`
   const isNew = await recordBillingWebhookEventIfNew(eventId, 'toss')
   if (!isNew) {
     return new Response(JSON.stringify({ received: true }), {
@@ -145,6 +160,15 @@ export async function POST(req: NextRequest) {
       headers: { 'Content-Type': 'application/json' },
     })
   }
+
+  // "처음 처리되는" PAYMENT_STATUS_CHANGED 이벤트에만 로깅
+  await logBillingWebhook({
+    provider: 'toss',
+    eventType,
+    orderId: typeof data.orderId === 'string' ? data.orderId : undefined,
+    paymentKey: typeof data.paymentKey === 'string' ? data.paymentKey : undefined,
+    payload: payload,
+  })
 
   try {
     await handleTossPaymentStatusChanged(data)

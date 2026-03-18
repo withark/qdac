@@ -20,6 +20,10 @@ export async function confirmTossPayment(input: { paymentKey: string; orderId: s
   if (order.status === 'approved') {
     return { ok: true as const, alreadyApproved: true as const }
   }
+  if (order.status !== 'pending') {
+    // 이미 terminal(failed/canceled/expired) 상태인 주문은 승인으로 되돌리지 않는다.
+    throw new Error('이미 처리된 주문입니다.')
+  }
   if (order.amount !== input.amount) throw new Error('결제 금액이 일치하지 않습니다.')
 
   const secretKey = getTossSecretKey()
@@ -45,12 +49,13 @@ export async function confirmTossPayment(input: { paymentKey: string; orderId: s
     throw new Error(msg)
   }
 
-  await markBillingOrderApproved({
+  const ok = await markBillingOrderApproved({
     orderId: input.orderId,
     paymentKey: input.paymentKey,
     raw: json,
     approvedAt: typeof json?.approvedAt === 'string' ? json.approvedAt : undefined,
   })
+  if (!ok) throw new Error('주문 승인 상태 변경에 실패했습니다.')
 
   await setActiveSubscription({
     userId: order.userId,
