@@ -6,7 +6,7 @@ import { signOut, useSession } from 'next-auth/react'
 import clsx from 'clsx'
 
 type Placement = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
-type Variant = 'default' | 'compact'
+type Variant = 'default' | 'compact' | 'sidebar'
 
 function initials(email?: string | null) {
   const e = (email ?? '').trim()
@@ -77,24 +77,28 @@ export function AccountPanel({
         className={clsx(
           variant === 'compact'
             ? 'w-10 h-10 inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm'
-            : 'inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-sm font-semibold text-gray-700 shadow-sm',
+            : variant === 'sidebar'
+              ? 'w-full flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm font-medium text-gray-700 shadow-sm'
+              : 'inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-sm font-semibold text-gray-700 shadow-sm',
           'hover:bg-slate-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-200',
           'active:scale-[0.99] transition'
         )}
       >
         <span
           className={clsx(
-            'inline-flex items-center justify-center rounded-full bg-primary-100 text-primary-700 text-xs font-bold',
-            variant === 'compact' ? 'h-7 w-7' : 'h-8 w-8'
+            'inline-flex flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700 text-xs font-bold',
+            variant === 'compact' ? 'h-7 w-7' : variant === 'sidebar' ? 'h-8 w-8' : 'h-8 w-8'
           )}
           aria-hidden
         >
           {initials(email)}
         </span>
-        {variant === 'default' && (
+        {(variant === 'default' || variant === 'sidebar') && (
           <>
-            <span className="hidden sm:inline max-w-[10rem] truncate">{email ?? '내 계정'}</span>
-            <span className="text-gray-300" aria-hidden>▾</span>
+            <span className={clsx('truncate', variant === 'sidebar' ? 'flex-1 min-w-0 text-gray-600' : 'hidden sm:inline max-w-[10rem]')}>
+              {email ?? '내 계정'}
+            </span>
+            <span className="text-gray-300 flex-shrink-0" aria-hidden>▾</span>
           </>
         )}
       </button>
