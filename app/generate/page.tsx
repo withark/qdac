@@ -33,6 +33,7 @@ export default function GeneratePage() {
   const [historyList, setHistoryList] = useState<HistoryRecord[]>([])
   const [prices, setPrices] = useState<PriceCategory[]>([])
   const [taskOrderRefsCount, setTaskOrderRefsCount] = useState<number>(0)
+  const [taskOrderBaseId, setTaskOrderBaseId] = useState<string | undefined>(undefined)
   const [isGenerating, setIsGenerating] = useState(false)
   const [statusMsg, setStatusMsg] = useState('')
   const [me, setMe] = useState<MeLite | null>(null)
@@ -45,6 +46,13 @@ export default function GeneratePage() {
   useEffect(() => {
     refreshMe()
   }, [refreshMe])
+
+  useEffect(() => {
+    // 프리렌더/빌드 단계에서는 `useSearchParams` 대신 window.search로 읽습니다.
+    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+    const id = params.get('taskOrderBaseId') || undefined
+    setTaskOrderBaseId(id)
+  }, [])
 
   useEffect(() => {
     apiFetch<CompanySettings>('/api/settings')
@@ -149,6 +157,7 @@ export default function GeneratePage() {
           onLoadingChange={setIsGenerating}
           onStatusChange={setStatusMsg}
           taskOrderRefsCount={taskOrderRefsCount}
+          taskOrderBaseId={taskOrderBaseId}
         />
       </div>
 
@@ -193,7 +202,7 @@ export default function GeneratePage() {
               <p className="text-base font-medium text-gray-700">플래닉이 새 견적서·기획안을 만드는 중입니다</p>
               <p className="text-xs text-gray-500">{statusMsg || '행사 기본 정보 분석 중...'}</p>
               <p className="text-[11px] text-gray-400">
-                참고 자료(과업지시서·시나리오·견적서)를 함께 분석해서 견적 항목·기획안·타임테이블을 구성하고 있습니다.
+                참고 자료(과업지시서·견적서)를 함께 분석해서 견적 항목·타임테이블을 구성하고 있습니다.
               </p>
               <p className="text-[11px] text-gray-400">잠시만 기다리시면 이 자리에 최신 결과가 표시됩니다.</p>
             </div>

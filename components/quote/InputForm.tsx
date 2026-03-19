@@ -112,6 +112,8 @@ export type GenerateRequestBody = {
   requirements: string
   /** 생성 모드: 과업지시서 기반(빠른 생성) */
   generationMode?: 'normal' | 'taskOrderBase'
+  /** 과업지시서 업로드 중 어떤 문서를 기준으로 할지 */
+  taskOrderBaseId?: string
 }
 
 interface Props {
@@ -119,9 +121,16 @@ interface Props {
   onLoadingChange?: (loading: boolean) => void
   onStatusChange?: (msg: string) => void
   taskOrderRefsCount?: number
+  taskOrderBaseId?: string
 }
 
-export default function InputForm({ onGenerated, onLoadingChange, onStatusChange, taskOrderRefsCount = 0 }: Props) {
+export default function InputForm({
+  onGenerated,
+  onLoadingChange,
+  onStatusChange,
+  taskOrderRefsCount = 0,
+  taskOrderBaseId,
+}: Props) {
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
   const [statusMsg, setStatusMsg] = useState('')
@@ -143,6 +152,11 @@ export default function InputForm({ onGenerated, onLoadingChange, onStatusChange
   const [budgetCustom,   setBudgetCustom]  = useState('')
   const [requirements,  setRequirements]  = useState('')
   const [generationMode, setGenerationMode] = useState<'normal' | 'taskOrderBase'>('normal')
+
+  useEffect(() => {
+    // generate?taskOrderBaseId=... 로 진입하면 빠른 생성 모드로 자동 전환
+    if (taskOrderBaseId && taskOrderBaseId.trim()) setGenerationMode('taskOrderBase')
+  }, [taskOrderBaseId])
 
   // 시작·종료 시간이 모두 있으면 행사 시간(시간/분) 자동 반영
   useEffect(() => {
@@ -209,6 +223,7 @@ export default function InputForm({ onGenerated, onLoadingChange, onStatusChange
       budget: budgetLabel,
       requirements,
       generationMode: generationMode === 'taskOrderBase' ? 'taskOrderBase' : undefined,
+      taskOrderBaseId: generationMode === 'taskOrderBase' ? (taskOrderBaseId || undefined) : undefined,
     }
     try {
       const data = await apiFetch<{ doc: QuoteDoc; totals: Record<string, number> }>('/api/generate', {

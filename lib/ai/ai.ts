@@ -242,3 +242,23 @@ export async function summarizeTaskOrderRef(rawText: string, filename: string): 
   )}`
   return callLLM(prompt, { maxTokens: 1000 })
 }
+
+export async function organizeTaskOrderRef(rawText: string, filename: string, summary: string): Promise<string> {
+  const prompt = `아래 과업지시서/기획 관련 문서를 바탕으로, 견적서에 반영하기 쉽게 "정리본"을 작성하세요.
+
+형식(반드시 그대로):
+1. 과업 범위
+2. 일정 / 마일스톤
+3. 산출물
+4. 필수 요구사항
+5. 기타 / 주의사항
+
+각 섹션은 한국어로 2~6문장만 작성하세요. 전체는 읽기 쉬운 문단 위주로 작성하고, 표는 되도록 피하세요.
+파일명: ${filename}
+요약(참고): ${summary}
+
+원문(일부):
+${rawText.slice(0, 6000)}`
+
+  return callLLM(prompt, { maxTokens: 1700 })
+}

@@ -5,6 +5,8 @@ export type { QuoteDoc, PriceCategory, CompanySettings, ReferenceDoc, TaskOrderD
 export interface GenerateInput {
   /** 생성 모드: 일반 생성 vs 과업지시서 기반 기본 견적서(빠른 생성) */
   generationMode?: 'normal' | 'taskOrderBase'
+  /** 과업지시서 기반 모드일 때 적용할 특정 업로드 ID */
+  taskOrderBaseId?: string
   eventName: string
   clientName: string
   clientManager: string

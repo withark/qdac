@@ -41,6 +41,7 @@ const GenerateRequestSchema = z.object({
   budget: z.string().optional().default(''),
   requirements: z.string().optional().default(''),
   generationMode: z.enum(['normal', 'taskOrderBase']).optional().default('normal'),
+  taskOrderBaseId: z.string().optional().default(''),
 })
 
 export async function POST(req: NextRequest) {
@@ -82,6 +83,7 @@ export async function POST(req: NextRequest) {
     assertQuoteGenerateAllowed(plan, usage.quoteGeneratedCount)
 
     const generationMode = body.generationMode
+    const taskOrderBaseId = (body.taskOrderBaseId || '').trim() || undefined
     const [prices, settings, references, taskOrderRefs, engineOverlay] =
       await Promise.all([
         getUserPrices(userId),
@@ -95,6 +97,15 @@ export async function POST(req: NextRequest) {
           ? kvGet<EngineConfigOverlay | null>('engine_config', null).catch(() => null as EngineConfigOverlay | null)
           : Promise.resolve(null as EngineConfigOverlay | null),
       ])
+
+    const filteredTaskOrderRefs =
+      generationMode === 'taskOrderBase' && taskOrderBaseId
+        ? taskOrderRefs.filter(r => r.id === taskOrderBaseId)
+        : taskOrderRefs
+
+    if (generationMode === 'taskOrderBase' && taskOrderBaseId && filteredTaskOrderRefs.length === 0) {
+      return errorResponse(400, 'INVALID_TASK_ORDER_BASE', '지정된 과업지시서 문서를 찾을 수 없습니다.')
+    }
 
     const appliedSampleId = ''
     const appliedSampleFilename = ''
@@ -131,7 +142,7 @@ export async function POST(req: NextRequest) {
       prices,
       settings,
       references,
-      taskOrderRefs,
+      taskOrderRefs: filteredTaskOrderRefs,
       engineQuality,
     }
 

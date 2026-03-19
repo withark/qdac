@@ -16,11 +16,15 @@ export default function ReferencesPage() {
   const [cuesheetUploading, setCuesheetUploading] = useState(false)
   const [scenarioUploading, setScenarioUploading] = useState(false)
   const [taskOrderUploading, setTaskOrderUploading] = useState(false)
+  const [organizeTargetId, setOrganizeTargetId] = useState<string | null>(null)
+  const [organizeLoading, setOrganizeLoading] = useState(false)
+  const [organizeText, setOrganizeText] = useState('')
   const [toast, setToast] = useState<{msg:string;type:'ok'|'err'}|null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const cuesheetFileRef = useRef<HTMLInputElement>(null)
   const scenarioFileRef = useRef<HTMLInputElement>(null)
   const taskOrderFileRef = useRef<HTMLInputElement>(null)
+  const organizePreviewRef = useRef<HTMLDivElement>(null)
 
   function showToast(msg:string,type:'ok'|'err'='ok'){setToast({msg,type});setTimeout(()=>setToast(null),2500)}
 
@@ -174,6 +178,77 @@ export default function ReferencesPage() {
     }
   }
 
+  async function organizeTaskOrder(id: string) {
+    setOrganizeTargetId(id)
+    setOrganizeLoading(true)
+    setOrganizeText('')
+    try {
+      const d = await apiFetch<{ organizedText: string }>('/api/task-order-references/organize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      setOrganizeText(d.organizedText || '')
+    } catch (e) {
+      showToast(toUserMessage(e, '내용 정리 실패'), 'err')
+      setOrganizeTargetId(null)
+    } finally {
+      setOrganizeLoading(false)
+    }
+  }
+
+  function closeOrganizeModal() {
+    setOrganizeTargetId(null)
+    setOrganizeLoading(false)
+    setOrganizeText('')
+  }
+
+  function downloadOrganizeTxt() {
+    if (!organizeTargetId) return
+    const target = taskOrderRefs.find(r => r.id === organizeTargetId)
+    const base = (target?.filename || 'task-order').replace(/\.[^.]+$/, '')
+    const blob = new Blob([organizeText || ''], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${base}_내용정리.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  async function downloadOrganizePdf() {
+    if (!organizeTargetId) return
+    const previewEl = organizePreviewRef.current
+    if (!previewEl) return
+    const target = taskOrderRefs.find(r => r.id === organizeTargetId)
+    const base = (target?.filename || 'task-order').replace(/\.[^.]+$/, '')
+
+    const [html2canvas, { jsPDF }] = await Promise.all([import('html2canvas').then(m => m.default), import('jspdf')])
+    const canvas = await html2canvas(previewEl, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+    })
+
+    const imgData = canvas.toDataURL('image/png')
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const pageW = pdf.internal.pageSize.getWidth()
+    const pageH = pdf.internal.pageSize.getHeight()
+    const imgH = (canvas.height * pageW) / canvas.width
+
+    let yPos = 0
+    while (yPos < imgH) {
+      if (yPos > 0) pdf.addPage()
+      pdf.addImage(imgData, 'PNG', 0, -yPos, pageW, imgH)
+      yPos += pageH
+    }
+
+    pdf.save(`과업지시서_${base}_내용정리.pdf`)
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50/50">
       <GNB />
@@ -256,8 +331,7 @@ export default function ReferencesPage() {
               <div className="mb-3">
                 <h2 className="text-base font-semibold text-gray-900">기획안·과업지시서</h2>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  과업지시서 / 기획안 / 제안요청서 파일을 올리면, AI가 견적서 금액·항목과 제안 프로그램(기획안)을 만들 때
-                  필수 조건으로 반영합니다.
+                  과업지시서 / 기획안 파일을 업로드한 뒤, 요약(자동) → 내용 정리 → 과업지시서 기반 견적서 작성을 순서대로 진행하세요.
                 </p>
               </div>
               <input
@@ -301,10 +375,31 @@ export default function ReferencesPage() {
                           {new Date(r.uploadedAt).toLocaleString('ko-KR')}
                         </span>
                         <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
-                          <p className="text-[11px] font-semibold text-slate-500">AI 요약</p>
+                          <p className="text-[11px] font-semibold text-slate-500">1) 요약하기</p>
                           <p className="mt-1 text-xs text-slate-700 whitespace-pre-wrap break-words">
                             {r.summary?.trim() || '요약 결과가 아직 없습니다.'}
                           </p>
+                        </div>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <Btn size="sm" variant="ghost" disabled>
+                            요약 완료
+                          </Btn>
+                          <Btn
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => organizeTaskOrder(r.id)}
+                            disabled={organizeLoading && organizeTargetId === r.id}
+                          >
+                            2) 내용 정리
+                          </Btn>
+                          <Btn
+                            size="sm"
+                            variant="primary"
+                            onClick={() => (window.location.href = `/generate?taskOrderBaseId=${r.id}`)}
+                            disabled={organizeLoading && organizeTargetId === r.id}
+                          >
+                            3) 견적서 작성
+                          </Btn>
                         </div>
                       </div>
                       <Btn size="sm" variant="danger" onClick={() => deleteTaskOrder(r.id)}>
@@ -427,6 +522,44 @@ export default function ReferencesPage() {
           </div>
         </div>
       </div>
+      {organizeTargetId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => closeOrganizeModal()}
+            aria-hidden
+          />
+          <div className="relative w-full max-w-3xl bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
+            <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-gray-100">
+              <div>
+                <div className="text-sm font-semibold text-gray-900">내용 정리 결과</div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  {organizeLoading ? '정리 중...' : '필요하면 아래에서 내려받을 수 있어요.'}
+                </div>
+              </div>
+              <Btn size="sm" variant="ghost" onClick={() => closeOrganizeModal()} disabled={organizeLoading}>
+                닫기
+              </Btn>
+            </div>
+            <div className="px-5 py-4">
+              <div
+                ref={organizePreviewRef}
+                className="whitespace-pre-wrap break-words border border-gray-100 rounded-xl bg-gray-50 px-4 py-3 text-xs text-gray-800 max-h-[50vh] overflow-auto"
+              >
+                {organizeLoading ? 'AI가 문서를 섹션별로 정리하고 있습니다...' : organizeText || '정리 결과가 없습니다.'}
+              </div>
+              <div className="mt-4 flex items-center justify-end gap-2">
+                <Btn variant="secondary" size="sm" onClick={() => downloadOrganizeTxt()} disabled={!organizeText || organizeLoading}>
+                  텍스트 다운로드
+                </Btn>
+                <Btn variant="primary" size="sm" onClick={() => downloadOrganizePdf()} disabled={!organizeText || organizeLoading}>
+                  PDF 다운로드
+                </Btn>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   )
