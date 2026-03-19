@@ -43,4 +43,7 @@ export interface GenerateInput {
     sampleWeightNote?: string
     qualityBoost?: string
   }
+
+  /** 큐시트 생성 시 참고할(업로드) 샘플 텍스트 컨텍스트 */
+  cuesheetSampleContext?: string
 }

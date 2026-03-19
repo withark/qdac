@@ -6,6 +6,8 @@ import { ensureFreeSubscription } from '@/lib/db/subscriptions-db'
 import { getGeneratedDocById } from '@/lib/db/generated-docs-db'
 import { z } from 'zod'
 
+export const dynamic = 'force-dynamic'
+
 const ParamsSchema = z.object({
   id: z.string().min(1),
 })

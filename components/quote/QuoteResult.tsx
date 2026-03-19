@@ -54,6 +54,8 @@ interface Props {
   disableAutoGenerate?: boolean
   /** 현재 문서 흐름 UX에 맞지 않는 "on demand 생성 버튼"을 숨김 */
   hideOnDemandGenerate?: boolean
+  /** 큐시트(operational rows) 편집/표시를 켤지 여부 */
+  showCueSheetEditor?: boolean
 }
 
 function isProgramProposalReady(doc: QuoteDoc) {
@@ -90,6 +92,7 @@ export function QuoteResult({
   showTabButtons = true,
   disableAutoGenerate = false,
   hideOnDemandGenerate = false,
+  showCueSheetEditor = false,
 }: Props) {
   const initial = visibleTabs.includes(initialTab) ? initialTab : 'estimate'
   const [tab, setTab] = useState<DocTab>(initial)
@@ -546,121 +549,122 @@ export function QuoteResult({
               </>
             )}
 
-            {/* 큐시트(운영표) — 프로그램 내부의 cueRows/cueSummary를 화면에 표시 */}
-            <div className="bg-gray-50 rounded-xl p-3">
-              <div className="text-[10px] text-gray-500 font-semibold mb-2">큐시트 요약</div>
-              <textarea
-                value={d.program.cueSummary || ''}
-                rows={2}
-                onChange={e => patchDoc(base => { base.program.cueSummary = e.target.value; return base })}
-                className="w-full bg-white border border-gray-200 rounded-lg p-2 text-xs resize-none"
-                placeholder="큐시트가 생성되면 자동으로 채워집니다."
-              />
+            {showCueSheetEditor && (
+              <div className="bg-gray-50 rounded-xl p-3">
+                <div className="text-[10px] text-gray-500 font-semibold mb-2">큐시트 요약</div>
+                <textarea
+                  value={d.program.cueSummary || ''}
+                  rows={2}
+                  onChange={e => patchDoc(base => { base.program.cueSummary = e.target.value; return base })}
+                  className="w-full bg-white border border-gray-200 rounded-lg p-2 text-xs resize-none"
+                  placeholder="큐시트가 생성되면 자동으로 채워집니다."
+                />
 
-              <div className="mt-3">
-                <div className="text-[10px] text-gray-500 font-semibold mb-2">큐시트 행</div>
-                {Array.isArray(d.program.cueRows) && d.program.cueRows.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs border-collapse border border-gray-200">
-                      <thead>
-                        <tr className="bg-gray-100">
-                          {['시간', '순서', '내용', '담당', '준비', '스크립트', '특이사항', ''].map(h => (
-                            <th key={h} className="border border-gray-200 px-2 py-2 text-left">{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {d.program.cueRows.map((row, i) => (
-                          <tr key={`cr-${i}-${row.content}`} className="border-b border-gray-100">
-                            <td className="border border-gray-100 p-1">
-                              <input
-                                value={row.time}
-                                onChange={e => patchDoc(base => { base.program.cueRows[i].time = e.target.value; return base })}
-                                className="w-20 font-mono tabular-nums bg-amber-50/50 rounded px-1"
-                                placeholder="19:00"
-                              />
-                            </td>
-                            <td className="border border-gray-100 p-1">
-                              <span className="inline-block w-10 text-center text-gray-500">{row.order || String(i + 1)}</span>
-                            </td>
-                            <td className="border border-gray-100 p-1 min-w-[180px]">
-                              <input
-                                value={row.content}
-                                onChange={e => patchDoc(base => { base.program.cueRows[i].content = e.target.value; return base })}
-                                className="w-full bg-white border border-gray-200 rounded px-1"
-                              />
-                            </td>
-                            <td className="border border-gray-100 p-1 min-w-[120px]">
-                              <input
-                                value={row.staff}
-                                onChange={e => patchDoc(base => { base.program.cueRows[i].staff = e.target.value; return base })}
-                                className="w-full bg-white border border-gray-200 rounded px-1"
-                              />
-                            </td>
-                            <td className="border border-gray-100 p-1 min-w-[120px]">
-                              <input
-                                value={row.prep}
-                                onChange={e => patchDoc(base => { base.program.cueRows[i].prep = e.target.value; return base })}
-                                className="w-full bg-white border border-gray-200 rounded px-1"
-                              />
-                            </td>
-                            <td className="border border-gray-100 p-1 min-w-[180px]">
-                              <input
-                                value={row.script}
-                                onChange={e => patchDoc(base => { base.program.cueRows[i].script = e.target.value; return base })}
-                                className="w-full bg-white border border-gray-200 rounded px-1"
-                              />
-                            </td>
-                            <td className="border border-gray-100 p-1 min-w-[160px]">
-                              <input
-                                value={row.special}
-                                onChange={e => patchDoc(base => { base.program.cueRows[i].special = e.target.value; return base })}
-                                className="w-full bg-white border border-gray-200 rounded px-1"
-                              />
-                            </td>
-                            <td className="border border-gray-100 p-1 w-7">
-                              <button
-                                type="button"
-                                className="text-red-400"
-                                onClick={() => patchDoc(base => { base.program.cueRows.splice(i, 1); return base })}
-                              >
-                                ✕
-                              </button>
-                            </td>
+                <div className="mt-3">
+                  <div className="text-[10px] text-gray-500 font-semibold mb-2">큐시트 행</div>
+                  {Array.isArray(d.program.cueRows) && d.program.cueRows.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs border-collapse border border-gray-200">
+                        <thead>
+                          <tr className="bg-gray-100">
+                            {['시간', '순서', '내용', '담당', '준비', '스크립트', '특이사항', ''].map(h => (
+                              <th key={h} className="border border-gray-200 px-2 py-2 text-left">{h}</th>
+                            ))}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="bg-white border border-dashed border-gray-200 rounded-xl p-4 text-sm text-gray-600">
-                    아직 큐시트가 생성되지 않았습니다.
-                  </div>
-                )}
+                        </thead>
+                        <tbody>
+                          {d.program.cueRows.map((row, i) => (
+                            <tr key={`cr-${i}-${row.content}`} className="border-b border-gray-100">
+                              <td className="border border-gray-100 p-1">
+                                <input
+                                  value={row.time}
+                                  onChange={e => patchDoc(base => { base.program.cueRows[i].time = e.target.value; return base })}
+                                  className="w-20 font-mono tabular-nums bg-amber-50/50 rounded px-1"
+                                  placeholder="19:00"
+                                />
+                              </td>
+                              <td className="border border-gray-100 p-1">
+                                <span className="inline-block w-10 text-center text-gray-500">{row.order || String(i + 1)}</span>
+                              </td>
+                              <td className="border border-gray-100 p-1 min-w-[180px]">
+                                <input
+                                  value={row.content}
+                                  onChange={e => patchDoc(base => { base.program.cueRows[i].content = e.target.value; return base })}
+                                  className="w-full bg-white border border-gray-200 rounded px-1"
+                                />
+                              </td>
+                              <td className="border border-gray-100 p-1 min-w-[120px]">
+                                <input
+                                  value={row.staff}
+                                  onChange={e => patchDoc(base => { base.program.cueRows[i].staff = e.target.value; return base })}
+                                  className="w-full bg-white border border-gray-200 rounded px-1"
+                                />
+                              </td>
+                              <td className="border border-gray-100 p-1 min-w-[120px]">
+                                <input
+                                  value={row.prep}
+                                  onChange={e => patchDoc(base => { base.program.cueRows[i].prep = e.target.value; return base })}
+                                  className="w-full bg-white border border-gray-200 rounded px-1"
+                                />
+                              </td>
+                              <td className="border border-gray-100 p-1 min-w-[180px]">
+                                <input
+                                  value={row.script}
+                                  onChange={e => patchDoc(base => { base.program.cueRows[i].script = e.target.value; return base })}
+                                  className="w-full bg-white border border-gray-200 rounded px-1"
+                                />
+                              </td>
+                              <td className="border border-gray-100 p-1 min-w-[160px]">
+                                <input
+                                  value={row.special}
+                                  onChange={e => patchDoc(base => { base.program.cueRows[i].special = e.target.value; return base })}
+                                  className="w-full bg-white border border-gray-200 rounded px-1"
+                                />
+                              </td>
+                              <td className="border border-gray-100 p-1 w-7">
+                                <button
+                                  type="button"
+                                  className="text-red-400"
+                                  onClick={() => patchDoc(base => { base.program.cueRows.splice(i, 1); return base })}
+                                >
+                                  ✕
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="bg-white border border-dashed border-gray-200 rounded-xl p-4 text-sm text-gray-600">
+                      아직 큐시트가 생성되지 않았습니다.
+                    </div>
+                  )}
 
-                <div className="flex justify-end mt-3">
-                  <Button
-                    size="sm"
-                    onClick={() =>
-                      patchDoc(base => {
-                        base.program.cueRows.push({
-                          time: '',
-                          order: String(base.program.cueRows.length + 1),
-                          content: '',
-                          staff: '',
-                          prep: '',
-                          script: '',
-                          special: '',
+                  <div className="flex justify-end mt-3">
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        patchDoc(base => {
+                          base.program.cueRows.push({
+                            time: '',
+                            order: String(base.program.cueRows.length + 1),
+                            content: '',
+                            staff: '',
+                            prep: '',
+                            script: '',
+                            special: '',
+                          })
+                          return base
                         })
-                        return base
-                      })
-                    }
-                  >
-                    + 큐시트 행 추가
-                  </Button>
+                      }
+                    >
+                      + 큐시트 행 추가
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         )}
 

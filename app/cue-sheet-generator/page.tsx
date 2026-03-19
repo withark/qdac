@@ -4,12 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
 import { Button, Toast } from '@/components/ui'
-import type { CompanySettings, PriceCategory, QuoteDoc, TaskOrderDoc } from '@/lib/types'
+import type { CompanySettings, CuesheetSample, PriceCategory, QuoteDoc, TaskOrderDoc } from '@/lib/types'
 import type { PlanType } from '@/lib/plans'
 import { apiFetch } from '@/lib/api/client'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
 import { exportToExcel } from '@/lib/exportExcel'
 import { exportToPdf } from '@/lib/exportPdf'
+import { MAX_UPLOAD_BYTES, formatUploadLimitText } from '@/lib/upload-limits'
 
 type MeLite = {
   subscription: { planType: PlanType }
@@ -74,6 +75,9 @@ export default function CueSheetGeneratorPage() {
   const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null)
   const [selectedTimetableId, setSelectedTimetableId] = useState<string | null>(null)
 
+  const [cuesheetSamples, setCuesheetSamples] = useState<CuesheetSample[]>([])
+  const [selectedCuesheetSampleId, setSelectedCuesheetSampleId] = useState<string | null>(null)
+
   const [scenarioDoc, setScenarioDoc] = useState<QuoteDoc | null>(null)
   const [programDoc, setProgramDoc] = useState<QuoteDoc | null>(null)
   const [timetableDoc, setTimetableDoc] = useState<QuoteDoc | null>(null)
@@ -95,6 +99,10 @@ export default function CueSheetGeneratorPage() {
     apiFetch<GeneratedDocListRow[]>('/api/generated-docs?docType=timetable&limit=20')
       .then(setTimetableList)
       .catch(() => setTimetableList([]))
+
+    apiFetch<CuesheetSample[]>('/api/cuesheet-samples')
+      .then(setCuesheetSamples)
+      .catch(() => setCuesheetSamples([]))
   }, [])
 
   useEffect(() => {
@@ -186,6 +194,7 @@ export default function CueSheetGeneratorPage() {
           ...baseBody,
           documentTarget: 'cuesheet',
           existingDoc: doc,
+          cuesheetSampleIds: selectedCuesheetSampleId ? [selectedCuesheetSampleId] : [],
         }),
       })
       setDoc(data.doc)
@@ -195,7 +204,25 @@ export default function CueSheetGeneratorPage() {
     } finally {
       setGenerating(false)
     }
-  }, [canGenerateCueSheet, doc, extraRequirements, requestBaseFromDoc, showToast])
+  }, [canGenerateCueSheet, doc, extraRequirements, requestBaseFromDoc, selectedCuesheetSampleId, showToast])
+
+  async function handleUploadCueSheetSample(file: File) {
+    if (file.size > MAX_UPLOAD_BYTES) {
+      showToast(`파일이 너무 큽니다. ${formatUploadLimitText()} 이하로 업로드해 주세요.`)
+      return
+    }
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      showToast('큐시트 샘플 업로드 중...')
+      await apiFetch<unknown>('/api/cuesheet-samples', { method: 'POST', body: fd as any })
+      const list = await apiFetch<CuesheetSample[]>('/api/cuesheet-samples')
+      setCuesheetSamples(list)
+      showToast('샘플 업로드 완료!')
+    } catch (e) {
+      showToast(toUserMessage(e, '샘플 업로드에 실패했습니다.'))
+    }
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50/50">
@@ -293,6 +320,41 @@ export default function CueSheetGeneratorPage() {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <div>
+                  <div className="text-xs text-gray-500 font-semibold mb-2">큐시트 샘플(선택)</div>
+                  <div className="text-[11px] text-gray-500">업로드한 운영표 양식을 참고해 cueRows/script/special/prep 작성 방식을 맞춥니다.</div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <select
+                      value={selectedCuesheetSampleId || ''}
+                      onChange={(e) => setSelectedCuesheetSampleId(e.target.value || null)}
+                      className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-100"
+                    >
+                      <option value="">미선택</option>
+                      {cuesheetSamples.slice(0, 20).map(s => (
+                        <option key={s.id} value={s.id}>{s.filename}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <input
+                      type="file"
+                      accept=".pdf,.xlsx,.xls,.txt,.csv,.md,.ppt,.pptx,.doc,.docx,.png,.jpg,.jpeg,.gif,.webp"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0]
+                        if (f) void handleUploadCueSheetSample(f)
+                        e.target.value = ''
+                      }}
+                    />
+                    <div className="text-[11px] text-gray-500">파일 크기 {formatUploadLimitText()} 이하</div>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="text-xs text-gray-500 font-semibold mb-2 block">추가 요청/제약(선택)</label>
                 <textarea
@@ -330,6 +392,7 @@ export default function CueSheetGeneratorPage() {
                   showTabButtons={false}
                   disableAutoGenerate
                   hideOnDemandGenerate
+                  showCueSheetEditor
                   onExcel={(view) => {
                     exportToExcel(doc, companySettings ?? undefined, view)
                     showToast('Excel 다운로드 완료!')

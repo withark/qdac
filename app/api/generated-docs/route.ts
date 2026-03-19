@@ -6,6 +6,8 @@ import { ensureFreeSubscription } from '@/lib/db/subscriptions-db'
 import { listGeneratedDocsByType } from '@/lib/db/generated-docs-db'
 import { z } from 'zod'
 
+export const dynamic = 'force-dynamic'
+
 const QuerySchema = z.object({
   docType: z.enum(['estimate', 'program', 'timetable', 'planning', 'scenario', 'cuesheet']),
   limit: z.string().optional(),

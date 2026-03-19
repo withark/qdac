@@ -23,6 +23,8 @@ import type { EngineConfigOverlay } from '@/lib/admin-types'
 import { normalizeQuoteDoc } from '@/lib/ai/parsers'
 import type { QuoteDoc } from '@/lib/types'
 import { listScenarioRefs } from '@/lib/db/scenario-refs-db'
+import { getCuesheetFile } from '@/lib/db/cuesheet-samples-db'
+import { extractTextFromBuffer } from '@/lib/file-utils'
 import { hasDatabase } from '@/lib/db/client'
 import { getEffectiveEngineConfig } from '@/lib/ai/client'
 
@@ -52,6 +54,8 @@ const GenerateRequestSchema = z.object({
   existingDoc: z.any().optional(),
   /** scenario 생성 시 참고할 시나리오 샘플 ID */
   scenarioRefIds: z.array(z.string()).optional().default([]),
+  /** cuesheet 생성 시 참고할(업로드) cue-sheet 샘플 ID */
+  cuesheetSampleIds: z.array(z.string()).optional().default([]),
 })
 
 export async function POST(req: NextRequest) {
@@ -77,6 +81,7 @@ export async function POST(req: NextRequest) {
     }
     const body = parsed.data
     const scenarioRefIds = (body.scenarioRefIds || []).filter(Boolean)
+    const cuesheetSampleIds = (body.cuesheetSampleIds || []).filter(Boolean)
 
     const env = getEnv()
     const isMockAi = (process.env.AI_MODE || '').trim().toLowerCase() === 'mock'
@@ -100,7 +105,15 @@ export async function POST(req: NextRequest) {
     const styleMode = body.styleMode
     const existingDoc = body.existingDoc as QuoteDoc | undefined
     const taskOrderBaseId = (body.taskOrderBaseId || '').trim() || undefined
-    const [prices, settings, references, taskOrderRefs, scenarioRefs, engineOverlay] =
+    const [
+      prices,
+      settings,
+      references,
+      taskOrderRefs,
+      scenarioRefs,
+      cuesheetSampleContext,
+      engineOverlay,
+    ] =
       await Promise.all([
         getUserPrices(userId),
         (async () => {
@@ -112,6 +125,19 @@ export async function POST(req: NextRequest) {
         documentTarget === 'scenario' && scenarioRefIds.length
           ? listScenarioRefs(userId).then(list => list.filter(r => scenarioRefIds.includes(r.id)))
           : Promise.resolve([]),
+        documentTarget === 'cuesheet' && cuesheetSampleIds.length
+          ? Promise.all(
+              cuesheetSampleIds.map(async (sampleId) => {
+                const file = await getCuesheetFile(sampleId)
+                if (!file) return ''
+                const fullText = await extractTextFromBuffer(file.content, file.ext, file.filename)
+                const safe = (fullText || '').trim()
+                if (!safe) return ''
+                // LLM 컨텍스트 과다 방지용 상한
+                return `[샘플 ${file.filename}]\n${safe.slice(0, 7000)}`
+              }),
+            ).then(parts => parts.filter(Boolean).join('\n\n'))
+          : Promise.resolve(''),
         hasDatabase()
           ? kvGet<EngineConfigOverlay | null>('engine_config', null).catch(() => null as EngineConfigOverlay | null)
           : Promise.resolve(null as EngineConfigOverlay | null),
@@ -162,6 +188,7 @@ export async function POST(req: NextRequest) {
 
     const bodyWithoutScenarioRefIds = { ...body } as any
     delete bodyWithoutScenarioRefIds.scenarioRefIds
+    delete bodyWithoutScenarioRefIds.cuesheetSampleIds
 
     const input: GenerateInput = {
       ...bodyWithoutScenarioRefIds,
@@ -170,6 +197,7 @@ export async function POST(req: NextRequest) {
       references,
       taskOrderRefs: filteredTaskOrderRefs,
       scenarioRefs,
+      cuesheetSampleContext,
       engineQuality,
       documentTarget,
       styleMode,

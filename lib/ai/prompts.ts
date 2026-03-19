@@ -90,6 +90,10 @@ export function buildGeneratePrompt(input: GenerateInput): string {
   const priceCtx = buildPriceContext(input.prices)
   const refCtx = input.styleMode === 'userStyle' ? buildReferenceContext(input.references) : ''
   const scenarioRefCtx = input.documentTarget === 'scenario' ? buildScenarioRefContext(input.scenarioRefs) : ''
+  const cuesheetSampleCtx =
+    input.documentTarget === 'cuesheet' && input.cuesheetSampleContext
+      ? `\n[큐시트 샘플 참고 컨텍스트]\n${input.cuesheetSampleContext}`
+      : ''
   const taskOrderCtx = input.taskOrderRefs?.length ? buildTaskOrderContext(input.taskOrderRefs) : ''
   const { expenseRate, profitRate, validDays, paymentTerms } = input.settings
 
@@ -106,7 +110,7 @@ export function buildGeneratePrompt(input: GenerateInput): string {
       ? `\n[스타일 모드] AI 추천 템플릿 모드: 사용자 참고 견적서 스타일을 참조하지 말고 Planic 표준 스타일(명확한 섹션/문장 톤/실무형)을 따르세요.`
       : `\n[스타일 모드] 사용자 학습 스타일 모드: 참고 견적서 학습 자료의 네이밍/카테고리 순서/문체를 그대로 따르세요.`
   // scenarioRefCtx는 scenario 생성 시에만 의미가 있습니다.
-  const styleRule = `${scenarioRefCtx}${styleRuleBase}`
+  const styleRule = `${scenarioRefCtx}${cuesheetSampleCtx}${styleRuleBase}`
 
   const existingDocJson = input.existingDoc ? JSON.stringify(input.existingDoc).slice(0, 12000) : null
 
