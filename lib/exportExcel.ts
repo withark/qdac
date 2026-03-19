@@ -94,13 +94,16 @@ function buildQuoteSheet(wb: XLSX.WorkBook, doc: QuoteDoc, company?: CompanySett
 
   // 합계
   ;[
-    [`소계`,T.sub],[`제경비(${doc.expenseRate}%)`,T.exp],
-    [`이윤(${doc.profitRate}%)`,T.prof],['부가세(10%)',T.vat],['절사 (공제)',-doc.cutAmount]
+    [`공급가 합계`,T.sub],
+    ['운영 원가 합계', T.sub + T.exp],
+    [`이윤 반영 금액(${doc.profitRate}%)`,T.prof],
+    ['부가세(10%)',T.vat],
+    ['절사 (공제)',-doc.cutAmount]
   ].forEach(([l,v]) => {
     s(4,r,l as string,{align:'right',bg:'F5F5F0'}); mg(4,r,4,r)
     s(5,r,v as number,{align:'right',numFmt:'#,##0'}); r++
   })
-  s(4,r,'합 계',{bold:true,align:'right',bg:'DDDDD8'}); mg(4,r,4,r)
+  s(4,r,'최종 합계',{bold:true,align:'right',bg:'DDDDD8'}); mg(4,r,4,r)
   s(5,r,T.grand,{bold:true,align:'right',numFmt:'#,##0',bg:'DDDDD8'}); r++; r++
 
   // 계약조건
@@ -145,7 +148,7 @@ function buildProgramSheet(wb: XLSX.WorkBook, doc: QuoteDoc) {
     ws['!merges'].push({ s: { c: c1, r: r1 }, e: { c: c2, r: r2 } })
   }
 
-  s(0, r, `${doc.eventName} — 제안 프로그램 · 타임테이블 · 큐시트 · 시나리오`, { bold: true, bg: 'F2F2EC' }); mg(0, r, maxC, r); r++
+  s(0, r, `${doc.eventName} — 제안 프로그램 · 타임테이블 · 시나리오`, { bold: true, bg: 'F2F2EC' }); mg(0, r, maxC, r); r++
   s(0, r, `종류: ${doc.eventType} / 시간: ${doc.eventDuration} / ${p.concept || ''}`, {}); mg(0, r, maxC, r); r++; r++
 
   s(0, r, '[제안 프로그램 구성표]', { bold: true, bg: 'E5E5DF' }); mg(0, r, maxC, r); r++
@@ -160,15 +163,6 @@ function buildProgramSheet(wb: XLSX.WorkBook, doc: QuoteDoc) {
   s(0, r, '[타임테이블]', { bold: true, bg: 'E5E5DF' }); mg(0, r, maxC, r); r++
   ;['시간', '내용', '세부', '담당'].forEach((h, i) => s(i, r, h, { bold: true, align: 'center', bg: 'D5D5CE' })); r++
   ;(p.timeline || []).forEach(t => { s(0, r, t.time || ''); s(1, r, t.content || ''); s(2, r, t.detail || ''); s(3, r, t.manager || ''); r++ })
-  r++
-
-  s(0, r, '[큐시트 운영표]', { bold: true, bg: 'E5E5DF' }); mg(0, r, maxC, r); r++
-  s(0, r, p.cueSummary || '', {}); mg(0, r, maxC, r); r++
-  ;['시간', '순서', '진행내용', '담당', '준비물', '멘트', '특이사항'].forEach((h, i) => s(i, r, h, { bold: true, align: 'center', bg: 'D5D5CE' })); r++
-  ;(p.cueRows || []).forEach(c => {
-    s(0, r, c.time || ''); s(1, r, c.order || ''); s(2, r, c.content || ''); s(3, r, c.staff || '')
-    s(4, r, c.prep || ''); s(5, r, c.script || ''); s(6, r, c.special || ''); r++
-  })
   r++
 
   s(0, r, '[투입 인력]', { bold: true, bg: 'E5E5DF' }); mg(0, r, 4, r); r++
@@ -192,5 +186,5 @@ function buildProgramSheet(wb: XLSX.WorkBook, doc: QuoteDoc) {
 
   ws['!cols'] = [{ wch: 12 }, { wch: 28 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 14 }, { wch: 20 }, { wch: 8 }]
   ws['!ref'] = XLSX.utils.encode_range({ s: { c: 0, r: 0 }, e: { c: maxC, r: r } })
-  XLSX.utils.book_append_sheet(wb, ws, '프로그램·큐시트')
+  XLSX.utils.book_append_sheet(wb, ws, '프로그램')
 }

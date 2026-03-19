@@ -85,7 +85,7 @@ function buildProgramHtml(doc: QuoteDoc): string {
     : ''
   return `
   <div style="margin-top:72px;padding-top:32px;padding-bottom:48px;border-top:2px solid #333;">
-    <div style="font-size:14px;font-weight:700;color:#111;margin-bottom:4px;">프로그램 제안서 · 큐시트</div>
+    <div style="font-size:14px;font-weight:700;color:#111;margin-bottom:4px;">프로그램 제안서</div>
     <div style="font-size:10px;color:#666;margin-bottom:12px;">(견적 금액 산정 근거 자료)</div>
     ${p.concept ? `<p style="font-size:11px;color:#555;margin-bottom:12px;">${p.concept}</p>` : ''}
     <table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:11px;">
@@ -191,16 +191,16 @@ function buildHtml(doc: QuoteDoc, company?: CompanySettings | null): string {
   <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
     <div style="min-width:200px;font-size:11px;${totalBox}">
       ${[
-        ['소계',fmtKRW(T.sub)+'원'],
-        [`제경비(${doc.expenseRate}%)`,fmtKRW(T.exp)+'원'],
-        [`이윤(${doc.profitRate}%)`,fmtKRW(T.prof)+'원'],
+        ['공급가 합계',fmtKRW(T.sub)+'원'],
+        ['운영 원가 합계',fmtKRW(T.sub + T.exp)+'원'],
+        [`이윤 반영 금액(${doc.profitRate}%)`,fmtKRW(T.prof)+'원'],
         ['부가세(10%)',fmtKRW(T.vat)+'원'],
         ['절사 (공제)',`-${fmtKRW(doc.cutAmount)}원`],
       ].map(([l,v])=>`
       <div style="display:flex;justify-content:space-between;padding:2px 4px;color:#666">${l}<span>${v}</span></div>
       `).join('')}
       <div style="display:flex;justify-content:space-between;padding:6px 4px;font-size:14px;font-weight:700;border-top:1.5px solid #333;margin-top:4px">
-        <span>합계 금액</span><span>${fmtKRW(T.grand)}원</span>
+        <span>최종 합계</span><span>${fmtKRW(T.grand)}원</span>
       </div>
     </div>
   </div>
