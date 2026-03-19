@@ -37,7 +37,8 @@ function buildRetrySuffix(target: GenerateInput['documentTarget']): string {
   if (t === 'cuesheet') {
     return `
 
-[재시도 지시] markdown·설명 없이 완전한 단일 JSON 객체만 출력하세요. program.cueSummary는 비어 있으면 안 됩니다. program.cueRows는 비어 있으면 안 됩니다.`
+[재시도 지시] markdown·설명 없이 완전한 단일 JSON 객체만 출력하세요. program.cueSummary는 비어 있으면 안 됩니다. program.cueRows는 비어 있으면 안 됩니다.
+program.cueRows의 각 row에서 time/content/staff/prep/script/special은 비어 있으면 안 됩니다.`
   }
   return `
 
