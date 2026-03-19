@@ -7,6 +7,7 @@ import { logError } from '@/lib/utils/logger'
 import { getUserIdFromSession } from '@/lib/auth-server'
 import { ensureFreeSubscription } from '@/lib/db/subscriptions-db'
 import { listScenarioRefs, insertScenarioRef, deleteScenarioRef } from '@/lib/db/scenario-refs-db'
+import { MAX_UPLOAD_BYTES, formatUploadLimitText } from '@/lib/upload-limits'
 
 export async function GET() {
   try {
@@ -30,6 +31,9 @@ export async function POST(req: NextRequest) {
     const file = formData.get('file') as File | null
     if (!file) {
       return errorResponse(400, 'INVALID_REQUEST', '파일이 없습니다.')
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return errorResponse(413, 'PAYLOAD_TOO_LARGE', `파일이 너무 큽니다. ${formatUploadLimitText()} 이하 파일만 업로드해 주세요.`)
     }
 
     const ext = (file.name.split('.').pop() || '').toLowerCase()

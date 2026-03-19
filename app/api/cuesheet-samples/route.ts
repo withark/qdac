@@ -4,6 +4,7 @@ import { logError } from '@/lib/utils/logger'
 import { getUserIdFromSession } from '@/lib/auth-server'
 import { ensureFreeSubscription } from '@/lib/db/subscriptions-db'
 import { insertCuesheetSampleWithFile, listCuesheetSamples, deleteCuesheetSample } from '@/lib/db/cuesheet-samples-db'
+import { MAX_UPLOAD_BYTES, formatUploadLimitText } from '@/lib/upload-limits'
 
 const ALLOWED_EXT = ['pdf', 'xlsx', 'xls', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'txt', 'csv', 'md', 'ppt', 'pptx', 'doc', 'docx']
 
@@ -29,6 +30,9 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData()
     const file = formData.get('file') as File | null
     if (!file) return errorResponse(400, 'INVALID_REQUEST', '파일이 없습니다.')
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return errorResponse(413, 'PAYLOAD_TOO_LARGE', `파일이 너무 큽니다. ${formatUploadLimitText()} 이하 파일만 업로드해 주세요.`)
+    }
 
     const filename = file.name || 'unnamed'
     const ext = getExt(filename)

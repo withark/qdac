@@ -10,6 +10,7 @@ import {
   insertCuesheetSampleWithFile,
   type DocumentTab,
 } from '@/lib/db/cuesheet-samples-db'
+import { MAX_UPLOAD_BYTES, formatUploadLimitText } from '@/lib/upload-limits'
 
 /** 관리자 등록 기준 양식용 user_id (엔진·품질용, 사용자 참고 자료와 구분) */
 const ADMIN_SAMPLE_USER_ID = 'system'
@@ -77,6 +78,9 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData()
     const file = formData.get('file') as File | null
     if (!file) return errorResponse(400, 'INVALID_REQUEST', '파일이 없습니다.')
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return errorResponse(413, 'PAYLOAD_TOO_LARGE', `파일이 너무 큽니다. ${formatUploadLimitText()} 이하 파일만 업로드해 주세요.`)
+    }
     const filename = file.name || 'unnamed'
     const ext = getExt(filename)
     const buffer = Buffer.from(await file.arrayBuffer())
