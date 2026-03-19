@@ -46,9 +46,20 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account }) {
       try {
         if (hasDatabase()) {
-          const id = (user as { id?: string })?.id
-          if (typeof id === 'string' && id.trim()) {
-            await upsertUser({ id, email: user.email, name: user.name, image: user.image })
+          const u = user as { id?: unknown; sub?: unknown }
+          const idFromUser = typeof u?.id === 'string' && u.id.trim() ? u.id : null
+          const idFromSub = typeof u?.sub === 'string' && u.sub.trim() ? u.sub : null
+          const idFromAccount =
+            typeof account?.providerAccountId === 'string' && account.providerAccountId.trim() ? account.providerAccountId : null
+
+          const id = idFromUser ?? idFromAccount ?? idFromSub
+          if (id) {
+            await upsertUser({
+              id,
+              email: user.email ?? null,
+              name: user.name ?? null,
+              image: user.image ?? null,
+            })
             await ensureFreeSubscription(id)
             const { recordUserLogin } = await import('@/lib/db/users-db')
             await recordUserLogin(id, account?.provider ?? 'oauth')

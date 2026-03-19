@@ -167,9 +167,9 @@ export default function QuoteView({ doc, onChange, companyName }: Props) {
             {/* 합계 */}
             <div className="border-t border-gray-100 pt-3 space-y-1">
               {[
-                ['소계', T2.sub],
-                [`제경비 (${doc.expenseRate}%)`, T2.exp],
-                [`이윤 (${doc.profitRate}%)`, T2.prof],
+                ['공급가 합계', T2.sub],
+                ['운영 원가 합계', T2.sub + T2.exp],
+                [`이윤 반영 금액 (${doc.profitRate}%)`, T2.prof],
                 ['부가세 (10%)', T2.vat],
                 ['절사 (공제)', -T2.cut],
               ].map(([label, val]) => (
@@ -179,7 +179,7 @@ export default function QuoteView({ doc, onChange, companyName }: Props) {
                 </div>
               ))}
               <div className="flex justify-between text-base font-semibold text-gray-900 border-t border-gray-200 pt-2 px-1 mt-1">
-                <span>합계 금액</span>
+                <span>최종 합계</span>
                 <span className="tabular-nums">{fmtKRW(T2.grand)}원</span>
               </div>
             </div>

@@ -8,7 +8,7 @@ const baseUrl = raw.startsWith('http://') || raw.startsWith('https://') ? raw : 
 export const metadata: Metadata = {
   ...(baseUrl ? { metadataBase: new URL(baseUrl) } : {}),
   title: '플래닉 Planic · 행사 문서 올인원',
-  description: '견적서, 제안 프로그램, 타임테이블, 큐시트를 한 번에. AI 기반 행사 문서 생성',
+  description: '견적서, 제안 프로그램, 타임테이블을 한 번에. AI 기반 행사 문서 생성',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

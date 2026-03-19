@@ -26,11 +26,33 @@ export function EvQuoteLogo({
         className="flex-shrink-0"
         aria-hidden
       >
-        {/* 문서 형태 + 체크/견적 느낌 */}
-        <rect x="4" y="2" width="24" height="30" rx="2" stroke="currentColor" strokeWidth="2" fill="none" className="text-primary-600" />
-        <path d="M10 10h12M10 16h8M10 22h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-primary-500" />
-        <circle cx="28" cy="28" r="10" fill="currentColor" className="text-primary-600" />
-        <path d="M24.5 28l3 3 5-5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        {/* Rounded app-mark: indigo gradient + simple P monogram */}
+        <defs>
+          <linearGradient id="planic_g" x1="6" y1="6" x2="34" y2="34" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#6366F1" />
+            <stop offset="1" stopColor="#4338CA" />
+          </linearGradient>
+          <linearGradient id="planic_sheen" x1="10" y1="8" x2="26" y2="28" gradientUnits="userSpaceOnUse">
+            <stop stopColor="white" stopOpacity="0.35" />
+            <stop offset="1" stopColor="white" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        <rect x="4.5" y="4.5" width="31" height="31" rx="9" fill="url(#planic_g)" />
+        <rect x="6.5" y="6.5" width="27" height="27" rx="8" fill="url(#planic_sheen)" />
+
+        {/* P stem */}
+        <path
+          d="M15 28V12.5C15 11.7 15.7 11 16.5 11H21.7C25.6 11 28 13.1 28 16.4C28 19.7 25.6 21.9 21.7 21.9H18.5V28C18.5 28.8 17.8 29.5 17 29.5C16.2 29.5 15 28.8 15 28Z"
+          fill="white"
+          fillOpacity="0.98"
+        />
+        {/* inner cut for bowl */}
+        <path
+          d="M18.5 14.2V19.1H21.4C23.6 19.1 24.8 17.9 24.8 16.6C24.8 15.3 23.6 14.2 21.4 14.2H18.5Z"
+          fill="#4338CA"
+          fillOpacity="0.55"
+        />
       </svg>
       {showText && (
         <span className={`font-bold tracking-tight text-gray-800 ${textSize}`}>

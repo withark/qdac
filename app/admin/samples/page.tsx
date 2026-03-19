@@ -85,6 +85,8 @@ export default function AdminSamplesPage() {
       } else {
         alert(data?.error?.message ?? '업로드에 실패했습니다.')
       }
+    } catch {
+      alert('네트워크 오류로 업로드에 실패했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
       setRefUploading(false)
     }

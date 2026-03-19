@@ -45,13 +45,14 @@ export async function incQuoteGenerated(userId: string, delta = 1, date = new Da
   await initDb()
   const sql = getDb()
   const periodKey = periodKeyFromDate(date)
-  await getOrCreateUsage(userId, date)
   const now = new Date().toISOString()
+  const id = uid()
   const rows = await sql`
-    UPDATE usage_quotas
-    SET quote_generated_count = quote_generated_count + ${delta},
-        updated_at = ${now}::timestamptz
-    WHERE user_id = ${userId} AND period_key = ${periodKey}
+    INSERT INTO usage_quotas (id, user_id, period_key, quote_generated_count, company_profile_count, updated_at)
+    VALUES (${id}, ${userId}, ${periodKey}, ${delta}, 0, ${now}::timestamptz)
+    ON CONFLICT (user_id, period_key) DO UPDATE SET
+      quote_generated_count = usage_quotas.quote_generated_count + ${delta},
+      updated_at = ${now}::timestamptz
     RETURNING *
   `
   return toRow(rows[0])

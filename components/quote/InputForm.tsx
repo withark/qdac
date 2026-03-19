@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Input, Select, Textarea, SectionLabel, Btn, Spinner } from '@/components/ui'
 import CalendarPicker, { formatKorDate } from '@/components/ui/CalendarPicker'
 import DurationInput, { durationToString, type DurationValue } from '@/components/ui/DurationInput'
@@ -119,6 +119,7 @@ interface Props {
 }
 
 export default function InputForm({ onGenerated, onLoadingChange, onStatusChange }: Props) {
+  const formRef = useRef<HTMLFormElement | null>(null)
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
   const [statusMsg, setStatusMsg] = useState('')
@@ -150,10 +151,9 @@ export default function InputForm({ onGenerated, onLoadingChange, onStatusChange
 
   const STEPS = [
     '행사 기본 정보 분석 중...',
-    '단가표·참고 자료 반영 중...',
     '견적 항목 구성 중...',
-    '제안 프로그램·타임테이블 작성 중...',
-    '마무리 검토 중...',
+    '기획안(프로그램·타임테이블) 작성 중...',
+    '마무리 정리 중...',
   ]
 
   async function handleSubmit(e: React.FormEvent) {
@@ -217,7 +217,8 @@ export default function InputForm({ onGenerated, onLoadingChange, onStatusChange
         window.location.href = buildAuthHref({ callbackUrl: '/generate', reason: 'login_required' })
         return
       }
-      setError(toUserMessage(e, '견적서 생성에 실패했습니다.'))
+      const msg = toUserMessage(e, '견적서 생성에 실패했습니다.')
+      setError(msg)
     } finally {
       clearInterval(interval)
       setLoading(false)
@@ -228,10 +229,10 @@ export default function InputForm({ onGenerated, onLoadingChange, onStatusChange
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 p-4 overflow-y-auto overflow-x-hidden h-full min-w-0">
+    <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-3 p-4 overflow-y-auto overflow-x-hidden h-full min-w-0">
       <SectionLabel>행사 기본 정보</SectionLabel>
       <p className="text-[11px] text-gray-500 mb-1">
-        입력한 정보와 참고 자료(과업지시서, 시나리오)를 바탕으로 AI가 견적서와 제안 프로그램 초안을 한 번에 만들어 줍니다.
+        입력한 정보를 바탕으로 AI가 견적서와 기획안(프로그램·타임테이블) 초안을 만들어 줍니다.
       </p>
 
       <Select label="행사 유형" value={eventType} onChange={e => setEventType(e.target.value)}>
@@ -363,7 +364,32 @@ export default function InputForm({ onGenerated, onLoadingChange, onStatusChange
       />
 
       {error && (
-        <p className="text-xs text-red-500 bg-red-50 px-2.5 py-2 rounded-lg">{error}</p>
+        <div className="rounded-xl border border-red-100 bg-red-50/70 px-3 py-2.5">
+          <div className="flex items-start gap-2">
+            <span className="mt-0.5 inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg bg-white text-red-600 border border-red-100" aria-hidden>
+              !
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-red-700">생성에 실패했어요</p>
+              <p className="mt-0.5 text-xs text-red-600 break-words">{error}</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => formRef.current?.requestSubmit()}
+                  className="inline-flex items-center justify-center rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-red-700 border border-red-200 hover:bg-red-50"
+                >
+                  다시 시도
+                </button>
+                <a
+                  href="/history"
+                  className="inline-flex items-center justify-center rounded-lg bg-transparent px-2.5 py-1.5 text-xs font-semibold text-red-700/80 hover:text-red-800 hover:underline"
+                >
+                  생성 이력 확인
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       <Btn

@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { summarizeTaskOrderRef } from '@/lib/ai'
+import { summarizeTaskOrderRefStructured } from '@/lib/ai'
 import { extractTextFromFile } from '@/lib/file-utils'
 import { uid } from '@/lib/calc'
 import { okResponse, errorResponse } from '@/lib/api/response'
@@ -47,14 +47,15 @@ export async function POST(req: NextRequest) {
       return errorResponse(400, 'EMPTY_FILE_TEXT', '파일에서 텍스트를 읽을 수 없습니다.')
     }
 
-    const summary = await summarizeTaskOrderRef(rawText, file.name)
+    const structured = await summarizeTaskOrderRefStructured(rawText, file.name)
+    const summary = JSON.stringify(structured)
     await insertTaskOrderRef(userId, {
       filename: file.name,
       uploadedAt: new Date().toISOString(),
       summary,
-      rawText: rawText.slice(0, 5000),
+      rawText: rawText.slice(0, 12000),
     })
-    return okResponse({ ok: true, summary })
+    return okResponse({ ok: true, summary: structured })
   } catch (e) {
     logError('task-order-references:POST', e)
     const msg = e instanceof Error ? e.message : '업로드 실패'

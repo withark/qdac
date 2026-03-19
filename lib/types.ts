@@ -56,6 +56,17 @@ export interface ScenarioDoc {
   mainPoints: string[]
   closing: string
   directionNotes: string
+  /** 장면 흐름(구조화) */
+  scenes?: {
+    seq: number
+    time: string
+    place: string
+    title: string
+    flow: string
+    mcScript: string
+    opsNotes: string
+    checkpoints: string[]
+  }[]
 }
 
 // ─── 견적서 ──────────────────────────────────
@@ -198,4 +209,18 @@ export interface TaskOrderDoc {
   uploadedAt: string
   summary: string
   rawText: string
+}
+
+export type TaskOrderStructuredSummary = {
+  projectName: string
+  purpose: string
+  mainTasks: string[]
+  scope: string
+  schedule: string
+  deliverables: string[]
+  conditions: string
+  requiredStaffing: string
+  evaluationPoints: string[]
+  cautions: string[]
+  oneLine: string
 }

@@ -2,22 +2,42 @@
 import { useEffect, useRef, useState } from 'react'
 import { GNB } from '@/components/GNB'
 import { Btn, Toast } from '@/components/ui'
-import type { ReferenceDoc, CuesheetSample, ScenarioRefDoc, TaskOrderDoc } from '@/lib/types'
+import type { ReferenceDoc, ScenarioRefDoc, TaskOrderDoc, TaskOrderStructuredSummary } from '@/lib/types'
 import { apiFetch } from '@/lib/api/client'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
 
+function tryParseTaskOrderSummary(raw: string): TaskOrderStructuredSummary | null {
+  if (!raw || typeof raw !== 'string') return null
+  try {
+    const parsed = JSON.parse(raw) as Partial<TaskOrderStructuredSummary>
+    const safeArr = (v: unknown) => (Array.isArray(v) ? v.map(x => String(x ?? '').trim()).filter(Boolean).slice(0, 5) : [])
+    return {
+      projectName: String(parsed.projectName ?? '').trim(),
+      purpose: String(parsed.purpose ?? '').trim(),
+      mainTasks: safeArr(parsed.mainTasks),
+      scope: String(parsed.scope ?? '').trim(),
+      schedule: String(parsed.schedule ?? '').trim(),
+      deliverables: safeArr(parsed.deliverables),
+      conditions: String((parsed as any).conditions ?? '').trim(),
+      requiredStaffing: String(parsed.requiredStaffing ?? '').trim(),
+      evaluationPoints: safeArr(parsed.evaluationPoints),
+      cautions: safeArr(parsed.cautions),
+      oneLine: String(parsed.oneLine ?? '').trim(),
+    }
+  } catch {
+    return null
+  }
+}
+
 export default function ReferencesPage() {
   const [refs, setRefs] = useState<ReferenceDoc[]>([])
-  const [cuesheetSamples, setCuesheetSamples] = useState<CuesheetSample[]>([])
   const [scenarioRefs, setScenarioRefs] = useState<ScenarioRefDoc[]>([])
   const [taskOrderRefs, setTaskOrderRefs] = useState<TaskOrderDoc[]>([])
   const [uploading, setUploading] = useState(false)
-  const [cuesheetUploading, setCuesheetUploading] = useState(false)
   const [scenarioUploading, setScenarioUploading] = useState(false)
   const [taskOrderUploading, setTaskOrderUploading] = useState(false)
   const [toast, setToast] = useState<{msg:string;type:'ok'|'err'}|null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
-  const cuesheetFileRef = useRef<HTMLInputElement>(null)
   const scenarioFileRef = useRef<HTMLInputElement>(null)
   const taskOrderFileRef = useRef<HTMLInputElement>(null)
 
@@ -25,9 +45,16 @@ export default function ReferencesPage() {
 
   // 서버리스 요청 body 한계(예: Vercel 4.5MB) 이하로 제한
   const MAX_UPLOAD_BYTES = 4 * 1024 * 1024 // 4MB
+  const ALLOWED_REFERENCE_EXTENSIONS = new Set(['txt', 'csv', 'md', 'pdf', 'xlsx', 'xls', 'ppt', 'pptx', 'doc', 'docx'])
   function checkFileSize(file: File): boolean {
     if (file.size <= MAX_UPLOAD_BYTES) return true
     showToast('파일이 너무 큽니다. 4MB 이하로 압축하거나, 불필요한 이미지를 줄인 뒤 다시 올려 주세요.', 'err')
+    return false
+  }
+  function checkReferenceFileType(file: File): boolean {
+    const ext = (file.name.split('.').pop() || '').toLowerCase()
+    if (ext && ALLOWED_REFERENCE_EXTENSIONS.has(ext)) return true
+    showToast('지원하지 않는 파일 형식입니다. 확장자를 확인해 주세요.', 'err')
     return false
   }
 
@@ -46,12 +73,6 @@ export default function ReferencesPage() {
   }, [])
 
   useEffect(() => {
-    apiFetch<CuesheetSample[]>('/api/cuesheet-samples')
-      .then(setCuesheetSamples)
-      .catch(() => setCuesheetSamples([]))
-  }, [])
-
-  useEffect(() => {
     apiFetch<ScenarioRefDoc[]>('/api/scenario-references')
       .then(setScenarioRefs)
       .catch(() => setScenarioRefs([]))
@@ -66,6 +87,7 @@ export default function ReferencesPage() {
   async function upload(file: File) {
     if (!file) return
     if (!checkFileSize(file)) return
+    if (!checkReferenceFileType(file)) return
     setUploading(true)
     const fd = new FormData(); fd.append('file', file)
     try {
@@ -94,43 +116,15 @@ export default function ReferencesPage() {
     }
   }
 
-  async function uploadCuesheetSample(file: File) {
-    if (!file) return
-    if (!checkFileSize(file)) return
-    setCuesheetUploading(true)
-    const fd = new FormData()
-    fd.append('file', file)
-    try {
-      await apiFetch<null>('/api/cuesheet-samples', { method: 'POST', body: fd })
-      showToast('큐시트 샘플이 추가되었습니다.')
-      const list = await apiFetch<CuesheetSample[]>('/api/cuesheet-samples')
-      setCuesheetSamples(list)
-    } catch (e) {
-      showToast(toUserMessage(e, '업로드에 실패했습니다.'), 'err')
-    } finally {
-      setCuesheetUploading(false)
-    }
-  }
-
-  async function deleteCuesheetSample(id: string) {
-    if (!confirm('이 큐시트 샘플을 삭제할까요?')) return
-    try {
-      await apiFetch<null>('/api/cuesheet-samples', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
-      setCuesheetSamples(s => s.filter(x => x.id !== id))
-      showToast('삭제 완료')
-    } catch (e) {
-      showToast(toUserMessage(e, '삭제에 실패했습니다.'), 'err')
-    }
-  }
-
   async function uploadScenario(file: File) {
     if (!file) return
     if (!checkFileSize(file)) return
+    if (!checkReferenceFileType(file)) return
     setScenarioUploading(true)
     const fd = new FormData(); fd.append('file', file)
     try {
       await apiFetch<null>('/api/scenario-references', { method: 'POST', body: fd })
-      showToast('시나리오 참고가 추가되었습니다. 이후 생성되는 기획안·큐시트에 반영됩니다.')
+      showToast('시나리오 참고가 추가되었습니다. 이후 생성되는 기획안에 반영됩니다.')
       const list = await apiFetch<ScenarioRefDoc[]>('/api/scenario-references')
       setScenarioRefs(list)
     } catch (e) {
@@ -152,6 +146,7 @@ export default function ReferencesPage() {
   async function uploadTaskOrder(file: File) {
     if (!file) return
     if (!checkFileSize(file)) return
+    if (!checkReferenceFileType(file)) return
     setTaskOrderUploading(true)
     const fd = new FormData(); fd.append('file', file)
     try {
@@ -182,83 +177,68 @@ export default function ReferencesPage() {
         <header className="flex-shrink-0 h-14 border-b border-gray-100 bg-white/90 flex items-center justify-between px-6">
           <div>
             <h1 className="text-base font-semibold text-gray-900">참고 자료</h1>
-            <p className="text-xs text-gray-500 mt-0.5">견적서·시나리오·기획안(과업지시서) 참고를 올리면 AI가 학습해 품질을 높입니다</p>
+            <p className="text-xs text-gray-500 mt-0.5">참고자료 순서: 1) 참고 견적서 2) 기획안 3) 시나리오 · 과업지시서는 하단 별도 요약에서 확인</p>
           </div>
         </header>
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-6 py-6 space-y-8">
-            {/* 큐시트 샘플 — 메인 자리 (상단) */}
+            {/* 참고 견적서 */}
             <section>
               <div className="mb-3">
-                <h2 className="text-base font-semibold text-gray-900">큐시트 샘플</h2>
+                <h2 className="text-base font-semibold text-gray-900">참고 견적서</h2>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  큐시트 형식을 참고할 샘플을 올려두세요. 견적서의 큐시트 탭 작성 시 참고용으로 활용할 수 있습니다.
+                  견적서 파일을 올리면 AI가 학습해 이후 견적 품질을 높입니다. 참고 항목으로만 활용됩니다.
                 </p>
               </div>
               <input
-                ref={cuesheetFileRef}
+                ref={fileRef}
                 type="file"
-                accept=".pdf,.xlsx,.xls,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.md,.ppt,.pptx,.doc,.docx"
+                accept=".txt,.csv,.md,.pdf,.xlsx,.xls"
                 className="hidden"
                 onChange={e => {
                   const f = e.target.files?.[0]
-                  if (f) uploadCuesheetSample(f)
+                  if (f) upload(f)
                   e.target.value = ''
                 }}
               />
               <button
                 type="button"
                 className="w-full mb-4 py-8 border-2 border-dashed border-gray-200 rounded-2xl bg-white text-xs text-gray-500 hover:border-primary-300 hover:text-primary-600 transition"
-                onClick={() => cuesheetFileRef.current?.click()}
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
               >
-                큐시트 샘플 파일을 이 영역에 끌어놓거나 클릭해서 업로드하세요.
+                견적서 파일을 이 영역에 끌어놓거나 클릭해서 업로드하세요.
+                <br />
+                {uploading ? '분석 중...' : '단가표에 반영될 수 있습니다.'}
               </button>
               <p className="text-xs text-gray-500 mb-3">
-                지원 형식: PDF, 엑셀(.xlsx, .xls), 이미지(png, jpg, gif, webp), 텍스트(.txt, .csv, .md), PPT(.ppt, .pptx), Word(.doc, .docx) · 파일 크기 4MB 이하
+                지원 형식: .txt, .csv, .md, .pdf, .xlsx, .xls · 파일 크기 4MB 이하
               </p>
-              {(Array.isArray(cuesheetSamples) ? cuesheetSamples : []).length === 0 ? (
+              {(Array.isArray(refs) ? refs : []).length === 0 ? (
                 <div className="text-center py-8 rounded-2xl border border-dashed border-gray-200 bg-gray-50 text-gray-500 text-sm">
-                  등록된 큐시트 샘플이 없습니다. 위 박스를 클릭해서 첫 샘플을 올려보세요.
+                  등록된 참고 견적서가 없습니다. 위 박스를 클릭해서 파일을 올려보세요.
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {(Array.isArray(cuesheetSamples) ? cuesheetSamples : []).map(s => (
-                    <div
-                      key={s.id}
-                      className="flex items-center justify-between gap-3 bg-white border border-gray-100 rounded-xl p-3 shadow-sm"
-                    >
+                <ul className="space-y-1">
+                  {(Array.isArray(refs) ? refs : []).map(r => (
+                    <li key={r.id} className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg hover:bg-gray-50 bg-white border border-gray-100">
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-gray-800 truncate">{s.filename}</p>
-                        <p className="text-xs text-gray-400">
-                          {new Date(s.uploadedAt).toLocaleString('ko-KR')}
-                        </p>
+                        <span className="text-sm text-gray-800 truncate block">{r.filename}</span>
+                        <span className="text-xs text-gray-400">{new Date(r.uploadedAt).toLocaleString('ko-KR')}</span>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <a
-                          href={`/api/cuesheet-samples/${s.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-primary-600 hover:text-primary-700 font-medium"
-                        >
-                          보기
-                        </a>
-                        <Btn size="sm" variant="danger" onClick={() => deleteCuesheetSample(s.id)}>
-                          삭제
-                        </Btn>
-                      </div>
-                    </div>
+                      <Btn size="sm" variant="danger" onClick={() => deleteRef(r.id)}>삭제</Btn>
+                    </li>
                   ))}
-                </div>
+                </ul>
               )}
             </section>
 
-            {/* 기획안·과업지시서 */}
-            <section>
+            {/* 기획안 참고 */}
+            <section className="pt-6 border-t border-gray-200">
               <div className="mb-3">
-                <h2 className="text-base font-semibold text-gray-900">기획안·과업지시서</h2>
+                <h2 className="text-base font-semibold text-gray-900">기획안 참고</h2>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  과업지시서 / 기획안 / 제안요청서 파일을 올리면, AI가 견적서 금액·항목과 제안 프로그램(기획안)을 만들 때
-                  필수 조건으로 반영합니다.
+                  기획안 / 제안요청서 / 과업지시서 관련 문서를 올리면, 이후 생성되는 견적서·기획안 품질 향상에 참고합니다.
                 </p>
               </div>
               <input
@@ -278,7 +258,7 @@ export default function ReferencesPage() {
                 onClick={() => taskOrderFileRef.current?.click()}
                 disabled={taskOrderUploading}
               >
-                과업지시서 / 기획안 파일을 이 영역에 끌어놓거나 클릭해서 업로드하세요.
+                기획안 / 제안요청서 / 과업지시서 파일을 이 영역에 끌어놓거나 클릭해서 업로드하세요.
                 <br />
                 한글(.hwp)은 먼저 PDF 또는 Word(.docx)로 저장해서 올려주세요.
               </button>
@@ -287,36 +267,36 @@ export default function ReferencesPage() {
               </p>
               {(Array.isArray(taskOrderRefs) ? taskOrderRefs : []).length === 0 ? (
                 <div className="text-center py-8 rounded-2xl border border-dashed border-gray-200 bg-gray-50 text-gray-500 text-sm">
-                  등록된 과업지시서·기획안 참고가 없습니다. 위 박스를 클릭해서 파일을 올려보세요.
+                  등록된 기획안 참고 문서가 없습니다. 위 박스를 클릭해서 파일을 올려보세요.
                 </div>
               ) : (
                 <ul className="space-y-1">
-                  {(Array.isArray(taskOrderRefs) ? taskOrderRefs : []).map(r => (
-                    <li
-                      key={r.id}
-                      className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg hover:bg-gray-50 bg-white border border-gray-100"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <span className="text-sm text-gray-800 truncate block">{r.filename}</span>
-                        <span className="text-xs text-gray-400">
-                          {new Date(r.uploadedAt).toLocaleString('ko-KR')}
-                        </span>
-                      </div>
-                      <Btn size="sm" variant="danger" onClick={() => deleteTaskOrder(r.id)}>
-                        삭제
-                      </Btn>
-                    </li>
-                  ))}
+                  {(Array.isArray(taskOrderRefs) ? taskOrderRefs : []).map(r => {
+                    const s = tryParseTaskOrderSummary(r.summary)
+                    return (
+                      <li
+                        key={r.id}
+                        className="flex items-start justify-between gap-3 py-2 px-3 rounded-lg hover:bg-gray-50 bg-white border border-gray-100"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <span className="text-sm text-gray-800 truncate block">{r.filename}</span>
+                          <span className="text-xs text-gray-400">{new Date(r.uploadedAt).toLocaleString('ko-KR')}</span>
+                          {s?.oneLine && <p className="text-xs text-gray-600 mt-1 line-clamp-2">{s.oneLine}</p>}
+                        </div>
+                        <Btn size="sm" variant="danger" onClick={() => deleteTaskOrder(r.id)}>삭제</Btn>
+                      </li>
+                    )
+                  })}
                 </ul>
               )}
             </section>
 
             {/* 시나리오 참고 */}
-            <section>
+            <section className="pt-6 border-t border-gray-200">
               <div className="mb-3">
                 <h2 className="text-base font-semibold text-gray-900">시나리오 참고</h2>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  시나리오 / 행사 흐름 / 진행안 파일을 올리면, AI가 제안 프로그램·큐시트 탭을 만들 때 참고합니다.
+                  시나리오 / 행사 흐름 / 진행안 파일을 올리면, AI가 기획안에 반영할 수 있도록 참고합니다.
                 </p>
               </div>
               <input
@@ -369,54 +349,105 @@ export default function ReferencesPage() {
               )}
             </section>
 
-            {/* 참고 견적서 */}
+            {/* 과업지시서 별도 요약 */}
             <section className="pt-6 border-t border-gray-200">
               <div className="mb-3">
-                <h2 className="text-base font-semibold text-gray-900">참고 견적서</h2>
+                <h2 className="text-base font-semibold text-gray-900">과업지시서 요약 (별도)</h2>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  견적서 파일을 올리면 AI가 학습해 이후 견적 품질을 높입니다. 참고 항목으로만 활용됩니다.
+                  업로드된 기획/요청 문서의 핵심 항목을 구조화해 보여주는 별도 요약 영역입니다.
                 </p>
               </div>
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".txt,.csv,.md,.pdf,.xlsx,.xls"
-                className="hidden"
-                onChange={e => {
-                  const f = e.target.files?.[0]
-                  if (f) upload(f)
-                  e.target.value = ''
-                }}
-              />
-              <button
-                type="button"
-                className="w-full mb-4 py-8 border-2 border-dashed border-gray-200 rounded-2xl bg-white text-xs text-gray-500 hover:border-primary-300 hover:text-primary-600 transition"
-                onClick={() => fileRef.current?.click()}
-                disabled={uploading}
-              >
-                견적서 파일을 이 영역에 끌어놓거나 클릭해서 업로드하세요.
-                <br />
-                {uploading ? '분석 중...' : '단가표에 반영될 수 있습니다.'}
-              </button>
-              <p className="text-xs text-gray-500 mb-3">
-                지원 형식: .txt, .csv, .md, .pdf, .xlsx, .xls · 파일 크기 4MB 이하
-              </p>
-              {(Array.isArray(refs) ? refs : []).length === 0 ? (
+              {(Array.isArray(taskOrderRefs) ? taskOrderRefs : []).length === 0 ? (
                 <div className="text-center py-8 rounded-2xl border border-dashed border-gray-200 bg-gray-50 text-gray-500 text-sm">
-                  등록된 참고 견적서가 없습니다. 위 박스를 클릭해서 파일을 올려보세요.
+                  요약할 과업지시서 문서가 없습니다.
                 </div>
               ) : (
-                <ul className="space-y-1">
-                  {(Array.isArray(refs) ? refs : []).map(r => (
-                    <li key={r.id} className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg hover:bg-gray-50 bg-white border border-gray-100">
-                      <div className="min-w-0 flex-1">
-                        <span className="text-sm text-gray-800 truncate block">{r.filename}</span>
-                        <span className="text-xs text-gray-400">{new Date(r.uploadedAt).toLocaleString('ko-KR')}</span>
+                <div className="space-y-3">
+                  {(Array.isArray(taskOrderRefs) ? taskOrderRefs : []).map(r => {
+                    const s = tryParseTaskOrderSummary(r.summary)
+                    return (
+                      <div key={r.id} className="bg-white border border-gray-100 rounded-2xl shadow-card overflow-hidden">
+                        <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-gray-100">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 truncate">{r.filename}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">{new Date(r.uploadedAt).toLocaleString('ko-KR')}</p>
+                            {s?.oneLine && <p className="text-xs text-gray-600 mt-1">{s.oneLine}</p>}
+                          </div>
+                        </div>
+                        <div className="px-4 py-3">
+                          {s ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                              <div className="rounded-xl bg-gray-50 border border-gray-100 p-3">
+                                <p className="text-[11px] font-semibold text-gray-500 mb-1">1. 사업명 / 용역명</p>
+                                <p className="text-gray-800">{s.projectName || '—'}</p>
+                              </div>
+                              <div className="rounded-xl bg-gray-50 border border-gray-100 p-3">
+                                <p className="text-[11px] font-semibold text-gray-500 mb-1">2. 사업 목적</p>
+                                <p className="text-gray-800">{s.purpose || '—'}</p>
+                              </div>
+                              <div className="rounded-xl bg-gray-50 border border-gray-100 p-3 sm:col-span-2">
+                                <p className="text-[11px] font-semibold text-gray-500 mb-1">3. 주요 과업 내용</p>
+                                {s.mainTasks.length ? (
+                                  <ul className="list-disc pl-5 space-y-1 text-gray-800">
+                                    {s.mainTasks.map((t, i) => <li key={i}>{t}</li>)}
+                                  </ul>
+                                ) : <p className="text-gray-800">—</p>}
+                              </div>
+                              <div className="rounded-xl bg-gray-50 border border-gray-100 p-3">
+                                <p className="text-[11px] font-semibold text-gray-500 mb-1">4. 행사/용역 범위</p>
+                                <p className="text-gray-800">{s.scope || '—'}</p>
+                              </div>
+                              <div className="rounded-xl bg-gray-50 border border-gray-100 p-3">
+                                <p className="text-[11px] font-semibold text-gray-500 mb-1">5. 일정 / 수행 기간</p>
+                                <p className="text-gray-800">{s.schedule || '—'}</p>
+                              </div>
+                              <div className="rounded-xl bg-gray-50 border border-gray-100 p-3 sm:col-span-2">
+                                <p className="text-[11px] font-semibold text-gray-500 mb-1">6. 제출물 / 산출물</p>
+                                {s.deliverables.length ? (
+                                  <ul className="list-disc pl-5 space-y-1 text-gray-800">
+                                    {s.deliverables.map((t, i) => <li key={i}>{t}</li>)}
+                                  </ul>
+                                ) : <p className="text-gray-800">—</p>}
+                              </div>
+                              <div className="rounded-xl bg-gray-50 border border-gray-100 p-3">
+                                <p className="text-[11px] font-semibold text-gray-500 mb-1">7. 필수 인력 / 운영 조건</p>
+                                <p className="text-gray-800">{s.requiredStaffing || '—'}</p>
+                              </div>
+                              <div className="rounded-xl bg-gray-50 border border-gray-100 p-3">
+                                <p className="text-[11px] font-semibold text-gray-500 mb-1">8. 계약/제안 조건</p>
+                                <p className="text-gray-800">{s.conditions || '—'}</p>
+                              </div>
+                              <div className="rounded-xl bg-gray-50 border border-gray-100 p-3">
+                                <p className="text-[11px] font-semibold text-gray-500 mb-1">9. 평가/선정 관련 포인트</p>
+                                {s.evaluationPoints.length ? (
+                                  <ul className="list-disc pl-5 space-y-1 text-gray-800">
+                                    {s.evaluationPoints.map((t, i) => <li key={i}>{t}</li>)}
+                                  </ul>
+                                ) : <p className="text-gray-800">—</p>}
+                              </div>
+                              <div className="rounded-xl bg-gray-50 border border-gray-100 p-3 sm:col-span-2">
+                                <p className="text-[11px] font-semibold text-gray-500 mb-1">10. 유의사항 / 제한사항</p>
+                                {s.cautions.length ? (
+                                  <ul className="list-disc pl-5 space-y-1 text-gray-800">
+                                    {s.cautions.map((t, i) => <li key={i}>{t}</li>)}
+                                  </ul>
+                                ) : <p className="text-gray-800">—</p>}
+                              </div>
+                              <div className="rounded-xl bg-primary-50 border border-primary-100 p-3 sm:col-span-2">
+                                <p className="text-[11px] font-semibold text-primary-700 mb-1">11. 한 줄 요약</p>
+                                <p className="text-gray-900 font-medium">{s.oneLine || '—'}</p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                              요약을 표시할 수 없습니다. (구조화 요약 데이터가 없거나 형식이 올바르지 않습니다.)
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <Btn size="sm" variant="danger" onClick={() => deleteRef(r.id)}>삭제</Btn>
-                    </li>
-                  ))}
-                </ul>
+                    )
+                  })}
+                </div>
               )}
             </section>
           </div>

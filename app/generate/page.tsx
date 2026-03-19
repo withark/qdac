@@ -185,7 +185,7 @@ export default function GeneratePage() {
               <p className="text-base font-medium text-gray-700">플래닉이 새 견적서·기획안을 만드는 중입니다</p>
               <p className="text-xs text-gray-500">{statusMsg || '행사 기본 정보 분석 중...'}</p>
               <p className="text-[11px] text-gray-400">
-                참고 자료(과업지시서·시나리오·견적서)를 함께 분석해서 견적 항목·기획안·타임테이블·큐시트를 구성하고 있습니다.
+                지금은 안정성을 위해 견적서와 기획안(프로그램·타임테이블)만 생성합니다.
               </p>
               <p className="text-[11px] text-gray-400">잠시만 기다리시면 이 자리에 최신 결과가 표시됩니다.</p>
             </div>

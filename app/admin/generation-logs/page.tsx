@@ -17,6 +17,23 @@ type Run = {
   createdAt: string
 }
 
+function getAiSnapshot(engineSnapshot: Record<string, unknown> | undefined): any | null {
+  const ai = (engineSnapshot as any)?.ai
+  if (!ai || typeof ai !== 'object') return null
+  return ai
+}
+
+function getSampleUsage(engineSnapshot: Record<string, unknown> | undefined): {
+  proposal?: any
+  timetable?: any
+  cuesheet?: any
+  scenario?: any
+} | null {
+  const u = (engineSnapshot as any)?.sampleUsage
+  if (!u || typeof u !== 'object') return null
+  return u as any
+}
+
 export default function AdminGenerationLogsPage() {
   const [runs, setRuns] = useState<Run[]>([])
   const [loading, setLoading] = useState(true)
@@ -53,6 +70,7 @@ export default function AdminGenerationLogsPage() {
                 <th className="px-3 py-2 text-left font-medium">생성 시각</th>
                 <th className="px-3 py-2 text-left font-medium">사용자</th>
                 <th className="px-3 py-2 text-center font-medium">성공</th>
+                <th className="px-3 py-2 text-left font-medium">AI 분기</th>
                 <th className="px-3 py-2 text-left font-medium">사용된 샘플</th>
                 <th className="px-3 py-2 text-center font-medium">샘플 반영</th>
                 <th className="px-3 py-2 text-center font-medium">반영 누락</th>
@@ -64,7 +82,7 @@ export default function AdminGenerationLogsPage() {
             <tbody>
               {runs.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-slate-500">
+                  <td colSpan={10} className="px-4 py-8 text-center text-slate-500">
                     생성 로그가 없습니다.
                   </td>
                 </tr>
@@ -80,9 +98,83 @@ export default function AdminGenerationLogsPage() {
                     <td className="px-3 py-2 text-center">
                       {r.success ? <span className="text-green-600 font-medium">✓</span> : <span className="text-red-600 font-medium">✗</span>}
                     </td>
+                    <td className="px-3 py-2 max-w-[240px]">
+                      {(() => {
+                        const ai = getAiSnapshot(r.engineSnapshot)
+                        if (!ai) return <span className="text-xs text-slate-500">—</span>
+                        const provider = ai.providerResolved || ai.provider || r.engineSnapshot?.provider || '—'
+                        const model = ai.modelResolved || r.engineSnapshot?.model || '—'
+                        const branch = ai.branchUsed || (ai.aiModeIsMock ? 'mock' : 'provider')
+                        const hasKey =
+                          provider === 'anthropic'
+                            ? !!ai?.apiKeyLoaded?.anthropic
+                            : provider === 'openai'
+                              ? !!ai?.apiKeyLoaded?.openai
+                              : null
+                        const fellBack = !!ai?.fallback?.fellBackToMock
+                        const reason = ai?.fallback?.reason || null
+                        return (
+                          <div className="space-y-0.5 text-[11px]">
+                            <div>
+                              <span className="font-mono">{String(provider)}</span>
+                              <span className="text-slate-500"> · </span>
+                              <span className="font-mono">{String(model)}</span>
+                            </div>
+                            <div className="text-slate-600">
+                              branch: <span className="font-mono">{String(branch)}</span>
+                              {hasKey != null && (
+                                <>
+                                  <span className="text-slate-500"> · </span>
+                                  keyLoaded: <span className="font-mono">{String(hasKey)}</span>
+                                </>
+                              )}
+                            </div>
+                            <div className="text-slate-600">
+                              fallbackToMock: <span className="font-mono">{String(fellBack)}</span>
+                              {reason && (
+                                <>
+                                  <span className="text-slate-500"> · </span>
+                                  <span className="truncate" title={String(reason)}>
+                                    reason: {String(reason)}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })()}
+                    </td>
                     <td className="px-3 py-2">
-                      <span className="text-xs">{r.sampleFilename || '—'}</span>
-                      {r.sampleId && <span className="block text-[11px] text-slate-400 font-mono">{r.sampleId.slice(0, 8)}…</span>}
+                      {(() => {
+                        const usage = getSampleUsage(r.engineSnapshot)
+                        const prompt = (r.engineSnapshot as any)?.prompt
+                        return (
+                          <div className="space-y-1">
+                            <div>
+                              <span className="text-xs">{r.sampleFilename || '—'}</span>
+                              {r.sampleId && <span className="block text-[11px] text-slate-400 font-mono">{r.sampleId.slice(0, 8)}…</span>}
+                            </div>
+                            {usage && (
+                              <div className="text-[11px] text-slate-600 space-y-0.5">
+                                {(['proposal', 'timetable', 'cuesheet', 'scenario'] as const).map(k => (
+                                  <div key={k} className="flex gap-1">
+                                    <span className="w-12 text-slate-400">{k}</span>
+                                    <span className="truncate" title={usage?.[k]?.filename || ''}>
+                                      {usage?.[k]?.filename ? String(usage[k].filename) : '—'}
+                                      {usage?.[k]?.hasParsed ? <span className="text-emerald-700"> · 구조✓</span> : usage?.[k]?.filename ? <span className="text-amber-700"> · 구조—</span> : null}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {prompt?.chars && (
+                              <div className="text-[11px] text-slate-500">
+                                prompt: {String(prompt.chars)} chars{prompt?.approxTokens ? ` · ~${String(prompt.approxTokens)}t` : ''}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
                     </td>
                     <td className="px-3 py-2 text-center">{r.cuesheetApplied ? '예' : '—'}</td>
                     <td className="px-3 py-2 text-center">

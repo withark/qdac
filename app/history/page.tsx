@@ -9,6 +9,8 @@ import { toUserMessage } from '@/lib/errors/toUserMessage'
 
 export default function HistoryPage() {
   const [history, setHistory] = useState<HistoryRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState('')
   const [toast, setToast] = useState('')
 
   const showToast = useCallback((m: string) => {
@@ -18,7 +20,10 @@ export default function HistoryPage() {
   useEffect(() => {
     apiFetch<HistoryRecord[]>('/api/history')
       .then((d) => setHistory([...d].reverse()))
-      .catch(() => setHistory([]))
+      .catch((e) => {
+        setErr(toUserMessage(e, '이력을 불러오지 못했습니다.'))
+      })
+      .finally(() => setLoading(false))
   }, [])
 
   async function delOne(id: string) {
@@ -64,6 +69,11 @@ export default function HistoryPage() {
         </header>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {err && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {err}
+            </div>
+          )}
           {total > 0 && (
             <div className="grid grid-cols-4 gap-3">
               {[
@@ -80,7 +90,11 @@ export default function HistoryPage() {
             </div>
           )}
 
-          {history.length === 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center min-h-64 rounded-2xl border border-gray-100 bg-white">
+              <p className="text-sm text-gray-500">로딩 중...</p>
+            </div>
+          ) : history.length === 0 ? (
             <div className="flex flex-col items-center justify-center min-h-64 rounded-2xl border-2 border-dashed border-primary-200 bg-white py-16">
               <div className="w-14 h-14 rounded-xl bg-primary-100 flex items-center justify-center mb-4">
                 <span className="text-lg font-medium text-primary-600">이력</span>

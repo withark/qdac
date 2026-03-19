@@ -66,7 +66,8 @@ export async function listCuesheetSamplesForGeneration(userId: string): Promise<
     SELECT id, user_id, filename, uploaded_at, ext, COALESCE(display_name, filename) AS display_name,
            COALESCE(document_tab, 'cuesheet') AS document_tab, COALESCE(description, '') AS description,
            COALESCE(priority, 0) AS priority, COALESCE(is_active, true) AS is_active,
-           archived_at, COALESCE(generation_use_count, 0) AS generation_use_count, last_used_at
+           archived_at, COALESCE(generation_use_count, 0) AS generation_use_count, last_used_at,
+           parsed_structure_summary
     FROM cuesheet_samples
     WHERE (user_id = ${userId} OR user_id = 'system')
       AND archived_at IS NULL
@@ -221,6 +222,30 @@ export async function getCuesheetFile(id: string): Promise<{ filename: string; e
     ext: String(r.ext ?? 'bin'),
     content: r.content as Buffer,
     uploadedAt: new Date(r.uploaded_at as string).toISOString(),
+  }
+}
+
+export async function getCuesheetSampleMeta(
+  id: string,
+): Promise<{ id: string; filename: string; ext: string; documentTab: DocumentTab; userId: string } | null> {
+  await initDb()
+  const sql = getDb()
+  const rows = await sql`
+    SELECT id, user_id, filename, ext, COALESCE(document_tab, 'cuesheet') AS document_tab
+    FROM cuesheet_samples
+    WHERE id = ${id}
+    LIMIT 1
+  `
+  if (rows.length === 0) return null
+  const r = rows[0] as Record<string, unknown>
+  const tab = String(r.document_tab ?? 'cuesheet')
+  const documentTab: DocumentTab = (['proposal', 'timetable', 'cuesheet', 'scenario'].includes(tab) ? tab : 'cuesheet') as DocumentTab
+  return {
+    id: String(r.id),
+    userId: String(r.user_id),
+    filename: String(r.filename ?? ''),
+    ext: String(r.ext ?? 'bin'),
+    documentTab,
   }
 }
 

@@ -10,6 +10,7 @@ const KV_KEYS = {
   plans: 'plans',
   subscriptions: 'subscriptions',
   engine_config: 'engine_config',
+  feature_flags: 'feature_flags',
 } as const
 
 export type KvKey = keyof typeof KV_KEYS

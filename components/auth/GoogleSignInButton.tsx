@@ -3,7 +3,7 @@
 import { signIn } from 'next-auth/react'
 import { sanitizeCallbackUrl } from '@/lib/auth-callback'
 
-const DEFAULT_CALLBACK = '/'
+const DEFAULT_CALLBACK = '/dashboard'
 
 export type AuthIntent = 'login' | 'signup'
 

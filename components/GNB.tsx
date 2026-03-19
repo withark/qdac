@@ -7,16 +7,103 @@ import { useState } from 'react'
 import { EvQuoteLogo } from '@/components/EvQuoteLogo'
 import { AccountPanel } from '@/components/account/AccountPanel'
 
-const NAVS = [
-  { href: '/dashboard', text: '홈', label: '대시보드' },
-  { href: '/generate', text: '견적', label: '견적 생성' },
-  { href: '/references', text: '참고', label: '참고 견적서' },
-  { href: '/prices', text: '단가', label: '단가표' },
-  { href: '/history', text: '이력', label: '견적 이력' },
-  { href: '/settings', text: '설정', label: '설정' },
+type NavItem = {
+  href: string
+  text: string
+  label: string
+  desc: string
+  icon: (props: { className?: string }) => React.ReactNode
+}
+
+const NAVS: NavItem[] = [
+  {
+    href: '/dashboard',
+    text: '홈',
+    label: '홈',
+    desc: '서비스 시작 화면과 주요 안내',
+    icon: ({ className }) => (
+      <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+        <path d="M4 10.5 12 4l8 6.5V20a1.5 1.5 0 0 1-1.5 1.5H5.5A1.5 1.5 0 0 1 4 20v-9.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M9.5 21.5v-7h5v7" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
+    href: '/generate',
+    text: '견적',
+    label: '견적',
+    desc: '행사 견적서와 기획안 작성',
+    icon: ({ className }) => (
+      <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+        <path d="M7 3.5h7l3 3V20.5A1.5 1.5 0 0 1 15.5 22h-8A1.5 1.5 0 0 1 6 20.5v-15A2 2 0 0 1 7 3.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M14 3.5v3A1 1 0 0 0 15 7.5h3" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M8.5 11h6M8.5 14.5h7M8.5 18h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    href: '/references',
+    text: '참고',
+    label: '참고 자료',
+    desc: '참고 견적서·기획안·시나리오 업로드',
+    icon: ({ className }) => (
+      <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+        <path d="M6.5 4.5h9A2.5 2.5 0 0 1 18 7v14.5H8.5A2.5 2.5 0 0 0 6 24V7A2.5 2.5 0 0 1 6.5 4.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M6 20.5c.6-.6 1.5-1 2.5-1H18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M9 8h6M9 11.5h6M9 15h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    href: '/prices',
+    text: '단가',
+    label: '단가',
+    desc: '자주 쓰는 단가와 기준 비용 관리',
+    icon: ({ className }) => (
+      <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+        <path d="M6.5 3.5h11A2.5 2.5 0 0 1 20 6v14.5A2.5 2.5 0 0 1 17.5 23h-11A2.5 2.5 0 0 1 4 20.5V6A2.5 2.5 0 0 1 6.5 3.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M8 9h8M8 12.5h8M8 16h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M15.5 18.5h3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    href: '/history',
+    text: '이력',
+    label: '이력',
+    desc: '저장된 견적서/작성 문서 확인',
+    icon: ({ className }) => (
+      <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+        <path d="M12 22a9 9 0 1 0-6.3-2.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M5.7 19.4 6 22l2.6-.3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M12 7v5l3 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
+    href: '/settings',
+    text: '설정',
+    label: '설정',
+    desc: '기업정보, 계정, 기본 옵션 관리',
+    icon: ({ className }) => (
+      <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+        <path
+          d="M12 15.3a3.3 3.3 0 1 0 0-6.6 3.3 3.3 0 0 0 0 6.6Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        />
+        <path
+          d="M19.6 13.1a8.7 8.7 0 0 0 0-2.2l2-1.6-2-3.4-2.4 1a8.9 8.9 0 0 0-1.9-1.1l-.4-2.6H10l-.4 2.6c-.7.3-1.3.6-1.9 1.1l-2.4-1-2 3.4 2 1.6a8.7 8.7 0 0 0 0 2.2l-2 1.6 2 3.4 2.4-1c.6.5 1.2.8 1.9 1.1l.4 2.6h4.9l.4-2.6c.7-.3 1.3-.6 1.9-1.1l2.4 1 2-3.4-2-1.6Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
 ]
 
-const SIDEBAR_WIDTH = 240
+const SIDEBAR_WIDTH = 224
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const path = usePathname()
@@ -44,13 +131,34 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                 onClick={onNavigate}
                 title={n.label}
                 className={clsx(
-                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                  'group flex items-start gap-3 rounded-xl px-2.5 py-2.5 text-[13px] font-semibold transition-colors',
                   path.startsWith(n.href)
                     ? 'bg-primary-50 text-primary-700'
                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 )}
               >
-                <span>{n.text}</span>
+                <span
+                  className={clsx(
+                    'inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border',
+                    path.startsWith(n.href)
+                      ? 'border-primary-100 bg-white text-primary-700'
+                      : 'border-slate-200 bg-white text-slate-500 group-hover:text-slate-700'
+                  )}
+                  aria-hidden
+                >
+                  {n.icon({ className: 'h-[18px] w-[18px]' })}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block leading-5 break-words">{n.label}</span>
+                  <span
+                    className={clsx(
+                      'block text-[11px] font-medium leading-4 mt-0.5 whitespace-normal break-words',
+                      path.startsWith(n.href) ? 'text-primary-600' : 'text-slate-400 group-hover:text-slate-500'
+                    )}
+                  >
+                    {n.desc}
+                  </span>
+                </span>
               </Link>
             </li>
           ))}

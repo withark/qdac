@@ -54,6 +54,95 @@ function defaultProgramPlan(eventName: string, eventType: string, headcount: str
   }
 }
 
+type Stage = 'registration' | 'opening' | 'main' | 'closing' | 'photo' | 'other'
+function isBlank(v: unknown): boolean {
+  const s = String(v ?? '').trim()
+  if (!s) return true
+  if (s === '-' || s === '—') return true
+  if (s === '(이미지 슬롯)' || s === '이미지 슬롯') return true
+  return false
+}
+
+function stageFrom(kind: string, content: string, notes: string): Stage {
+  const s = `${kind || ''} ${content || ''} ${notes || ''}`.toLowerCase()
+  if (/(등록|체크인|리셉션|배부|명찰|좌석 안내|대기열)/.test(s)) return 'registration'
+  if (/(오프닝|개회|인사|안전|유의사항|브리핑)/.test(s)) return 'opening'
+  if (/(포토|사진|촬영|단체사진|포토월)/.test(s)) return 'photo'
+  if (/(클로징|마무리|퇴장|정리|분실물|주차|귀가)/.test(s)) return 'closing'
+  if (/(본\s*프로그램|본행사|메인|세션|강연|발표|시상|수상|전개|메인 홀|행사장)/.test(s)) return 'main'
+  return 'other'
+}
+
+function inferPlace(stage: Stage, venue: string): string {
+  const v = (venue || '').trim()
+  if (stage === 'registration') return v ? `${v} 로비/등록데스크` : '로비/등록데스크'
+  if (stage === 'opening' || stage === 'main') return v ? `${v} 행사장/메인홀` : '행사장/메인홀'
+  if (stage === 'photo' || stage === 'closing') return v ? `${v} 무대 앞/포토존` : '무대 앞/포토존'
+  return v ? `${v} 행사장` : '행사장'
+}
+
+function inferProgramImage(stage: Stage, kind: string): string {
+  if (stage === 'registration') return '동선/등록 안내 이미지 예정'
+  if (stage === 'opening') return '개회/오프닝 콘셉트 이미지 예정'
+  if (stage === 'main') return '메인 세션 콘셉트 이미지 예정'
+  if (stage === 'photo' || stage === 'closing') return '현장 사진(포토존) 예정'
+  // kind 기반으로 fallback (AI가 kind를 비웠을 때도 UX 유지)
+  if (/클로징/.test(kind)) return '현장 사진(포토존) 예정'
+  if (/등록/.test(kind)) return '동선/등록 안내 이미지 예정'
+  return '콘셉트 이미지 예정'
+}
+
+function inferCueScript(stage: Stage): string {
+  switch (stage) {
+    case 'registration':
+      return '착석/체크인 완료 후 다음 구간 안내 멘트 진행'
+    case 'opening':
+      return '개회 멘트 및 안전/진행 안내 진행'
+    case 'main':
+      return '메인 전환 멘트 후 진행(자료/마이크 체크 포함)'
+    case 'photo':
+      return '포토타임 안내 및 촬영 진행 멘트'
+    case 'closing':
+      return '단체사진 및 퇴장 동선 안내 멘트 진행'
+    default:
+      return '다음 구간 전환 멘트 진행'
+  }
+}
+
+function inferCueSpecial(stage: Stage): string {
+  switch (stage) {
+    case 'registration':
+      return 'VIP 입장 시 동선 혼선 방지, 대기열 단계 구분'
+    case 'opening':
+      return '무대/음향 체크 완료 후 시작, 마이크 상태 확인'
+    case 'main':
+      return '전환 5분 전 무전 공유, 송출/마이크 백업 대기'
+    case 'photo':
+      return '촬영 인원 대기 동선 통제, 촬영 종료 후 즉시 전환'
+    case 'closing':
+      return '사진 촬영 동선 통제, 분실물/주차 안내 확인'
+    default:
+      return '현장 상황에 따라 동선/타이밍을 즉시 조정'
+  }
+}
+
+function inferSceneCheckpoint(stage: Stage): string {
+  switch (stage) {
+    case 'registration':
+      return '등록데스크/대기열 분리 유지'
+    case 'opening':
+      return '안전·유의사항 고지 후 시작'
+    case 'main':
+      return '자료 송출/마이크 전환 지연 방지'
+    case 'photo':
+      return '촬영 구역(포토존) 라인 유지'
+    case 'closing':
+      return '퇴장 동선 정리 및 분실물 안내'
+    default:
+      return '전환 전 체크리스트 확인'
+  }
+}
+
 /** 파싱 직후·마이그레이션: 누락 필드 보강 + 타임라인 시각 정합 */
 export function normalizeQuoteDoc(
   doc: QuoteDoc,
@@ -81,7 +170,10 @@ export function normalizeQuoteDoc(
 
   const timeline = program.timeline as TimelineRow[]
   if (!program.concept?.trim() || program.concept.length < 10) {
-    program.concept = `${eventName} ${eventType} 행사 프로그램·운영 개요 (표·타임테이블·큐시트·시나리오 탭 참고).`
+    program.concept = `${eventName} ${eventType} 진행 흐름과 현장 체크포인트를 한눈에 볼 수 있도록 구성했습니다.`
+  } else if (/모의\s*생성|테스트/.test(program.concept)) {
+    // 테스트성 자동 문구가 섞이는 경우 문서 톤 유지
+    program.concept = `${eventName} ${eventType} 진행 흐름과 현장 체크포인트를 한눈에 볼 수 있도록 구성했습니다.`
   }
   if (!program.programRows.length && timeline.length) {
     program.programRows = timeline.map((t, i) => ({
@@ -134,7 +226,7 @@ export function normalizeQuoteDoc(
       kind: i === 0 ? '오프닝' : i === n - 1 ? '클로징' : '진행',
       content: t?.content || `구간 ${i + 1}`,
       tone: '',
-      image: '(이미지 슬롯)',
+      image: '',
       time: t?.time || '',
       audience: headcount || '',
       notes: t?.detail || '',
@@ -157,11 +249,28 @@ export function normalizeQuoteDoc(
     if (program!.programRows[i]) {
       program.programRows[i].time = t.time
       if (!program.programRows[i].content.trim()) program.programRows[i].content = t.content || `일정 ${i + 1}`
+      if (!program.programRows[i].notes.trim() && String(t.detail || '').trim()) program.programRows[i].notes = t.detail
+      if (!program.programRows[i].tone.trim()) {
+        const st = stageFrom(program.programRows[i].kind, t.content, program.programRows[i].notes || t.detail || '')
+        program.programRows[i].tone =
+          st === 'registration' ? '운영' : st === 'opening' ? '공식' : st === 'closing' ? '정리' : st === 'main' ? '진행' : '운영'
+      }
+      if (isBlank(program.programRows[i].image)) {
+        const st = stageFrom(program.programRows[i].kind, t.content, program.programRows[i].notes || t.detail || '')
+        program.programRows[i].image = inferProgramImage(st, program.programRows[i].kind)
+      }
     }
     if (program!.cueRows[i]) {
       program.cueRows[i].time = t.time
       if (!program.cueRows[i].content.trim()) program.cueRows[i].content = t.content || ''
       program.cueRows[i].order = String(i + 1)
+      if (!program.cueRows[i].staff.trim() && String(t.manager || '').trim()) program.cueRows[i].staff = t.manager
+      if (!program.cueRows[i].prep.trim() && String(t.detail || '').trim()) program.cueRows[i].prep = t.detail
+      if (isBlank(program.cueRows[i].script) || isBlank(program.cueRows[i].special)) {
+        const st = stageFrom(program.programRows[i]?.kind || '', t.content, t.detail)
+        if (isBlank(program.cueRows[i].script)) program.cueRows[i].script = inferCueScript(st)
+        if (isBlank(program.cueRows[i].special)) program.cueRows[i].special = inferCueSpecial(st)
+      }
     }
   })
 
@@ -174,6 +283,7 @@ export function normalizeQuoteDoc(
       mainPoints: [],
       closing: '',
       directionNotes: '',
+      scenes: [],
     }
   } else {
     scenario = {
@@ -183,28 +293,122 @@ export function normalizeQuoteDoc(
       mainPoints: Array.isArray(scenario.mainPoints) ? scenario.mainPoints : [],
       closing: scenario.closing || '',
       directionNotes: scenario.directionNotes || '',
+      scenes: Array.isArray((scenario as any).scenes) ? (scenario as any).scenes : [],
     }
   }
 
   const tl = program.timeline
-  if (!scenario.summaryTop.trim()) scenario.summaryTop = `${eventName} 연출·진행 요약`
-  if (!scenario.opening.trim() && tl[0])
-    scenario.opening = `${tl[0].content}${tl[0].time ? ` (${tl[0].time})` : ''}`
-  if (!scenario.development.trim() && tl.length > 1)
-    scenario.development = tl
-      .slice(1, Math.max(1, tl.length - 1))
-      .map(t => t.content)
-      .filter(Boolean)
-      .join(' → ') || '본 행사 진행'
-  if (!scenario.mainPoints?.length) {
-    const fromRows = program.programRows.map(r => r.content).filter(c => c.trim())
-    scenario.mainPoints = (fromRows.length ? fromRows : tl.map(t => t.content)).filter(Boolean).slice(0, 6)
-    if (!scenario.mainPoints.length) scenario.mainPoints = ['일정·연출은 타임테이블·제안 프로그램 표 참고']
+  const venue = (doc.venue || '').trim()
+  if (!scenario.summaryTop.trim() || /연출·진행 (요약|흐름)/.test(scenario.summaryTop)) {
+    scenario.summaryTop = `${eventName} 진행 시나리오 요약`
   }
-  if (!scenario.closing.trim() && tl.length)
-    scenario.closing = `${tl[tl.length - 1].content}${tl[tl.length - 1].time ? ` (${tl[tl.length - 1].time})` : ''}`
-  if (!scenario.directionNotes.trim())
-    scenario.directionNotes = `담당: ${tl.map(t => t.manager).filter(Boolean).join(', ') || '현장'} · 장비·멘트 사전 확인`
+  if (tl[0]) {
+    const t0 = tl[0]
+    if (!scenario.opening.trim() || scenario.opening.includes(`(${t0.time})`)) {
+      scenario.opening = `${t0.time ? `${t0.time} ` : ''}${t0.content} 진행 및 안전/진행 안내`
+    }
+  }
+  if (tl.length > 1) {
+    if (!scenario.development.trim()) {
+      const mids = tl.slice(1, tl.length - 1).map(t => t.content).filter(Boolean)
+      scenario.development = mids.length ? `${mids.join(' → ')} (전환 체크포인트 포함)` : '본 행사 진행'
+    }
+  }
+  const hasLowSignalMain = scenario.mainPoints?.some(p => /표 참고|모의|테스트/.test(String(p || ''))) ?? false
+  if (!scenario.mainPoints?.length || scenario.mainPoints.some(p => !String(p || '').trim()) || hasLowSignalMain) {
+    const mids = program.cueRows
+      .map((c, i) => {
+        const label = String(c.content || '').trim() || String(tl[i]?.content || '').trim() || `구간 ${i + 1}`
+        const point = String(c.special || '').trim() || String(tl[i]?.detail || '').trim()
+        return point ? `${label}: ${point}` : label
+      })
+      .filter((_, i) => i > 0 && i < tl.length - 1)
+      .slice(0, 6)
+      .map(s => (s.length > 60 ? s.slice(0, 60) + '...' : s))
+    scenario.mainPoints = mids.length ? mids : (tl.map(t => t.content).filter(Boolean).slice(0, 6) as string[])
+  }
+  if (tl.length) {
+    const last = tl[tl.length - 1]
+    if (!scenario.closing.trim() || scenario.closing.includes(`(${last.time})`)) {
+      scenario.closing = `${last.time ? `${last.time} ` : ''}${last.content} 단체사진/퇴장 안내 및 정리 마감`
+    }
+  }
+  if (!scenario.directionNotes.trim()) {
+    scenario.directionNotes = `현장PM 기준 타임테이블 전환: 5분 전 무전 공유 · 장비/멘트/동선 체크`
+  }
+
+  // scenes 보강: 없으면 timeline 기반으로 최소 구성
+  if (!scenario.scenes || !Array.isArray(scenario.scenes) || scenario.scenes.length === 0) {
+    const fromTimeline = (program.timeline || []).slice(0, 12)
+    scenario.scenes = fromTimeline.map((t, idx) => ({
+      seq: idx + 1,
+      time: t.time || '',
+      place: '',
+      title: t.content || `장면 ${idx + 1}`,
+      flow: t.detail || '',
+      mcScript: '',
+      opsNotes: t.manager ? `담당: ${t.manager}` : '',
+      checkpoints: [],
+    }))
+  } else {
+    // 최소 필드 정합
+    scenario.scenes = scenario.scenes
+      .map((s: any, idx: number) => ({
+        seq: typeof s?.seq === 'number' && Number.isFinite(s.seq) ? s.seq : idx + 1,
+        time: typeof s?.time === 'string' ? s.time : '',
+        place: typeof s?.place === 'string' ? s.place : '',
+        title: typeof s?.title === 'string' ? s.title : '',
+        flow: typeof s?.flow === 'string' ? s.flow : '',
+        mcScript: typeof s?.mcScript === 'string' ? s.mcScript : '',
+        opsNotes: typeof s?.opsNotes === 'string' ? s.opsNotes : '',
+        checkpoints: Array.isArray(s?.checkpoints) ? s.checkpoints.map((v: any) => String(v || '')).filter((v: string) => v.trim()) : [],
+      }))
+      .filter(s => s.title.trim() || s.flow.trim() || s.mcScript.trim())
+  }
+
+  // scenes 정합성/밀도 보강 (시간·장소·운영 포인트 동기화)
+  scenario.scenes = (scenario.scenes || []).map((s: any, idx: number) => {
+    const t = tl[idx]
+    const cue = program.cueRows[idx]
+    const p = program.programRows[idx]
+    const st = stageFrom(
+      p?.kind || String(s?.title || ''),
+      String(t?.content || s?.title || ''),
+      String(t?.detail || p?.notes || s?.flow || ''),
+    )
+
+    const nextTime = t?.time || s?.time || ''
+    const nextTitle = String(s?.title || t?.content || `장면 ${idx + 1}`).trim()
+    const nextFlow = String(s?.flow || t?.detail || '').trim()
+
+    const nextPlace = isBlank(s?.place) ? inferPlace(st, venue) : String(s.place || '').trim()
+    const nextMcScript =
+      isBlank(s?.mcScript) ? (cue?.script?.trim() ? cue.script : inferCueScript(st)) : String(s.mcScript || '').trim()
+
+    const staff = String(cue?.staff || t?.manager || '').trim()
+    const special = String(cue?.special || '').trim()
+    const nextOpsNotes = isBlank(s?.opsNotes)
+      ? [staff ? `담당: ${staff}` : '', special].filter(Boolean).join(' · ')
+      : String(s.opsNotes || '').trim()
+
+    const checkpoints = Array.isArray(s?.checkpoints) ? s.checkpoints.map((v: any) => String(v || '').trim()).filter(Boolean) : []
+    const nextCheckpoints =
+      checkpoints.length > 0
+        ? checkpoints.slice(0, 4)
+        : [`전환 5분 전 체크/무전 공유`, inferSceneCheckpoint(st)]
+
+    return {
+      ...s,
+      seq: typeof s?.seq === 'number' && Number.isFinite(s.seq) ? s.seq : idx + 1,
+      time: typeof nextTime === 'string' ? nextTime : '',
+      title: nextTitle,
+      flow: nextFlow,
+      place: nextPlace,
+      mcScript: nextMcScript,
+      opsNotes: nextOpsNotes,
+      checkpoints: nextCheckpoints,
+    }
+  })
 
   return {
     ...doc,

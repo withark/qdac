@@ -33,7 +33,12 @@ async function parseResponsePayload(res: Response): Promise<unknown> {
  * - 실패: 사용자용 메시지로 ApiError throw
  */
 export async function apiFetch<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
-  const res = await fetch(input, init)
+  let res: Response
+  try {
+    res = await fetch(input, init)
+  } catch (e) {
+    throw new ApiError(toUserMessage(e, '네트워크 오류가 발생했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.'), 0, e)
+  }
   const payload = await parseResponsePayload(res)
 
   if (res.ok) {

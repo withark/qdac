@@ -14,11 +14,29 @@ import {
 /** 관리자 등록 기준 양식용 user_id (엔진·품질용, 사용자 참고 자료와 구분) */
 const ADMIN_SAMPLE_USER_ID = 'system'
 
-const ALLOWED_EXT = ['pdf', 'xlsx', 'xls', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'txt', 'csv', 'md', 'ppt', 'pptx', 'doc', 'docx']
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024 // 4MB
+const ALLOWED_EXTENSIONS = new Set([
+  'pdf',
+  'xlsx',
+  'xls',
+  'png',
+  'jpg',
+  'jpeg',
+  'gif',
+  'webp',
+  'txt',
+  'csv',
+  'md',
+  'ppt',
+  'pptx',
+  'doc',
+  'docx',
+])
 
-function getExt(filename: string): string {
+function getAllowedExt(filename: string): string | null {
   const ext = (filename.split('.').pop() || '').toLowerCase()
-  return ALLOWED_EXT.includes(ext) ? ext : 'bin'
+  if (!ext) return null
+  return ALLOWED_EXTENSIONS.has(ext) ? ext : null
 }
 
 export const dynamic = 'force-dynamic'
@@ -77,8 +95,14 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData()
     const file = formData.get('file') as File | null
     if (!file) return errorResponse(400, 'INVALID_REQUEST', '파일이 없습니다.')
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return errorResponse(413, 'FILE_TOO_LARGE', '파일 크기 제한(4MB)을 초과했습니다.')
+    }
     const filename = file.name || 'unnamed'
-    const ext = getExt(filename)
+    const ext = getAllowedExt(filename)
+    if (!ext) {
+      return errorResponse(400, 'INVALID_FILE_TYPE', '지원하지 않는 파일 형식입니다.')
+    }
     const buffer = Buffer.from(await file.arrayBuffer())
     await insertCuesheetSampleWithFile(ADMIN_SAMPLE_USER_ID, { filename, ext, content: buffer })
     return okResponse({ ok: true })

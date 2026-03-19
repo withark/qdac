@@ -1,5 +1,4 @@
 import type { QuoteDoc, QuoteCategory } from './types'
-import { randomUUID } from 'crypto'
 
 export interface QuoteTotals {
   sub: number
@@ -31,7 +30,11 @@ export function fmtKRW(n: number): string {
 }
 
 export function uid(): string {
-  return randomUUID()
+  const g = globalThis as typeof globalThis & { crypto?: { randomUUID?: () => string } }
+  if (g.crypto && typeof g.crypto.randomUUID === 'function') {
+    return g.crypto.randomUUID()
+  }
+  return `id_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
 }
 
 /** 견적일 문자열(한국어) → 파일명용 YYYYMMDD (8자) */

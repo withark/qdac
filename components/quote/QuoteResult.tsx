@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import type { QuoteDoc, CompanySettings, QuoteItemKind, PriceCategory, PriceItem, ProgramTableRow, CueSheetRow, TimelineRow } from '@/lib/types'
+import type { QuoteDoc, CompanySettings, QuoteItemKind, PriceCategory, PriceItem, ProgramTableRow, TimelineRow } from '@/lib/types'
 import { KIND_ORDER, subtotalsByKind } from '@/lib/quoteGroup'
 import { QUOTE_TEMPLATES, QUOTE_TEMPLATE_IDS, type QuoteTemplateId } from '@/lib/quoteTemplates'
 import { calcTotals, fmtKRW } from '@/lib/calc'
@@ -10,10 +10,10 @@ import type { PlanType } from '@/lib/plans'
 import { allowedQuoteTemplates } from '@/lib/plan-entitlements'
 import { normalizeQuoteDoc } from '@/lib/ai/parsers'
 
-type Tab = 'quote' | 'program' | 'timeline' | 'cuesheet' | 'scenario'
+type Tab = 'quote' | 'plan'
 
 function emptyRow(): ProgramTableRow {
-  return { kind: '', content: '', tone: '', image: '(이미지 슬롯)', time: '', audience: '', notes: '' }
+  return { kind: '', content: '', tone: '', image: '', time: '', audience: '', notes: '' }
 }
 
 function ensureProgram(doc: QuoteDoc): QuoteDoc {
@@ -116,7 +116,7 @@ export function QuoteResult({ doc, companySettings, prices = [], planType = 'FRE
   }
 
   const program = d.program
-  const scenario = d.scenario || { summaryTop: '', opening: '', development: '', mainPoints: [], closing: '', directionNotes: '' }
+  const scenario = d.scenario || { summaryTop: '', opening: '', development: '', mainPoints: [], closing: '', directionNotes: '', scenes: [] }
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -124,10 +124,7 @@ export function QuoteResult({ doc, companySettings, prices = [], planType = 'FRE
         <div className="flex gap-1 py-2 flex-wrap">
           {[
             { id: 'quote' as Tab, label: '견적서' },
-            { id: 'program' as Tab, label: '제안 프로그램' },
-            { id: 'timeline' as Tab, label: '타임테이블' },
-            { id: 'cuesheet' as Tab, label: '큐시트' },
-            { id: 'scenario' as Tab, label: '시나리오' },
+            { id: 'plan' as Tab, label: '기획안' },
           ].map(({ id, label }) => (
             <button
               key={id}
@@ -171,10 +168,7 @@ export function QuoteResult({ doc, companySettings, prices = [], planType = 'FRE
       </div>
       <p className="text-[10px] text-slate-500 px-4 pb-1.5 flex-shrink-0">
         {tab === 'quote' && '개당 단가·수량·항목명 등 표에서 바로 수정 가능'}
-        {tab === 'program' && '프로그램 종류·내용·성격 등 표 형태 구성표 (엑셀과 동일하게 다운로드 가능)'}
-        {tab === 'timeline' && '생성 시 입력한 시작·종료 시각에 맞춰 배치됩니다. 수정 시 즉시 반영됩니다.'}
-        {tab === 'cuesheet' && '운영 문서 표 — 시간·담당·준비물·멘트·특이사항'}
-        {tab === 'scenario' && '오프닝·전개·메인·클로징·연출 메모 (PPT 샘플 반영)'}
+        {tab === 'plan' && '프로그램 구성표 + 타임테이블(행사 흐름) — 안정화 전까지 핵심만 노출합니다.'}
       </p>
 
       <div className="flex-1 overflow-y-auto p-4 pb-20">
@@ -336,12 +330,15 @@ export function QuoteResult({ doc, companySettings, prices = [], planType = 'FRE
               </table>
               <div className="border-t border-gray-200 pt-3 space-y-1 max-w-xs ml-auto">
                 {[
-                  ['소계', fmtKRW(totals.sub)], [`제경비 (${doc.expenseRate}%)`, fmtKRW(totals.exp)], [`이윤 (${doc.profitRate}%)`, fmtKRW(totals.prof)],
-                  ['부가세 (10%)', fmtKRW(totals.vat)], ['절사', `-${fmtKRW(doc.cutAmount)}`],
+                  ['공급가 합계', fmtKRW(totals.sub)],
+                  ['운영 원가 합계', fmtKRW(totals.sub + totals.exp)],
+                  [`이윤 반영 금액 (${doc.profitRate}%)`, fmtKRW(totals.prof)],
+                  ['부가세 (10%)', fmtKRW(totals.vat)],
+                  ['절사 (공제)', `-${fmtKRW(doc.cutAmount)}`],
                 ].map(([l, v]) => (
                   <div key={l} className="flex justify-between text-xs text-gray-500"><span>{l}</span><span>{v}원</span></div>
                 ))}
-                <div className="flex justify-between font-semibold text-base border-t border-gray-300 pt-2 mt-2"><span>합계</span><span>{fmtKRW(totals.grand)}원</span></div>
+                <div className="flex justify-between font-semibold text-base border-t border-gray-300 pt-2 mt-2"><span>최종 합계</span><span>{fmtKRW(totals.grand)}원</span></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {[
@@ -364,8 +361,9 @@ export function QuoteResult({ doc, companySettings, prices = [], planType = 'FRE
           )
         })()}
 
-        {/* 제안 프로그램 — 표 */}
-        {tab === 'program' && (
+        {/* 기획안 (제안 프로그램 + 타임테이블) */}
+        {tab === 'plan' && (
+          <div className="space-y-8">
           <div className="max-w-full mx-auto space-y-3 pt-2 overflow-x-auto">
             <h3 className="text-base font-semibold">{doc.eventName} — 제안 프로그램 구성표</h3>
             <table className="w-full min-w-[900px] text-xs border-collapse border border-gray-200">
@@ -393,7 +391,7 @@ export function QuoteResult({ doc, companySettings, prices = [], planType = 'FRE
                             })
                           }}
                           className="w-full min-w-[72px] bg-transparent outline-none rounded px-1 py-0.5 text-xs"
-                          placeholder={field === 'image' ? '(이미지 슬롯)' : ''}
+                          placeholder={field === 'image' ? '콘셉트 이미지 예정' : ''}
                         />
                       </td>
                     ))}
@@ -416,10 +414,8 @@ export function QuoteResult({ doc, companySettings, prices = [], planType = 'FRE
               />
             </div>
           </div>
-        )}
 
-        {/* 타임테이블 — controlled, 폼 시간과 동기화된 생성 결과 */}
-        {tab === 'timeline' && (
+          {/* 타임테이블 — controlled, 폼 시간과 동기화된 생성 결과 */}
           <div className="max-w-3xl mx-auto space-y-3 pt-2">
             <h3 className="text-base font-semibold">{doc.eventName} — 타임테이블</h3>
             <p className="text-xs text-gray-500">시간 열은 생성 시 입력한 시작·종료 시각 사이로 맞춰졌습니다. 수정하면 즉시 반영됩니다.</p>
@@ -460,105 +456,6 @@ export function QuoteResult({ doc, companySettings, prices = [], planType = 'FRE
             </table>
             <Button size="sm" onClick={() => patchDoc(base => { base.program.timeline.push({ time: '', content: '', detail: '', manager: '' }); return base })}>+ 일정 추가</Button>
           </div>
-        )}
-
-        {/* 큐시트 운영표 */}
-        {tab === 'cuesheet' && (
-          <div className="max-w-full mx-auto space-y-3 pt-2 overflow-x-auto">
-            <h3 className="text-base font-semibold">{doc.eventName} — 큐시트 (운영 문서)</h3>
-            <div className="bg-amber-50/80 border border-amber-100 rounded-lg px-3 py-2 text-sm text-gray-800">
-              <span className="font-semibold text-amber-900">상단 요약</span>
-              <textarea
-                value={program.cueSummary || ''}
-                onChange={e => patchDoc(base => { base.program.cueSummary = e.target.value; return base })}
-                rows={2}
-                className="mt-1 w-full bg-white/80 border border-amber-100 rounded text-xs p-2"
-              />
-            </div>
-            <table className="w-full min-w-[1000px] text-xs border-collapse border border-gray-200">
-              <thead>
-                <tr className="bg-slate-100">
-                  {['시간', '순서', '진행 내용', '담당', '준비물/장비', '멘트·체크', '특이사항', ''].map(h => (
-                    <th key={h} className="border border-gray-200 px-1 py-2 text-left whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {(program.cueRows || []).map((row: CueSheetRow, i: number) => (
-                  <tr key={i} className="border-b border-gray-50">
-                    {(['time', 'order', 'content', 'staff', 'prep', 'script', 'special'] as const).map(field => (
-                      <td key={field} className="border border-gray-100 p-1 align-top">
-                        <input
-                          value={row[field]}
-                          onChange={e => patchDoc(base => {
-                            if (!base.program.cueRows[i]) base.program.cueRows[i] = { time: '', order: '', content: '', staff: '', prep: '', script: '', special: '' }
-                            base.program.cueRows[i] = { ...base.program.cueRows[i], [field]: e.target.value }
-                            return base
-                          })}
-                          className="w-full min-w-[64px] bg-transparent text-xs rounded px-1"
-                        />
-                      </td>
-                    ))}
-                    <td className="border border-gray-100 p-1">
-                      <button type="button" className="text-red-400 text-xs" onClick={() => patchDoc(base => { base.program.cueRows.splice(i, 1); return base })}>✕</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <Button size="sm" onClick={() => patchDoc(base => { base.program.cueRows.push({ time: '', order: String((base.program.cueRows?.length || 0) + 1), content: '', staff: '', prep: '', script: '', special: '' }); return base })}>+ 큐 행 추가</Button>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-4">
-              <p className="text-[10px] font-semibold text-gray-400 md:col-span-3">투입 인력 (요약)</p>
-              {(program.staffing || []).map((s, i) => (
-                <div key={i} className="bg-gray-50 rounded-lg p-2 text-xs">{s.role} ×{s.count} — {s.note}</div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 시나리오 구조 */}
-        {tab === 'scenario' && (
-          <div className="max-w-3xl mx-auto space-y-4 pt-2">
-            <h3 className="text-base font-semibold">시나리오 · 연출 흐름</h3>
-            <p className="text-xs text-gray-500">참고 자료에 업로드한 PPT/시나리오 텍스트가 생성 시 프롬프트에 포함됩니다. (구버전 PPT만 올린 경우 한 번 재업로드 권장)</p>
-            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-              <label className="text-[10px] font-semibold text-gray-500">한 줄 요약</label>
-              <input value={scenario.summaryTop} onChange={e => patchDoc(base => { if (!base.scenario) base.scenario = { summaryTop: '', opening: '', development: '', mainPoints: [], closing: '', directionNotes: '' }; base.scenario.summaryTop = e.target.value; return base })} className="w-full mt-1 text-sm font-medium bg-white border rounded px-2 py-1" />
-            </div>
-            {[
-              { k: 'opening' as const, label: '오프닝' },
-              { k: 'development' as const, label: '전개' },
-              { k: 'closing' as const, label: '클로징' },
-            ].map(({ k, label }) => (
-              <div key={k} className="border border-gray-200 rounded-lg p-3">
-                <p className="text-xs font-semibold text-primary-700 mb-1">{label}</p>
-                <textarea
-                  value={scenario[k]}
-                  onChange={e => patchDoc(base => { if (!base.scenario) base.scenario = scenario; base.scenario[k] = e.target.value; return base })}
-                  rows={4}
-                  className="w-full text-xs border-0 bg-gray-50 rounded p-2 resize-y"
-                />
-              </div>
-            ))}
-            <div className="border border-gray-200 rounded-lg p-3">
-              <p className="text-xs font-semibold text-primary-700 mb-2">메인 포인트</p>
-              {(scenario.mainPoints || []).map((line, i) => (
-                <div key={i} className="flex gap-2 mb-1">
-                  <span className="text-gray-400 tabular-nums w-6">{i + 1}.</span>
-                  <input
-                    value={line}
-                    onChange={e => patchDoc(base => { if (!base.scenario) base.scenario = scenario; base.scenario.mainPoints[i] = e.target.value; return base })}
-                    className="flex-1 text-xs border-b border-gray-100 bg-transparent py-1"
-                  />
-                  <button type="button" className="text-red-400 text-xs" onClick={() => patchDoc(base => { base.scenario!.mainPoints.splice(i, 1); return base })}>✕</button>
-                </div>
-              ))}
-              <button type="button" className="text-xs text-primary-600 mt-1" onClick={() => patchDoc(base => { if (!base.scenario) base.scenario = scenario; base.scenario.mainPoints.push(''); return base })}>+ 포인트 추가</button>
-            </div>
-            <div className="border border-gray-200 rounded-lg p-3">
-              <p className="text-xs font-semibold text-primary-700 mb-1">연출 메모</p>
-              <textarea value={scenario.directionNotes} onChange={e => patchDoc(base => { if (!base.scenario) base.scenario = scenario; base.scenario.directionNotes = e.target.value; return base })} rows={3} className="w-full text-xs bg-amber-50/50 rounded p-2" />
-            </div>
           </div>
         )}
       </div>

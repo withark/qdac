@@ -85,46 +85,52 @@ export async function markBillingOrderApproved(input: {
   paymentKey: string
   raw: unknown
   approvedAt?: string
-}): Promise<void> {
+}): Promise<boolean> {
   await initDb()
   const sql = getDb()
   const now = new Date().toISOString()
   const approvedAt = input.approvedAt ?? now
-  await sql`
+  const rows = await sql`
     UPDATE billing_orders
     SET status = 'approved',
         payment_key = ${input.paymentKey},
         approved_at = ${approvedAt}::timestamptz,
         raw = ${JSON.stringify(input.raw)}::jsonb,
         updated_at = ${now}::timestamptz
-    WHERE order_id = ${input.orderId}
+    WHERE order_id = ${input.orderId} AND status = 'pending'
+    RETURNING id
   `
+  return (rows as unknown[]).length > 0
 }
 
-export async function markBillingOrderFailed(orderId: string, raw: unknown): Promise<void> {
+export async function markBillingOrderFailed(orderId: string, raw: unknown): Promise<boolean> {
   await initDb()
   const sql = getDb()
   const now = new Date().toISOString()
-  await sql`
+  const rows = await sql`
     UPDATE billing_orders
     SET status = 'failed',
         raw = ${JSON.stringify(raw)}::jsonb,
         updated_at = ${now}::timestamptz
-    WHERE order_id = ${orderId}
+    WHERE order_id = ${orderId} AND status IN ('pending', 'approved')
+    RETURNING id
   `
+  return (rows as unknown[]).length > 0
 }
 
-export async function markBillingOrderCanceled(orderId: string, raw: unknown): Promise<void> {
+export async function markBillingOrderCanceled(orderId: string, raw: unknown): Promise<boolean> {
   await initDb()
   const sql = getDb()
   const now = new Date().toISOString()
-  await sql`
+  const rows = await sql`
     UPDATE billing_orders
     SET status = 'canceled',
         raw = ${JSON.stringify(raw)}::jsonb,
         updated_at = ${now}::timestamptz
-    WHERE order_id = ${orderId}
+    WHERE order_id = ${orderId} AND status IN ('pending', 'approved')
+    RETURNING id
   `
+  return (rows as unknown[]).length > 0
 }
 
 export async function listBillingOrdersAdmin(limit = 500): Promise<BillingOrderRow[]> {
@@ -150,16 +156,18 @@ export async function listBillingOrdersAdmin(limit = 500): Promise<BillingOrderR
   }))
 }
 
-export async function markBillingOrderExpired(orderId: string, raw: unknown): Promise<void> {
+export async function markBillingOrderExpired(orderId: string, raw: unknown): Promise<boolean> {
   await initDb()
   const sql = getDb()
   const now = new Date().toISOString()
-  await sql`
+  const rows = await sql`
     UPDATE billing_orders
     SET status = 'expired',
         raw = ${JSON.stringify(raw)}::jsonb,
         updated_at = ${now}::timestamptz
-    WHERE order_id = ${orderId}
+    WHERE order_id = ${orderId} AND status IN ('pending', 'approved')
+    RETURNING id
   `
+  return (rows as unknown[]).length > 0
 }
 

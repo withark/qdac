@@ -50,12 +50,12 @@ export default function ExportButtons({ doc, companySettings }: Props) {
       rows.push(['소계', '', '', '', '', subByKind.get(kind) ?? 0, ''])
     })
     rows.push([])
-    rows.push(['', '', '', '', '소계', T.sub])
-    rows.push(['', '', '', '', `제경비(${doc.expenseRate}%)`, T.exp])
-    rows.push(['', '', '', '', `이윤(${doc.profitRate}%)`, T.prof])
+    rows.push(['', '', '', '', '공급가 합계', T.sub])
+    rows.push(['', '', '', '', '운영 원가 합계', T.sub + T.exp])
+    rows.push(['', '', '', '', `이윤 반영 금액(${doc.profitRate}%)`, T.prof])
     rows.push(['', '', '', '', '부가세(10%)', T.vat])
-    rows.push(['', '', '', '', '절사', -T.cut])
-    rows.push(['', '', '', '', '합 계', T.grand])
+    rows.push(['', '', '', '', '절사 (공제)', -T.cut])
+    rows.push(['', '', '', '', '최종 합계', T.grand])
     rows.push([])
     rows.push(['계약조건/특이사항', '', '', '', '결제조건'])
     rows.push([doc.notes, '', '', '', doc.paymentTerms])
@@ -123,7 +123,16 @@ export default function ExportButtons({ doc, companySettings }: Props) {
       ;(byKind.get(kind) || []).forEach(it => lines.push(`  ${it.name}  ${it.spec}  ${it.qty}${it.unit}  ${fmtKRW(it.unitPrice)}원 = ${fmtKRW(it.total)}원`))
       lines.push(`  소계: ${fmtKRW(subByKind.get(kind) ?? 0)}원`, '')
     })
-    lines.push(`소계: ${fmtKRW(T.sub)}원`, `제경비: ${fmtKRW(T.exp)}원`, `이윤: ${fmtKRW(T.prof)}원`, `부가세: ${fmtKRW(T.vat)}원`, `합계: ${fmtKRW(T.grand)}원`, '', doc.notes || '')
+    lines.push(
+      `공급가 합계: ${fmtKRW(T.sub)}원`,
+      `운영 원가 합계: ${fmtKRW(T.sub + T.exp)}원`,
+      `이윤 반영 금액: ${fmtKRW(T.prof)}원`,
+      `부가세: ${fmtKRW(T.vat)}원`,
+      `절사 (공제): -${fmtKRW(T.cut)}원`,
+      `최종 합계: ${fmtKRW(T.grand)}원`,
+      '',
+      doc.notes || '',
+    )
     navigator.clipboard.writeText(lines.join('\n'))
       .then(() => showToast('클립보드에 복사됐습니다'))
       .catch(() => showToast('복사 실패', 'err'))

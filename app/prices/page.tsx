@@ -22,6 +22,13 @@ export default function PricesPage() {
   const [toast,  setToast]  = useState('')
   const [editingPrice, setEditingPrice] = useState<{ ci: number; ii: number } | null>(null)
   const [suggesting, setSuggesting] = useState(false)
+  const [quick, setQuick] = useState<{ category: string; name: string; unit: string; price: string; note: string }>({
+    category: '',
+    name: '',
+    unit: '식',
+    price: '',
+    note: '',
+  })
 
   useEffect(() => {
     apiFetch<PriceCategory[]>('/api/prices')
@@ -90,6 +97,27 @@ export default function PricesPage() {
     showToast('카테고리가 추가되었습니다.')
   }, [showToast])
 
+  const addQuickItem = useCallback(() => {
+    const categoryName = (quick.category || '').trim()
+    const name = (quick.name || '').trim()
+    const unit = (quick.unit || '식').trim() || '식'
+    const price = Math.max(0, Math.round(Number(String(quick.price || '').replace(/[^\d]/g, '') || 0)))
+    const note = (quick.note || '').trim()
+    if (!categoryName) { showToast('분류(카테고리)를 입력하세요.'); return }
+    if (!name) { showToast('항목명을 입력하세요.'); return }
+    setPrices(p => {
+      const n = structuredClone(p)
+      const idx = n.findIndex(c => String(c.name || '').trim() === categoryName)
+      const item = { id: uid(), name, spec: '', unit, price, note, types: [] }
+      if (idx >= 0) n[idx].items.push(item)
+      else n.push({ id: uid(), name: categoryName, items: [item] })
+      return n
+    })
+    setDirty(true)
+    setQuick(q => ({ ...q, name: '', price: '', note: '' }))
+    showToast('단가 항목이 추가되었습니다.')
+  }, [quick, showToast])
+
   function delCat(ci: number) {
     if (!confirm(`"${prices[ci].name}" 삭제할까요?`)) return
     setPrices(p => p.filter((_, i) => i !== ci))
@@ -150,6 +178,48 @@ export default function PricesPage() {
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div className="rounded-lg border border-primary-100 bg-primary-50/50 px-4 py-2.5 text-xs text-gray-600">
             <span className="font-medium text-primary-700">참고</span> 참고 견적서를 업로드하면 AI가 분석해 단가표에 자동 반영합니다.
+          </div>
+
+          <div className="rounded-2xl border border-gray-100 bg-white shadow-card p-5">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">단가 빠른 추가</p>
+                <p className="text-xs text-gray-500 mt-0.5">항목명·단가·단위·분류·비고를 입력하고 바로 추가하세요.</p>
+              </div>
+              <Button size="sm" variant="primary" onClick={addQuickItem}>추가</Button>
+            </div>
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-5 gap-2">
+              <Input
+                label="분류"
+                placeholder="예) 음향 / 인력 / 운영물"
+                value={quick.category}
+                onChange={e => setQuick(q => ({ ...q, category: e.target.value }))}
+              />
+              <Input
+                label="항목명"
+                placeholder="예) 무선마이크"
+                value={quick.name}
+                onChange={e => setQuick(q => ({ ...q, name: e.target.value }))}
+              />
+              <Input
+                label="단위"
+                placeholder="식/개/명/대"
+                value={quick.unit}
+                onChange={e => setQuick(q => ({ ...q, unit: e.target.value }))}
+              />
+              <Input
+                label="단가(원)"
+                placeholder="예) 150000"
+                value={quick.price}
+                onChange={e => setQuick(q => ({ ...q, price: e.target.value }))}
+              />
+              <Input
+                label="비고"
+                placeholder="선택"
+                value={quick.note}
+                onChange={e => setQuick(q => ({ ...q, note: e.target.value }))}
+              />
+            </div>
           </div>
 
           {(Array.isArray(prices) ? prices : []).map((cat, ci) => (

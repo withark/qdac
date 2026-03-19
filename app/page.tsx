@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function IntroPage() {
   const session = await getServerSession(authOptions)
-  const initialStartHref = buildStartHref({ isAuthenticated: !!session, targetPath: '/generate' })
+  const initialStartHref = buildStartHref({ isAuthenticated: !!session, targetPath: '/dashboard' })
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 via-white to-primary-50/30">
@@ -33,7 +33,7 @@ export default async function IntroPage() {
         <div className="max-w-2xl mx-auto space-y-8">
           <EvQuoteLogo showText size="lg" className="justify-center mx-auto" />
           <p className="text-slate-500 text-lg">
-            행사 견적서, 제안 프로그램, 타임테이블, 큐시트를 한 번에.
+            행사 견적서, 제안 프로그램, 타임테이블을 한 번에.
             <br />
             <span className="text-gray-700 font-medium">AI가 만들어 드립니다.</span>
           </p>
@@ -58,7 +58,7 @@ export default async function IntroPage() {
           {[
             { title: '견적서', desc: '단가 반영·구분별 항목으로 깔끔한 견적서 자동 작성' },
             { title: '제안·타임테이블', desc: '진행 일정과 투입 인력까지 한 번에 구성' },
-            { title: '큐시트', desc: '참고 샘플을 올려두고 형식에 맞춰 활용' },
+            { title: '운영 흐름', desc: '행사 진행에 필요한 핵심 흐름을 문서로 정리' },
           ].map((item) => (
             <div key={item.title} className="p-4 rounded-2xl bg-white/80 border border-slate-100 shadow-sm">
               <h3 className="font-semibold text-gray-800 mb-1">{item.title}</h3>

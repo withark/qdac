@@ -46,6 +46,21 @@ export async function POST(req: NextRequest) {
     if (!rawText.trim()) {
       return errorResponse(400, 'EMPTY_FILE_TEXT', '파일에서 텍스트를 읽을 수 없습니다.')
     }
+    // PPTX 텍스트 미추출/파싱 실패는 저장 단계에서 차단(= 리스크 제거)
+    if (ext === 'pptx') {
+      const bad =
+        /\(PPTX 파싱 실패:/i.test(rawText) ||
+        /\(PPTX에서 추출한 텍스트가 없습니다\.\)/i.test(rawText) ||
+        /PPT\/PPTX 파일입니다/i.test(rawText) ||
+        /슬라이드 내용은 업로드된 원본/i.test(rawText)
+      if (bad) {
+        return errorResponse(
+          400,
+          'PPTX_TEXT_EXTRACT_FAILED',
+          'PPTX에서 슬라이드 텍스트를 추출하지 못했습니다. (1) pptx가 암호/보호/이미지 위주인지 확인 (2) Google Slides/PowerPoint에서 “텍스트가 실제로 입력된” 형태로 저장 후 재업로드 해 주세요.',
+        )
+      }
+    }
 
     const summary = await summarizeScenarioRef(rawText, file.name)
     const maxRaw = ext === 'pptx' || ext === 'pdf' ? 15000 : 8000

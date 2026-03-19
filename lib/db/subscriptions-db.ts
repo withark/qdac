@@ -62,12 +62,36 @@ export async function getActiveSubscription(userId: string): Promise<Subscriptio
 
 export async function ensureFreeSubscription(userId: string): Promise<SubscriptionRow> {
   await initDb()
-  const existing = await getActiveSubscription(userId)
-  if (existing) return existing
-
   const sql = getDb()
+
+  // fast path: 대부분은 이미 active가 있음 (만료 정리는 필요한 순간에만 수행)
+  const existing = await sql`
+    SELECT *
+    FROM subscriptions
+    WHERE user_id = ${userId} AND status = 'active'
+    ORDER BY created_at DESC
+    LIMIT 1
+  `
+  if (existing.length > 0) {
+    const r = existing[0] as Record<string, unknown>
+    return {
+      id: String(r.id),
+      userId: String(r.user_id),
+      planType: toPlanType(r.plan_type),
+      billingCycle: toBillingCycle(r.billing_cycle),
+      status: r.status as SubscriptionRow['status'],
+      startedAt: r.started_at ? new Date(r.started_at as string).toISOString() : null,
+      expiresAt: r.expires_at ? new Date(r.expires_at as string).toISOString() : null,
+      canceledAt: r.canceled_at ? new Date(r.canceled_at as string).toISOString() : null,
+      stripeSubscriptionId: r.stripe_subscription_id ? String(r.stripe_subscription_id) : null,
+      createdAt: new Date(r.created_at as string).toISOString(),
+      updatedAt: new Date(r.updated_at as string).toISOString(),
+    }
+  }
+
   const now = new Date().toISOString()
   const id = uid()
+  // partial unique index(uIdx user active) 때문에 ON CONFLICT target 지정이 애매하므로: insert → select 패턴으로 단순/안전하게.
   await sql`
     INSERT INTO subscriptions (
       id, user_id, plan_type, billing_cycle, status,
@@ -76,16 +100,30 @@ export async function ensureFreeSubscription(userId: string): Promise<Subscripti
       ${id}, ${userId}, 'FREE', NULL, 'active',
       ${now}::timestamptz, NULL, NULL, NULL, ${now}::timestamptz, ${now}::timestamptz
     )
-    ON CONFLICT DO NOTHING
+  `.catch(() => {})
+
+  const rows = await sql`
+    SELECT *
+    FROM subscriptions
+    WHERE user_id = ${userId} AND status = 'active'
+    ORDER BY created_at DESC
+    LIMIT 1
   `
-  const sub = await getActiveSubscription(userId)
-  if (!sub) {
-    // 유니크 인덱스 충돌 등으로 active가 생겼을 수 있음
-    const again = await getActiveSubscription(userId)
-    if (again) return again
-    throw new Error('구독 정보를 생성하지 못했습니다.')
+  if (rows.length === 0) throw new Error('구독 정보를 생성하지 못했습니다.')
+  const r = rows[0] as Record<string, unknown>
+  return {
+    id: String(r.id),
+    userId: String(r.user_id),
+    planType: toPlanType(r.plan_type),
+    billingCycle: toBillingCycle(r.billing_cycle),
+    status: r.status as SubscriptionRow['status'],
+    startedAt: r.started_at ? new Date(r.started_at as string).toISOString() : null,
+    expiresAt: r.expires_at ? new Date(r.expires_at as string).toISOString() : null,
+    canceledAt: r.canceled_at ? new Date(r.canceled_at as string).toISOString() : null,
+    stripeSubscriptionId: r.stripe_subscription_id ? String(r.stripe_subscription_id) : null,
+    createdAt: new Date(r.created_at as string).toISOString(),
+    updatedAt: new Date(r.updated_at as string).toISOString(),
   }
-  return sub
 }
 
 export async function setActiveSubscription(input: {
@@ -201,6 +239,24 @@ export async function cancelActiveSubscription(userId: string): Promise<void> {
   await sql`
     UPDATE subscriptions
     SET status = 'canceled', canceled_at = ${now}::timestamptz, updated_at = ${now}::timestamptz
+    WHERE user_id = ${userId} AND status = 'active'
+  `
+}
+
+/**
+ * Toss 웹훅의 EXPIRED 흐름에서: active 유료 구독을 expired로 정리.
+ * - canceled_at을 null로 두고 status만 expired로 전환
+ */
+export async function expireActiveSubscriptionByUserId(userId: string): Promise<void> {
+  await initDb()
+  const sql = getDb()
+  const now = new Date().toISOString()
+  await sql`
+    UPDATE subscriptions
+    SET status = 'expired',
+        expires_at = ${now}::timestamptz,
+        canceled_at = NULL,
+        updated_at = ${now}::timestamptz
     WHERE user_id = ${userId} AND status = 'active'
   `
 }

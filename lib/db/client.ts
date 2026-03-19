@@ -2,6 +2,7 @@ import { neon } from '@neondatabase/serverless'
 import type { NeonQueryFunction } from '@neondatabase/serverless'
 
 let _sql: NeonQueryFunction<false, false> | null = null
+let _initPromise: Promise<void> | null = null
 
 function getConnectionString(): string | undefined {
   return process.env.DATABASE_URL
@@ -22,9 +23,29 @@ export function getDb(): NeonQueryFunction<false, false> {
 
 let initDone = false
 
+function shouldBootstrapSchema(): boolean {
+  // 운영에서는 요청 경로에서 DDL 부트스트랩을 돌리면 첫 호출이 길어져 서버리스 timeout 위험이 큼.
+  // 운영 스키마는 별도 마이그레이션(또는 사전 준비)으로 유지하고, 필요 시에만 명시적으로 켠다.
+  // 기본값: 스키마 DDL 부트스트랩을 비활성화한다(명시적으로 켠 경우에만 실행).
+  // DB_BOOTSTRAP_SCHEMA=true를 넣은 환경에서만 cold-start DDL이 실행되게 한다.
+  return process.env.DB_BOOTSTRAP_SCHEMA?.trim() === 'true'
+}
+
 export async function initDb(): Promise<void> {
   if (!hasDatabase() || initDone) return
+  if (_initPromise) return _initPromise
   const sql = getDb()
+
+  // 운영 기본: 스키마 부트스트랩 비활성화(연결만 워밍업)
+  if (!shouldBootstrapSchema()) {
+    _initPromise = (async () => {
+      await sql`SELECT 1`
+      initDone = true
+    })()
+    return _initPromise
+  }
+
+  _initPromise = (async () => {
   await sql`CREATE TABLE IF NOT EXISTS app_kv ( key text PRIMARY KEY, value jsonb NOT NULL DEFAULT '{}' )`
   await sql`CREATE TABLE IF NOT EXISTS cuesheet_files ( id text PRIMARY KEY, ext text NOT NULL DEFAULT 'bin', filename text NOT NULL DEFAULT '', content bytea NOT NULL, uploaded_at timestamptz NOT NULL DEFAULT now() )`
   await sql`
@@ -308,4 +329,7 @@ export async function initDb(): Promise<void> {
   await sql`CREATE INDEX IF NOT EXISTS idx_reference_candidates_created ON reference_candidates (created_at DESC)`
 
   initDone = true
+  })()
+
+  return _initPromise
 }

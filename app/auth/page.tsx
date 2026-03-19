@@ -11,7 +11,7 @@ type SearchParams = { error?: string; errorDescription?: string; callbackUrl?: s
 function resolveCallbackUrl(searchParams: SearchParams): string {
   const raw = typeof searchParams?.callbackUrl === 'string' ? searchParams.callbackUrl.trim() : ''
   const hasParam = raw.length > 0
-  const fallback = '/generate'
+  const fallback = '/dashboard'
   if (!hasParam) return fallback
   const sanitized = sanitizeCallbackUrl(raw)
   if (sanitized === '/' && raw !== '/') return fallback

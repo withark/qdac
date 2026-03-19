@@ -118,30 +118,30 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
     f2pR,
   ] = await Promise.all([
     sql`SELECT COUNT(*)::int AS c FROM users`,
-    sql`SELECT COUNT(*)::int AS c FROM users WHERE last_login_at >= ${d30.toISOString()}`,
-    sql`SELECT COUNT(*)::int AS c FROM users WHERE created_at >= ${day0.toISOString()}`,
-    sql`SELECT COUNT(*)::int AS c FROM users WHERE created_at >= ${d7.toISOString()}`,
-    sql`SELECT COUNT(*)::int AS c FROM users WHERE created_at >= ${d30.toISOString()}`,
+    sql`SELECT COUNT(*)::int AS c FROM users WHERE last_login_at >= ${d30.toISOString()}::timestamptz`,
+    sql`SELECT COUNT(*)::int AS c FROM users WHERE created_at >= ${day0.toISOString()}::timestamptz`,
+    sql`SELECT COUNT(*)::int AS c FROM users WHERE created_at >= ${d7.toISOString()}::timestamptz`,
+    sql`SELECT COUNT(*)::int AS c FROM users WHERE created_at >= ${d30.toISOString()}::timestamptz`,
     sql`SELECT COUNT(*)::int AS c FROM quotes`,
-    sql`SELECT COUNT(*)::int AS c FROM admin_events WHERE kind = 'error' AND created_at >= ${h24.toISOString()}`,
-    sql`SELECT COUNT(*)::int AS c FROM generation_runs WHERE success = false AND created_at >= ${d7.toISOString()}`,
+    sql`SELECT COUNT(*)::int AS c FROM admin_events WHERE kind = 'error' AND created_at >= ${h24.toISOString()}::timestamptz`,
+    sql`SELECT COUNT(*)::int AS c FROM generation_runs WHERE success = false AND created_at >= ${d7.toISOString()}::timestamptz`,
     sql`SELECT COALESCE(SUM(quote_generated_count), 0)::int AS s FROM usage_quotas WHERE period_key = ${periodKey}`,
     sql`SELECT COUNT(DISTINCT user_id)::int AS c FROM subscriptions WHERE status = 'active' AND plan_type IN ('BASIC', 'PREMIUM')`,
     sql`SELECT COUNT(DISTINCT user_id)::int AS c FROM subscriptions WHERE status = 'active' AND plan_type = 'FREE'`,
-    sql`SELECT COUNT(*)::int AS c FROM billing_orders WHERE status = 'approved' AND approved_at >= ${day0.toISOString()}`,
-    sql`SELECT COUNT(*)::int AS c FROM billing_orders WHERE status = 'approved' AND approved_at >= ${monthStart.toISOString()}`,
-    sql`SELECT COALESCE(SUM(amount), 0)::bigint AS s FROM billing_orders WHERE status = 'approved' AND approved_at >= ${day0.toISOString()}`,
-    sql`SELECT COALESCE(SUM(amount), 0)::bigint AS s FROM billing_orders WHERE status = 'approved' AND approved_at >= ${monthStart.toISOString()}`,
-    sql`SELECT COUNT(*)::int AS c FROM billing_orders WHERE status = 'failed' AND updated_at >= ${day0.toISOString()}`,
-    sql`SELECT COUNT(*)::int AS c FROM billing_orders WHERE status = 'failed' AND updated_at >= ${monthStart.toISOString()}`,
-    sql`SELECT COUNT(*)::int AS c FROM billing_orders WHERE status = 'canceled' AND updated_at >= ${d30.toISOString()}`,
-    sql`SELECT COUNT(*)::int AS c FROM billing_orders WHERE status = 'approved' AND approved_at >= ${monthStart.toISOString()}`,
-    sql`SELECT COUNT(*)::int AS c FROM billing_orders WHERE status = 'failed' AND updated_at >= ${monthStart.toISOString()}`,
+    sql`SELECT COUNT(*)::int AS c FROM billing_orders WHERE status = 'approved' AND approved_at >= ${day0.toISOString()}::timestamptz`,
+    sql`SELECT COUNT(*)::int AS c FROM billing_orders WHERE status = 'approved' AND approved_at >= ${monthStart.toISOString()}::timestamptz`,
+    sql`SELECT COALESCE(SUM(amount), 0)::bigint AS s FROM billing_orders WHERE status = 'approved' AND approved_at >= ${day0.toISOString()}::timestamptz`,
+    sql`SELECT COALESCE(SUM(amount), 0)::bigint AS s FROM billing_orders WHERE status = 'approved' AND approved_at >= ${monthStart.toISOString()}::timestamptz`,
+    sql`SELECT COUNT(*)::int AS c FROM billing_orders WHERE status = 'failed' AND updated_at >= ${day0.toISOString()}::timestamptz`,
+    sql`SELECT COUNT(*)::int AS c FROM billing_orders WHERE status = 'failed' AND updated_at >= ${monthStart.toISOString()}::timestamptz`,
+    sql`SELECT COUNT(*)::int AS c FROM billing_orders WHERE status = 'canceled' AND updated_at >= ${d30.toISOString()}::timestamptz`,
+    sql`SELECT COUNT(*)::int AS c FROM billing_orders WHERE status = 'approved' AND approved_at >= ${monthStart.toISOString()}::timestamptz`,
+    sql`SELECT COUNT(*)::int AS c FROM billing_orders WHERE status = 'failed' AND updated_at >= ${monthStart.toISOString()}::timestamptz`,
     sql`SELECT COUNT(*)::int AS c FROM subscriptions WHERE plan_type IN ('BASIC','PREMIUM')`,
     sql`SELECT COUNT(*)::int AS c FROM subscriptions WHERE status = 'active' AND plan_type IN ('BASIC','PREMIUM')`,
     sql`SELECT 0::int AS c`,
-    sql`SELECT COUNT(*)::int AS c FROM subscriptions WHERE status = 'canceled' AND canceled_at >= ${monthStart.toISOString()}`,
-    sql`SELECT COUNT(DISTINCT user_id)::int AS c FROM billing_orders WHERE status = 'approved' AND approved_at >= ${monthStart.toISOString()}`,
+    sql`SELECT COUNT(*)::int AS c FROM subscriptions WHERE status = 'canceled' AND canceled_at >= ${monthStart.toISOString()}::timestamptz`,
+    sql`SELECT COUNT(DISTINCT user_id)::int AS c FROM billing_orders WHERE status = 'approved' AND approved_at >= ${monthStart.toISOString()}::timestamptz`,
   ])
 
   let revenue7Rows: { d: string; s: bigint }[] = []
@@ -149,7 +149,7 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
     revenue7Rows = (await sql`
       SELECT to_char(approved_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD') AS d, COALESCE(SUM(amount), 0)::bigint AS s
       FROM billing_orders
-      WHERE status = 'approved' AND approved_at >= ${d7.toISOString()}
+      WHERE status = 'approved' AND approved_at >= ${d7.toISOString()}::timestamptz
       GROUP BY 1 ORDER BY 1
     `) as { d: string; s: bigint }[]
   } catch {
@@ -166,7 +166,7 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
   const planShareRows = await sql`
     SELECT plan_type, COUNT(*)::int AS cnt, COALESCE(SUM(amount), 0)::bigint AS rev
     FROM billing_orders
-    WHERE status = 'approved' AND approved_at >= ${monthStart.toISOString()}
+    WHERE status = 'approved' AND approved_at >= ${monthStart.toISOString()}::timestamptz
     GROUP BY plan_type
   `
   const recentPay = await sql`
@@ -219,7 +219,7 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
 
   const cancelRev = await sql`
     SELECT COALESCE(SUM(amount), 0)::bigint AS s FROM billing_orders
-    WHERE status = 'canceled' AND updated_at >= ${d30.toISOString()} AND approved_at IS NOT NULL
+    WHERE status = 'canceled' AND updated_at >= ${d30.toISOString()}::timestamptz AND approved_at IS NOT NULL
   `
 
   return {
