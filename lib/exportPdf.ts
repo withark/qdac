@@ -5,6 +5,12 @@ import { getQuoteTemplate } from '@/lib/quoteTemplates'
 
 // html2canvas + jsPDF를 동적 import (클라이언트 전용)
 export async function exportToPdf(doc: QuoteDoc, company?: CompanySettings | null) {
+  const liveQuoteEl = document.querySelector('.quote-wrapper') as HTMLElement | null
+  if (liveQuoteEl) {
+    await exportElementToPdf(liveQuoteEl, doc)
+    return
+  }
+
   const [html2canvas, { jsPDF }] = await Promise.all([
     import('html2canvas').then(m => m.default),
     import('jspdf'),
@@ -45,6 +51,32 @@ export async function exportToPdf(doc: QuoteDoc, company?: CompanySettings | nul
   } finally {
     document.body.removeChild(container)
   }
+}
+
+async function exportElementToPdf(el: HTMLElement, doc: QuoteDoc): Promise<void> {
+  const [html2canvas, { jsPDF }] = await Promise.all([
+    import('html2canvas').then(m => m.default),
+    import('jspdf'),
+  ])
+  const canvas = await html2canvas(el, {
+    scale: 2,
+    useCORS: true,
+    logging: false,
+    backgroundColor: '#ffffff',
+  })
+  const imgData = canvas.toDataURL('image/png')
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const pageW = pdf.internal.pageSize.getWidth()
+  const pageH = pdf.internal.pageSize.getHeight()
+  const imgH = (canvas.height * pageW) / canvas.width
+  let yPos = 0
+  while (yPos < imgH) {
+    if (yPos > 0) pdf.addPage()
+    pdf.addImage(imgData, 'PNG', 0, -yPos, pageW, imgH)
+    yPos += pageH
+  }
+  const date = getQuoteDateForFilename(doc.quoteDate)
+  pdf.save(`견적서_${doc.eventName.replace(/\s/g,'_')}_${date}.pdf`)
 }
 
 function boxStyle(tpl: import('@/lib/quoteTemplates').QuoteTemplateMeta, isTotal = false): string {

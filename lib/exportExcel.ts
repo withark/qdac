@@ -1,13 +1,11 @@
 import * as XLSX from 'xlsx'
 import type { QuoteDoc, CompanySettings } from '@/lib/types'
-import { normalizeQuoteDoc } from '@/lib/ai/parsers'
-import { calcTotals, fmtKRW, getQuoteDateForFilename } from '@/lib/calc'
+import { calcTotals, getQuoteDateForFilename } from '@/lib/calc'
 import { KIND_ORDER, groupQuoteItemsByKind, subtotalsByKind } from '@/lib/quoteGroup'
 
 export function exportToExcel(doc: QuoteDoc, company?: CompanySettings | null) {
   const wb = XLSX.utils.book_new()
   buildQuoteSheet(wb, doc, company)
-  buildProgramSheet(wb, doc)
 
   const date = getQuoteDateForFilename(doc.quoteDate)
   const name = doc.eventName.replace(/\s/g, '_')
@@ -42,10 +40,10 @@ function buildQuoteSheet(wb: XLSX.WorkBook, doc: QuoteDoc, company?: CompanySett
   // 제목
   s(0,r,'견 적 서',{bold:true,align:'center',bg:'F2F2EC',sz:15}); mg(0,r,7,r); r++
 
-  // 견적일 / 유효기간 / 문서번호
+  // 견적일 / 유효기간
   s(0,r,'견적일',{bold:true,bg:'EEF0E8'}); s(1,r,doc.quoteDate,{bold:true}); mg(1,r,3,r)
   s(4,r,'유효기간',{bg:'F7F7F2'}); s(5,r,`${doc.validDays}일`)
-  s(6,r,'문서번호',{bg:'F7F7F2'}); s(7,r,`Q-${Date.now().toString().slice(-6)}`)
+  s(6,r,'',{}); s(7,r,'',{})
   r++; r++
 
   // 발주처 / 공급자
@@ -72,7 +70,7 @@ function buildQuoteSheet(wb: XLSX.WorkBook, doc: QuoteDoc, company?: CompanySett
   r++
 
   // 항목 헤더 (구분 통합 → 섹션 헤더만, 컬럼에는 구분 없음)
-  ;['항목명','규격/내용','수량','단위','단가','금액','비고'].forEach((h,i) =>
+  ;['항목명','규격/내용','수량','단위','개당 단가','합계','비고'].forEach((h,i) =>
     s(i,r,h,{bold:true,align:'center',bg:'D5D5CE'}))
   r++
 
@@ -114,83 +112,10 @@ function buildQuoteSheet(wb: XLSX.WorkBook, doc: QuoteDoc, company?: CompanySett
 
   // 도장
   s(5,r,'공급자 확인',{bold:true,align:'center',bg:'E5E5DF'}); mg(5,r,7,r); r++
-  s(5,r,company?.name||doc.eventName+' 기획',{align:'center'}); mg(5,r,7,r); r++
+  s(5,r,company?.name || '—',{align:'center'}); mg(5,r,7,r); r++
   s(5,r,'(인)',{align:'center'}); mg(5,r,7,r); r++
 
   ws['!cols'] = [{wch:22},{wch:22},{wch:7},{wch:7},{wch:16},{wch:16},{wch:18},{wch:5}]
   ws['!ref']  = XLSX.utils.encode_range({s:{c:0,r:0},e:{c:7,r:r}})
   XLSX.utils.book_append_sheet(wb, ws, '견적서')
-}
-
-function buildProgramSheet(wb: XLSX.WorkBook, doc: QuoteDoc) {
-  const ws: XLSX.WorkSheet = {}
-  const full = normalizeQuoteDoc(doc, { eventName: doc.eventName, eventType: doc.eventType, headcount: doc.headcount, eventDuration: doc.eventDuration })
-  const p = full.program
-  let r = 0
-  const maxC = 8
-
-  function ce(c: number, row: number) { return XLSX.utils.encode_cell({ c, r: row }) }
-  function s(c: number, row: number, v: string, opts: { bold?: boolean; align?: string; bg?: string } = {}) {
-    const a = ce(c, row); ws[a] = { v, t: 's' }
-    ws[a].s = {
-      font: { name: '맑은 고딕', sz: 10, bold: opts.bold || false },
-      alignment: { horizontal: opts.align || 'left', vertical: 'center', wrapText: true },
-      border: { top: { style: 'thin', color: { rgb: 'DDDDDD' } }, bottom: { style: 'thin', color: { rgb: 'DDDDDD' } },
-                left: { style: 'thin', color: { rgb: 'DDDDDD' } }, right: { style: 'thin', color: { rgb: 'DDDDDD' } } },
-    }
-    if (opts.bg) ws[a].s.fill = { fgColor: { rgb: opts.bg }, patternType: 'solid' }
-  }
-  function mg(c1: number, r1: number, c2: number, r2: number) {
-    if (!ws['!merges']) ws['!merges'] = []
-    ws['!merges'].push({ s: { c: c1, r: r1 }, e: { c: c2, r: r2 } })
-  }
-
-  s(0, r, `${doc.eventName} — 제안 프로그램 · 타임테이블 · 큐시트 · 시나리오`, { bold: true, bg: 'F2F2EC' }); mg(0, r, maxC, r); r++
-  s(0, r, `종류: ${doc.eventType} / 시간: ${doc.eventDuration} / ${p.concept || ''}`, {}); mg(0, r, maxC, r); r++; r++
-
-  s(0, r, '[제안 프로그램 구성표]', { bold: true, bg: 'E5E5DF' }); mg(0, r, maxC, r); r++
-  ;['프로그램종류', '내용', '성격', '이미지', '시간', '대상/인원', '비고', ''].forEach((h, i) => s(i, r, h, { bold: true, align: 'center', bg: 'D5D5CE' }))
-  r++
-  ;(p.programRows || []).forEach(row => {
-    s(0, r, row.kind || ''); s(1, r, row.content || ''); s(2, r, row.tone || '')
-    s(3, r, row.image || ''); s(4, r, row.time || ''); s(5, r, row.audience || ''); s(6, r, row.notes || ''); r++
-  })
-  r++
-
-  s(0, r, '[타임테이블]', { bold: true, bg: 'E5E5DF' }); mg(0, r, maxC, r); r++
-  ;['시간', '내용', '세부', '담당'].forEach((h, i) => s(i, r, h, { bold: true, align: 'center', bg: 'D5D5CE' })); r++
-  ;(p.timeline || []).forEach(t => { s(0, r, t.time || ''); s(1, r, t.content || ''); s(2, r, t.detail || ''); s(3, r, t.manager || ''); r++ })
-  r++
-
-  s(0, r, '[큐시트 운영표]', { bold: true, bg: 'E5E5DF' }); mg(0, r, maxC, r); r++
-  s(0, r, p.cueSummary || '', {}); mg(0, r, maxC, r); r++
-  ;['시간', '순서', '진행내용', '담당', '준비물', '멘트', '특이사항'].forEach((h, i) => s(i, r, h, { bold: true, align: 'center', bg: 'D5D5CE' })); r++
-  ;(p.cueRows || []).forEach(c => {
-    s(0, r, c.time || ''); s(1, r, c.order || ''); s(2, r, c.content || ''); s(3, r, c.staff || '')
-    s(4, r, c.prep || ''); s(5, r, c.script || ''); s(6, r, c.special || ''); r++
-  })
-  r++
-
-  s(0, r, '[투입 인력]', { bold: true, bg: 'E5E5DF' }); mg(0, r, 4, r); r++
-  ;['역할', '인원', '비고'].forEach((h, i) => s(i, r, h, { bold: true, align: 'center', bg: 'D5D5CE' })); r++
-  ;(p.staffing || []).forEach(st => { s(0, r, st.role || ''); s(1, r, `${st.count}명`); s(2, r, st.note || ''); r++ })
-  if (p.tips?.length) {
-    r++; s(0, r, '[진행 팁]', { bold: true, bg: 'E5E5DF' }); mg(0, r, 4, r); r++
-    p.tips.forEach(t => { s(0, r, '· ' + t); mg(0, r, 4, r); r++ })
-  }
-
-  const sc = full.scenario
-  if (sc && (sc.opening || sc.summaryTop)) {
-    r++; s(0, r, '[시나리오]', { bold: true, bg: 'E5E5DF' }); mg(0, r, maxC, r); r++
-    s(0, r, '요약: ' + (sc.summaryTop || '')); mg(0, r, maxC, r); r++
-    s(0, r, '오프닝: ' + (sc.opening || '')); mg(0, r, maxC, r); r++
-    s(0, r, '전개: ' + (sc.development || '')); mg(0, r, maxC, r); r++
-    ;(sc.mainPoints || []).forEach((mp, i) => { s(0, r, `메인${i + 1}: ${mp}`); mg(0, r, maxC, r); r++ })
-    s(0, r, '클로징: ' + (sc.closing || '')); mg(0, r, maxC, r); r++
-    s(0, r, '연출: ' + (sc.directionNotes || '')); mg(0, r, maxC, r); r++
-  }
-
-  ws['!cols'] = [{ wch: 12 }, { wch: 28 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 14 }, { wch: 20 }, { wch: 8 }]
-  ws['!ref'] = XLSX.utils.encode_range({ s: { c: 0, r: 0 }, e: { c: maxC, r: r } })
-  XLSX.utils.book_append_sheet(wb, ws, '프로그램·큐시트')
 }
