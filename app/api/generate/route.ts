@@ -39,6 +39,7 @@ const GenerateRequestSchema = z.object({
   eventType: z.string().min(1, '행사 종류를 선택해주세요.'),
   budget: z.string().optional().default(''),
   requirements: z.string().optional().default(''),
+  generationMode: z.enum(['normal', 'taskOrderBase']).optional().default('normal'),
 })
 
 export async function POST(req: NextRequest) {
@@ -79,6 +80,7 @@ export async function POST(req: NextRequest) {
     const usage = await getOrCreateUsage(userId)
     assertQuoteGenerateAllowed(plan, usage.quoteGeneratedCount)
 
+    const generationMode = body.generationMode
     const [prices, settings, references, taskOrderRefs, engineOverlay] =
       await Promise.all([
         getUserPrices(userId),
@@ -86,7 +88,7 @@ export async function POST(req: NextRequest) {
           const p = await getDefaultCompanyProfile(userId)
           return p ? profileToCompanySettings(p) : DEFAULT_SETTINGS
         })(),
-        listReferenceDocs(userId),
+        generationMode === 'taskOrderBase' ? Promise.resolve([]) : listReferenceDocs(userId),
         listTaskOrderRefs(userId),
         hasDatabase()
           ? kvGet<EngineConfigOverlay | null>('engine_config', null).catch(() => null as EngineConfigOverlay | null)

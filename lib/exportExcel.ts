@@ -3,13 +3,22 @@ import type { QuoteDoc, CompanySettings } from '@/lib/types'
 import { calcTotals, getQuoteDateForFilename } from '@/lib/calc'
 import { KIND_ORDER, groupQuoteItemsByKind, subtotalsByKind } from '@/lib/quoteGroup'
 
-export function exportToExcel(doc: QuoteDoc, company?: CompanySettings | null) {
+export type ExcelExportView = 'quote' | 'timeline'
+
+export function exportToExcel(doc: QuoteDoc, company?: CompanySettings | null, view: ExcelExportView = 'quote') {
   const wb = XLSX.utils.book_new()
-  buildQuoteSheet(wb, doc, company)
 
   const date = getQuoteDateForFilename(doc.quoteDate)
   const name = doc.eventName.replace(/\s/g, '_')
-  XLSX.writeFile(wb, `견적서_${name}_${date}.xlsx`)
+
+  if (view === 'quote') {
+    buildQuoteSheet(wb, doc, company)
+    XLSX.writeFile(wb, `견적서_${name}_${date}.xlsx`)
+    return
+  }
+
+  buildTimelineSheet(wb, doc)
+  XLSX.writeFile(wb, `견적서_${name}_${date}_타임테이블.xlsx`)
 }
 
 function buildQuoteSheet(wb: XLSX.WorkBook, doc: QuoteDoc, company?: CompanySettings | null) {
@@ -118,4 +127,21 @@ function buildQuoteSheet(wb: XLSX.WorkBook, doc: QuoteDoc, company?: CompanySett
   ws['!cols'] = [{wch:22},{wch:22},{wch:7},{wch:7},{wch:16},{wch:16},{wch:18},{wch:5}]
   ws['!ref']  = XLSX.utils.encode_range({s:{c:0,r:0},e:{c:7,r:r}})
   XLSX.utils.book_append_sheet(wb, ws, '견적서')
+}
+
+function buildTimelineSheet(wb: XLSX.WorkBook, doc: QuoteDoc) {
+  const wsRows: unknown[][] = [
+    [`${doc.eventName} — 타임테이블`],
+    [`생성 시 입력한 시작·종료 시각에 맞춰 배치됩니다. 수정하면 즉시 반영됩니다.`],
+    [],
+    ['시간 (HH:mm)', '내용', '세부', '담당'],
+  ]
+
+  ;(doc.program?.timeline || []).forEach(t => {
+    wsRows.push([t.time || '', t.content || '', t.detail || '', t.manager || ''])
+  })
+
+  const ws = XLSX.utils.aoa_to_sheet(wsRows)
+  ws['!cols'] = [{ wch: 14 }, { wch: 28 }, { wch: 28 }, { wch: 16 }]
+  XLSX.utils.book_append_sheet(wb, ws, '타임테이블')
 }

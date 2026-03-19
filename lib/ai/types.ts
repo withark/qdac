@@ -3,6 +3,8 @@ import type { QuoteDoc, PriceCategory, CompanySettings, ReferenceDoc, TaskOrderD
 export type { QuoteDoc, PriceCategory, CompanySettings, ReferenceDoc, TaskOrderDoc }
 
 export interface GenerateInput {
+  /** 생성 모드: 일반 생성 vs 과업지시서 기반 기본 견적서(빠른 생성) */
+  generationMode?: 'normal' | 'taskOrderBase'
   eventName: string
   clientName: string
   clientManager: string

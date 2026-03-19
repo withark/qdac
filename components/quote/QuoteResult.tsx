@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import type { QuoteDoc, CompanySettings, QuoteItemKind, PriceCategory, PriceItem, ProgramTableRow, CueSheetRow, TimelineRow } from '@/lib/types'
+import type { QuoteDoc, CompanySettings, QuoteItemKind, PriceCategory, PriceItem, ProgramTableRow, TimelineRow } from '@/lib/types'
 import { KIND_ORDER, subtotalsByKind } from '@/lib/quoteGroup'
 import { QUOTE_TEMPLATES, QUOTE_TEMPLATE_IDS, type QuoteTemplateId } from '@/lib/quoteTemplates'
 import { calcTotals, fmtKRW } from '@/lib/calc'
@@ -10,7 +10,7 @@ import type { PlanType } from '@/lib/plans'
 import { allowedQuoteTemplates } from '@/lib/plan-entitlements'
 import { normalizeQuoteDoc } from '@/lib/ai/parsers'
 
-type Tab = 'quote' | 'program' | 'timeline' | 'scenario'
+type Tab = 'quote' | 'timeline'
 
 function emptyRow(): ProgramTableRow {
   return { kind: '', content: '', tone: '', image: '(이미지 슬롯)', time: '', audience: '', notes: '' }
@@ -33,7 +33,7 @@ interface Props {
   onChange: (doc: QuoteDoc) => void
   onRegenerate?: () => void
   regenerating?: boolean
-  onExcel: () => void
+  onExcel: (tab: Tab) => void
   onPdf: () => void
   onLoadPrevious?: () => void
 }
@@ -117,7 +117,7 @@ export function QuoteResult({ doc, companySettings, prices = [], planType = 'FRE
   }
 
   const program = d.program
-  const scenario = d.scenario || { summaryTop: '', opening: '', development: '', mainPoints: [], closing: '', directionNotes: '' }
+  // scenario는 현재 UI에서 편집하지 않습니다(향후 기본 견적 흐름에서 활용).
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -125,9 +125,7 @@ export function QuoteResult({ doc, companySettings, prices = [], planType = 'FRE
         <div className="flex gap-1 py-2 flex-wrap">
           {[
             { id: 'quote' as Tab, label: '견적서' },
-            { id: 'program' as Tab, label: '제안 프로그램' },
             { id: 'timeline' as Tab, label: '타임테이블' },
-            { id: 'scenario' as Tab, label: '시나리오' },
           ].map(({ id, label }) => (
             <button
               key={id}
@@ -162,7 +160,7 @@ export function QuoteResult({ doc, companySettings, prices = [], planType = 'FRE
           {onRegenerate && (
             <Button size="sm" onClick={onRegenerate} disabled={regenerating}>{regenerating ? '재작성 중...' : '재 작성'}</Button>
           )}
-          <Button size="sm" onClick={onExcel}>Excel 다운로드</Button>
+          <Button size="sm" onClick={() => onExcel(tab)}>Excel 다운로드</Button>
           <Button size="sm" variant="primary" onClick={onPdf}>PDF 저장</Button>
           {planType !== 'FREE' && (
             <Button size="sm" variant="secondary" onClick={() => alert('이메일 공유 기능은 준비 중입니다.')}>이메일 공유</Button>
@@ -171,9 +169,7 @@ export function QuoteResult({ doc, companySettings, prices = [], planType = 'FRE
       </div>
       <p className="text-[10px] text-slate-500 px-4 pb-1.5 flex-shrink-0">
         {tab === 'quote' && '개당 단가·수량·항목명 등 표에서 바로 수정 가능'}
-        {tab === 'program' && '프로그램 종류·내용·성격 등 표 형태 구성표 (엑셀과 동일하게 다운로드 가능)'}
         {tab === 'timeline' && '생성 시 입력한 시작·종료 시각에 맞춰 배치됩니다. 수정 시 즉시 반영됩니다.'}
-        {tab === 'scenario' && '오프닝·전개·메인·클로징·연출 메모 (PPT 샘플 반영)'}
       </p>
 
       <div className="flex-1 overflow-y-auto p-4 pb-20">
@@ -394,102 +390,9 @@ export function QuoteResult({ doc, companySettings, prices = [], planType = 'FRE
           )
         })()}
 
-        {/* 제안 프로그램 — 표 */}
-        {tab === 'program' && (
-          <div className="max-w-full mx-auto space-y-3 pt-2 overflow-x-auto">
-            <h3 className="text-base font-semibold">{doc.eventName} — 제안 프로그램 구성표</h3>
-            <table className="w-full min-w-[900px] text-xs border-collapse border border-gray-200">
-              <thead>
-                <tr className="bg-slate-100">
-                  {['프로그램 종류', '내용', '성격', '이미지', '시간', '대상/인원', '비고', ''].map(h => (
-                    <th key={h} className="border border-gray-200 px-2 py-2 text-left font-semibold text-gray-600">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {(program.programRows || []).map((row, i) => (
-                  <tr key={i} className="border-b border-gray-100 hover:bg-slate-50/80">
-                    {(['kind', 'content', 'tone', 'image', 'time', 'audience', 'notes'] as const).map(field => (
-                      <td key={field} className="border border-gray-100 px-1 py-1 align-top">
-                        <input
-                          value={row[field]}
-                          onChange={e => {
-                            patchDoc(base => {
-                              const p2 = ensureProgram(base).program
-                              if (!p2.programRows[i]) p2.programRows[i] = emptyRow()
-                              p2.programRows[i] = { ...p2.programRows[i], [field]: e.target.value }
-                              base.program = p2
-                              return base
-                            })
-                          }}
-                          className="w-full min-w-[72px] bg-white border border-gray-100 rounded px-1.5 py-1 text-xs outline-none"
-                          placeholder={field === 'image' ? '(이미지 슬롯)' : ''}
-                        />
-                      </td>
-                    ))}
-                    <td className="border border-gray-100 px-1">
-                      <button
-                        type="button"
-                        className="text-red-400 text-xs"
-                        onClick={() =>
-                          patchDoc(base => {
-                            const normalized = ensureProgram(base)
-                            const p2 = normalized.program
-                            if (p2.programRows.length > i) p2.programRows.splice(i, 1)
-                            if (p2.timeline.length > i) p2.timeline.splice(i, 1)
-                            if ((p2.cueRows || []).length > i) p2.cueRows.splice(i, 1)
-                            base.program = p2
-                            return base
-                          })
-                        }
-                      >
-                        ✕
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <Button
-              size="sm"
-              onClick={() =>
-                patchDoc(base => {
-                  const normalized = ensureProgram(base)
-                  const p2 = normalized.program
-                  p2.programRows.push(emptyRow())
-                  p2.timeline.push({ time: '', content: '', detail: '', manager: '' })
-                  p2.cueRows.push({
-                    time: '',
-                    order: String(p2.cueRows.length + 1),
-                    content: '',
-                    staff: '',
-                    prep: '',
-                    script: '',
-                    special: '',
-                  })
-                  base.program = p2
-                  return base
-                })
-              }
-            >
-              + 행 추가
-            </Button>
-            <div className="mt-4">
-              <p className="text-[10px] font-semibold text-gray-400 mb-1">보조 설명 (전체 컨셉)</p>
-              <textarea
-                value={program.concept || ''}
-                onChange={e => patchDoc(base => { base.program.concept = e.target.value; return base })}
-                rows={3}
-                className="w-full max-w-2xl text-xs border border-gray-200 rounded-lg px-2 py-2"
-                placeholder="표 위주로 보시고, 여기는 전체 컨셉·한 줄 요약용입니다."
-              />
-            </div>
-          </div>
-        )}
-
         {/* 타임테이블 — controlled, 폼 시간과 동기화된 생성 결과 */}
         {tab === 'timeline' && (
-          <div className="max-w-3xl mx-auto space-y-3 pt-2">
+          <div className="quote-wrapper max-w-3xl mx-auto space-y-3 pt-2">
             <h3 className="text-base font-semibold">{doc.eventName} — 타임테이블</h3>
             <p className="text-xs text-gray-500">시간 열은 생성 시 입력한 시작·종료 시각 사이로 맞춰졌습니다. 수정하면 즉시 반영됩니다.</p>
             <table className="w-full text-xs border-collapse border border-gray-200">
@@ -531,51 +434,6 @@ export function QuoteResult({ doc, companySettings, prices = [], planType = 'FRE
           </div>
         )}
 
-        {/* 시나리오 구조 */}
-        {tab === 'scenario' && (
-          <div className="max-w-3xl mx-auto space-y-4 pt-2">
-            <h3 className="text-base font-semibold">시나리오 · 연출 흐름</h3>
-            <p className="text-xs text-gray-500">참고 자료에 업로드한 PPT/시나리오 텍스트가 생성 시 프롬프트에 포함됩니다. (구버전 PPT만 올린 경우 한 번 재업로드 권장)</p>
-            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-              <label className="text-[10px] font-semibold text-gray-500">한 줄 요약</label>
-              <input value={scenario.summaryTop} onChange={e => patchDoc(base => { if (!base.scenario) base.scenario = { summaryTop: '', opening: '', development: '', mainPoints: [], closing: '', directionNotes: '' }; base.scenario.summaryTop = e.target.value; return base })} className="w-full mt-1 text-sm font-medium bg-white border rounded px-2 py-1" />
-            </div>
-            {[
-              { k: 'opening' as const, label: '오프닝' },
-              { k: 'development' as const, label: '전개' },
-              { k: 'closing' as const, label: '클로징' },
-            ].map(({ k, label }) => (
-              <div key={k} className="border border-gray-200 rounded-lg p-3">
-                <p className="text-xs font-semibold text-primary-700 mb-1">{label}</p>
-                <textarea
-                  value={scenario[k]}
-                  onChange={e => patchDoc(base => { if (!base.scenario) base.scenario = scenario; base.scenario[k] = e.target.value; return base })}
-                  rows={4}
-                  className="w-full text-xs border-0 bg-gray-50 rounded p-2 resize-y"
-                />
-              </div>
-            ))}
-            <div className="border border-gray-200 rounded-lg p-3">
-              <p className="text-xs font-semibold text-primary-700 mb-2">메인 포인트</p>
-              {(scenario.mainPoints || []).map((line, i) => (
-                <div key={i} className="flex gap-2 mb-1">
-                  <span className="text-gray-400 tabular-nums w-6">{i + 1}.</span>
-                  <input
-                    value={line}
-                    onChange={e => patchDoc(base => { if (!base.scenario) base.scenario = scenario; base.scenario.mainPoints[i] = e.target.value; return base })}
-                    className="flex-1 text-xs border-b border-gray-100 bg-transparent py-1"
-                  />
-                  <button type="button" className="text-red-400 text-xs" onClick={() => patchDoc(base => { base.scenario!.mainPoints.splice(i, 1); return base })}>✕</button>
-                </div>
-              ))}
-              <button type="button" className="text-xs text-primary-600 mt-1" onClick={() => patchDoc(base => { if (!base.scenario) base.scenario = scenario; base.scenario.mainPoints.push(''); return base })}>+ 포인트 추가</button>
-            </div>
-            <div className="border border-gray-200 rounded-lg p-3">
-              <p className="text-xs font-semibold text-primary-700 mb-1">연출 메모</p>
-              <textarea value={scenario.directionNotes} onChange={e => patchDoc(base => { if (!base.scenario) base.scenario = scenario; base.scenario.directionNotes = e.target.value; return base })} rows={3} className="w-full text-xs bg-amber-50/50 rounded p-2" />
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )

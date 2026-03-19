@@ -38,6 +38,7 @@ export function buildGeneratePrompt(input: GenerateInput): string {
   const refCtx = buildReferenceContext(input.references)
   const taskOrderCtx = buildTaskOrderContext(input.taskOrderRefs ?? [])
   const { expenseRate, profitRate, validDays, paymentTerms } = input.settings
+  const mode = input.generationMode ?? 'normal'
 
   const start = input.eventStartHHmm?.trim()
   const end = input.eventEndHHmm?.trim()
@@ -46,7 +47,7 @@ export function buildGeneratePrompt(input: GenerateInput): string {
       ? `\n[타임테이블 절대 규칙] 행사 실제 시작 ${start}, 종료 ${end} (24시간 표기). program.timeline 각 행의 time은 반드시 ${start} 이상 ${end} 이하만 사용. 예시 금지: 09:00, 14:00 등 폼과 무관한 시각. 첫 일정은 ${start}, 마지막은 ${end}에 가깝게.`
       : `\n[타임테이블] eventDuration(${input.eventDuration})에 맞춰 현실적인 HH:mm 나열.`
 
-  return `행사 전문 기획사 견적 담당자로서 아래 정보를 바탕으로 견적서와 제안 프로그램·타임테이블을 JSON으로만 출력하세요. 다른 텍스트 없이 순수 JSON만.
+  return `행사 전문 기획사 견적 담당자로서 아래 정보를 바탕으로 견적서와 타임테이블만 JSON으로 출력하세요. 다른 텍스트 없이 순수 JSON만.
 
 행사: ${input.eventName}
 주최: ${input.clientName || '미입력'} / 담당: ${input.clientManager || ''} / 연락처: ${input.clientTel || ''}
@@ -61,7 +62,8 @@ ${refCtx}
 ${taskOrderCtx}
 ${timeRule}
 
-${taskOrderCtx ? '[과업지시서 반영] 과업 범위를 견적 항목·programRows·timeline에 반영.\n' : ''}
+${mode === 'taskOrderBase' ? '[모드: 과업지시서 기반] 과업지시서 요약을 최우선으로 견적 항목과 타임테이블을 구성하세요.\\n' : ''}
+${taskOrderCtx ? `[과업지시서 반영] 과업 범위를 견적 항목·timeline에 반영.\\n` : ''}
 ${(() => {
   const q = input.engineQuality
   if (!q || (!q.structureFirst && !q.toneFirst && !q.outputFormatTemplate && !q.sampleWeightNote && !q.qualityBoost)) return ''
@@ -78,9 +80,7 @@ ${(() => {
 제경비율: ${expenseRate}%, 이윤율: ${profitRate}%
 
 [program]
-- concept: 2~4문장 요약(보조). 표가 메인.
-- programRows: 제안 프로그램 구성표. 행마다 kind(프로그램 종류), content(내용), tone(성격), image(비어있거나 "(이미지 슬롯)"), time(해당 구간 시각 있으면 HH:mm), audience(대상/인원), notes(비고). 최소 4행.
-- timeline: time은 ${start && end ? `${start}~${end} 사이 HH:mm만` : 'HH:mm'}, content, detail, manager. programRows와 같은 행 수·순서에 맞출 것.
+- timeline: time은 ${start && end ? `${start}~${end} 사이 HH:mm만` : 'HH:mm'}, content, detail, manager.
 - staffing, tips: 기존과 동일.
 
 JSON 형식 (필드 누락 금지):
@@ -104,10 +104,10 @@ JSON 형식 (필드 누락 금지):
   "validDays": ${validDays},
   "program": {
     "concept": "",
-    "programRows": [{"kind":"","content":"","tone":"","image":"","time":"","audience":"","notes":""}],
+    "programRows": [],
     "timeline": [{"time":"${start || '18:00'}","content":"","detail":"","manager":""}],
-    "staffing": [{"role":"","count":1,"note":""}],
-    "tips": [""]
+    "staffing": [],
+    "tips": []
   }
 }`
 }

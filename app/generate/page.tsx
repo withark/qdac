@@ -4,7 +4,7 @@ import { GNB } from '@/components/GNB'
 import InputForm, { type GenerateRequestBody } from '@/components/quote/InputForm'
 import QuoteResult from '@/components/quote/QuoteResult'
 import { Toast, Button } from '@/components/ui'
-import type { QuoteDoc, CompanySettings, HistoryRecord, PriceCategory } from '@/lib/types'
+import type { QuoteDoc, CompanySettings, HistoryRecord, PriceCategory, TaskOrderDoc } from '@/lib/types'
 import { exportToExcel } from '@/lib/exportExcel'
 import { exportToPdf }   from '@/lib/exportPdf'
 import { fmtKRW } from '@/lib/calc'
@@ -32,6 +32,7 @@ export default function GeneratePage() {
   const [loadModalOpen, setLoadModalOpen] = useState(false)
   const [historyList, setHistoryList] = useState<HistoryRecord[]>([])
   const [prices, setPrices] = useState<PriceCategory[]>([])
+  const [taskOrderRefsCount, setTaskOrderRefsCount] = useState<number>(0)
   const [isGenerating, setIsGenerating] = useState(false)
   const [statusMsg, setStatusMsg] = useState('')
   const [me, setMe] = useState<MeLite | null>(null)
@@ -55,6 +56,12 @@ export default function GeneratePage() {
     apiFetch<PriceCategory[]>('/api/prices')
       .then(setPrices)
       .catch(() => setPrices([]))
+  }, [])
+
+  useEffect(() => {
+    apiFetch<TaskOrderDoc[]>('/api/task-order-references')
+      .then(list => setTaskOrderRefsCount(Array.isArray(list) ? list.length : 0))
+      .catch(() => setTaskOrderRefsCount(0))
   }, [])
 
   useEffect(() => {
@@ -141,6 +148,7 @@ export default function GeneratePage() {
           onGenerated={handleGenerated}
           onLoadingChange={setIsGenerating}
           onStatusChange={setStatusMsg}
+          taskOrderRefsCount={taskOrderRefsCount}
         />
       </div>
 
@@ -205,8 +213,8 @@ export default function GeneratePage() {
                   setTimeout(() => (window.location.href = '/plans'), 700)
                 }
               : openLoadModal}
-            onExcel={() => {
-              exportToExcel(doc, companySettings ?? undefined)
+            onExcel={(view) => {
+              exportToExcel(doc, companySettings ?? undefined, view)
               showToast('Excel 다운로드 완료!')
             }}
             onPdf={async () => {

@@ -110,15 +110,18 @@ export type GenerateRequestBody = {
   eventType: string
   budget: string
   requirements: string
+  /** 생성 모드: 과업지시서 기반(빠른 생성) */
+  generationMode?: 'normal' | 'taskOrderBase'
 }
 
 interface Props {
   onGenerated: (doc: QuoteDoc, totals: Record<string, number>, body?: GenerateRequestBody) => void
   onLoadingChange?: (loading: boolean) => void
   onStatusChange?: (msg: string) => void
+  taskOrderRefsCount?: number
 }
 
-export default function InputForm({ onGenerated, onLoadingChange, onStatusChange }: Props) {
+export default function InputForm({ onGenerated, onLoadingChange, onStatusChange, taskOrderRefsCount = 0 }: Props) {
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
   const [statusMsg, setStatusMsg] = useState('')
@@ -139,6 +142,7 @@ export default function InputForm({ onGenerated, onLoadingChange, onStatusChange
   const [budgetPreset,  setBudgetPreset]  = useState<'소' | '중' | '대' | '미정' | 'custom'>('중')
   const [budgetCustom,   setBudgetCustom]  = useState('')
   const [requirements,  setRequirements]  = useState('')
+  const [generationMode, setGenerationMode] = useState<'normal' | 'taskOrderBase'>('normal')
 
   // 시작·종료 시간이 모두 있으면 행사 시간(시간/분) 자동 반영
   useEffect(() => {
@@ -152,7 +156,7 @@ export default function InputForm({ onGenerated, onLoadingChange, onStatusChange
     '행사 기본 정보 분석 중...',
     '단가표·참고 자료 반영 중...',
     '견적 항목 구성 중...',
-    '제안 프로그램·타임테이블 작성 중...',
+    '타임테이블 작성 중...',
     '마무리 검토 중...',
   ]
 
@@ -204,6 +208,7 @@ export default function InputForm({ onGenerated, onLoadingChange, onStatusChange
       headcount, venue, eventType,
       budget: budgetLabel,
       requirements,
+      generationMode: generationMode === 'taskOrderBase' ? 'taskOrderBase' : undefined,
     }
     try {
       const data = await apiFetch<{ doc: QuoteDoc; totals: Record<string, number> }>('/api/generate', {
@@ -361,6 +366,25 @@ export default function InputForm({ onGenerated, onLoadingChange, onStatusChange
         onChange={e => setRequirements(e.target.value)}
         rows={3}
       />
+
+      {taskOrderRefsCount > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={generationMode === 'taskOrderBase'}
+              onChange={e => setGenerationMode(e.target.checked ? 'taskOrderBase' : 'normal')}
+              className="mt-0.5"
+            />
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-gray-800">과업지시서 기반 기본 견적서(빠른 생성)</p>
+              <p className="text-[11px] text-gray-500 mt-1">
+                업로드된 과업지시서 요약을 우선 반영해서 견적서와 타임테이블만 빠르게 생성합니다.
+              </p>
+            </div>
+          </label>
+        </div>
+      )}
 
       {error && (
         <p className="text-xs text-red-500 bg-red-50 px-2.5 py-2 rounded-lg">{error}</p>
