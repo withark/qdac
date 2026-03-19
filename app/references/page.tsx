@@ -290,17 +290,23 @@ export default function ReferencesPage() {
                   등록된 과업지시서·기획안 참고가 없습니다. 위 박스를 클릭해서 파일을 올려보세요.
                 </div>
               ) : (
-                <ul className="space-y-1">
+                <ul className="space-y-2">
                   {(Array.isArray(taskOrderRefs) ? taskOrderRefs : []).map(r => (
                     <li
                       key={r.id}
-                      className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg hover:bg-gray-50 bg-white border border-gray-100"
+                      className="flex items-start justify-between gap-3 py-3 px-3 rounded-lg hover:bg-gray-50 bg-white border border-gray-100"
                     >
                       <div className="min-w-0 flex-1">
                         <span className="text-sm text-gray-800 truncate block">{r.filename}</span>
                         <span className="text-xs text-gray-400">
                           {new Date(r.uploadedAt).toLocaleString('ko-KR')}
                         </span>
+                        <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
+                          <p className="text-[11px] font-semibold text-slate-500">AI 요약</p>
+                          <p className="mt-1 text-xs text-slate-700 whitespace-pre-wrap break-words">
+                            {r.summary?.trim() || '요약 결과가 아직 없습니다.'}
+                          </p>
+                        </div>
                       </div>
                       <Btn size="sm" variant="danger" onClick={() => deleteTaskOrder(r.id)}>
                         삭제

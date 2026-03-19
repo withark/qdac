@@ -10,7 +10,7 @@ import type { PlanType } from '@/lib/plans'
 import { allowedQuoteTemplates } from '@/lib/plan-entitlements'
 import { normalizeQuoteDoc } from '@/lib/ai/parsers'
 
-type Tab = 'quote' | 'program' | 'timeline' | 'cuesheet' | 'scenario'
+type Tab = 'quote' | 'program' | 'timeline' | 'scenario'
 
 function emptyRow(): ProgramTableRow {
   return { kind: '', content: '', tone: '', image: '(이미지 슬롯)', time: '', audience: '', notes: '' }
@@ -44,6 +44,7 @@ export function QuoteResult({ doc, companySettings, prices = [], planType = 'FRE
   const priceDropdownRef = useRef<HTMLDivElement>(null)
   const totals = calcTotals(doc)
   const d = ensureProgram(doc)
+  const supplierSignName = companySettings?.name?.trim() || '—'
 
   useEffect(() => {
     if (!openPriceForKind) return
@@ -126,7 +127,6 @@ export function QuoteResult({ doc, companySettings, prices = [], planType = 'FRE
             { id: 'quote' as Tab, label: '견적서' },
             { id: 'program' as Tab, label: '제안 프로그램' },
             { id: 'timeline' as Tab, label: '타임테이블' },
-            { id: 'cuesheet' as Tab, label: '큐시트' },
             { id: 'scenario' as Tab, label: '시나리오' },
           ].map(({ id, label }) => (
             <button
@@ -173,7 +173,6 @@ export function QuoteResult({ doc, companySettings, prices = [], planType = 'FRE
         {tab === 'quote' && '개당 단가·수량·항목명 등 표에서 바로 수정 가능'}
         {tab === 'program' && '프로그램 종류·내용·성격 등 표 형태 구성표 (엑셀과 동일하게 다운로드 가능)'}
         {tab === 'timeline' && '생성 시 입력한 시작·종료 시각에 맞춰 배치됩니다. 수정 시 즉시 반영됩니다.'}
-        {tab === 'cuesheet' && '운영 문서 표 — 시간·담당·준비물·멘트·특이사항'}
         {tab === 'scenario' && '오프닝·전개·메인·클로징·연출 메모 (PPT 샘플 반영)'}
       </p>
 
@@ -268,27 +267,58 @@ export function QuoteResult({ doc, companySettings, prices = [], planType = 'FRE
                           return (
                             <tr key={`${ci}-${ii}`} className="border-b border-gray-50 hover:bg-gray-50/50 group">
                               <td className="px-2 py-1.5">
-                                <input value={it.name} onChange={e => updLine(ci, ii, 'name', e.target.value)} className="w-full bg-transparent outline-none rounded px-1" />
+                                <input
+                                  value={it.name}
+                                  onChange={e => updLine(ci, ii, 'name', e.target.value)}
+                                  className="w-full bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none"
+                                />
                               </td>
                               <td className="px-2 py-1.5 text-gray-400">
-                                <input value={it.spec || ''} onChange={e => updLine(ci, ii, 'spec', e.target.value)} className="w-full bg-transparent outline-none rounded px-1" />
+                                <input
+                                  value={it.spec || ''}
+                                  onChange={e => updLine(ci, ii, 'spec', e.target.value)}
+                                  className="w-full bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none"
+                                />
                               </td>
                               <td className="px-2 py-1.5 text-right">
-                                <input type="number" min={1} value={it.qty ?? 1} onChange={e => updLine(ci, ii, 'qty', +e.target.value || 1)} className="w-12 text-right bg-transparent outline-none rounded px-1 tabular-nums" />
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={it.qty ?? 1}
+                                  onChange={e => updLine(ci, ii, 'qty', +e.target.value || 1)}
+                                  className="w-14 text-right bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none tabular-nums"
+                                />
                               </td>
                               <td className="px-2 py-1.5">
-                                <input value={it.unit || '식'} onChange={e => updLine(ci, ii, 'unit', e.target.value)} className="w-10 bg-transparent outline-none rounded px-1" />
+                                <input
+                                  value={it.unit || '식'}
+                                  onChange={e => updLine(ci, ii, 'unit', e.target.value)}
+                                  className="w-12 bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none"
+                                />
                               </td>
                               <td className="px-2 py-1.5 text-right">
                                 <input type="number" min={0} step={100} value={it.unitPrice ?? 0} onChange={e => updLine(ci, ii, 'unitPrice', +(e.target.value || 0))} className="w-24 text-right bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none tabular-nums" />
                               </td>
                               <td className="px-2 py-1.5 text-right font-medium tabular-nums">{fmtKRW(rowTotal)}</td>
                               <td className="px-2 py-1.5 text-gray-400">
-                                <input value={it.note || ''} onChange={e => updLine(ci, ii, 'note', e.target.value)} className="w-full bg-transparent outline-none rounded px-1" />
+                                <input
+                                  value={it.note || ''}
+                                  onChange={e => updLine(ci, ii, 'note', e.target.value)}
+                                  className="w-full bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none"
+                                />
                               </td>
                               <td className="px-2 py-1.5">
-                                <span className="flex items-center gap-0.5">
-                                  <select title="구분" value={it.kind || '필수'} onChange={e => updLine(ci, ii, 'kind', e.target.value)} className="opacity-0 group-hover:opacity-100 text-[10px] bg-white border border-gray-200 rounded px-1 py-0.5 min-w-0">
+                                <span className="flex items-center gap-1">
+                                  <span className="opacity-0 group-hover:opacity-100 text-[10px] text-gray-500 whitespace-nowrap">
+                                    그룹 이동
+                                  </span>
+                                  <select
+                                    title="이 항목을 다른 그룹으로 이동"
+                                    aria-label="이 항목을 다른 그룹으로 이동"
+                                    value={it.kind || '필수'}
+                                    onChange={e => updLine(ci, ii, 'kind', e.target.value)}
+                                    className="opacity-0 group-hover:opacity-100 text-[10px] bg-white border border-gray-200 rounded px-1 py-0.5 min-w-0"
+                                  >
                                     {KIND_ORDER.map(k => <option key={k} value={k}>{k}</option>)}
                                   </select>
                                   <button type="button" onClick={() => { const d2 = ensureProgram(structuredClone(doc)); d2.quoteItems[ci].items.splice(ii, 1); onChange(d2) }} className="opacity-0 group-hover:opacity-100 text-red-400 text-xs">✕</button>
@@ -357,7 +387,7 @@ export function QuoteResult({ doc, companySettings, prices = [], planType = 'FRE
               <div className="flex justify-end">
                 <div className="border border-gray-200 rounded-xl px-6 py-3 text-center min-w-28">
                   <p className="text-[10px] text-gray-400 mb-4">공급자 확인</p>
-                  <p className="text-sm font-medium border-b border-gray-200 pb-1">{doc.eventName} 기획</p>
+                  <p className="text-sm font-medium border-b border-gray-200 pb-1">{supplierSignName}</p>
                 </div>
               </div>
             </div>
@@ -392,19 +422,58 @@ export function QuoteResult({ doc, companySettings, prices = [], planType = 'FRE
                               return base
                             })
                           }}
-                          className="w-full min-w-[72px] bg-transparent outline-none rounded px-1 py-0.5 text-xs"
+                          className="w-full min-w-[72px] bg-white border border-gray-100 rounded px-1.5 py-1 text-xs outline-none"
                           placeholder={field === 'image' ? '(이미지 슬롯)' : ''}
                         />
                       </td>
                     ))}
                     <td className="border border-gray-100 px-1">
-                      <button type="button" className="text-red-400 text-xs" onClick={() => patchDoc(base => { base.program.programRows.splice(i, 1); return base })}>✕</button>
+                      <button
+                        type="button"
+                        className="text-red-400 text-xs"
+                        onClick={() =>
+                          patchDoc(base => {
+                            const normalized = ensureProgram(base)
+                            const p2 = normalized.program
+                            if (p2.programRows.length > i) p2.programRows.splice(i, 1)
+                            if (p2.timeline.length > i) p2.timeline.splice(i, 1)
+                            if ((p2.cueRows || []).length > i) p2.cueRows.splice(i, 1)
+                            base.program = p2
+                            return base
+                          })
+                        }
+                      >
+                        ✕
+                      </button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <Button size="sm" onClick={() => patchDoc(base => { base.program.programRows.push(emptyRow()); return base })}>+ 행 추가</Button>
+            <Button
+              size="sm"
+              onClick={() =>
+                patchDoc(base => {
+                  const normalized = ensureProgram(base)
+                  const p2 = normalized.program
+                  p2.programRows.push(emptyRow())
+                  p2.timeline.push({ time: '', content: '', detail: '', manager: '' })
+                  p2.cueRows.push({
+                    time: '',
+                    order: String(p2.cueRows.length + 1),
+                    content: '',
+                    staff: '',
+                    prep: '',
+                    script: '',
+                    special: '',
+                  })
+                  base.program = p2
+                  return base
+                })
+              }
+            >
+              + 행 추가
+            </Button>
             <div className="mt-4">
               <p className="text-[10px] font-semibold text-gray-400 mb-1">보조 설명 (전체 컨셉)</p>
               <textarea
@@ -459,60 +528,6 @@ export function QuoteResult({ doc, companySettings, prices = [], planType = 'FRE
               </tbody>
             </table>
             <Button size="sm" onClick={() => patchDoc(base => { base.program.timeline.push({ time: '', content: '', detail: '', manager: '' }); return base })}>+ 일정 추가</Button>
-          </div>
-        )}
-
-        {/* 큐시트 운영표 */}
-        {tab === 'cuesheet' && (
-          <div className="max-w-full mx-auto space-y-3 pt-2 overflow-x-auto">
-            <h3 className="text-base font-semibold">{doc.eventName} — 큐시트 (운영 문서)</h3>
-            <div className="bg-amber-50/80 border border-amber-100 rounded-lg px-3 py-2 text-sm text-gray-800">
-              <span className="font-semibold text-amber-900">상단 요약</span>
-              <textarea
-                value={program.cueSummary || ''}
-                onChange={e => patchDoc(base => { base.program.cueSummary = e.target.value; return base })}
-                rows={2}
-                className="mt-1 w-full bg-white/80 border border-amber-100 rounded text-xs p-2"
-              />
-            </div>
-            <table className="w-full min-w-[1000px] text-xs border-collapse border border-gray-200">
-              <thead>
-                <tr className="bg-slate-100">
-                  {['시간', '순서', '진행 내용', '담당', '준비물/장비', '멘트·체크', '특이사항', ''].map(h => (
-                    <th key={h} className="border border-gray-200 px-1 py-2 text-left whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {(program.cueRows || []).map((row: CueSheetRow, i: number) => (
-                  <tr key={i} className="border-b border-gray-50">
-                    {(['time', 'order', 'content', 'staff', 'prep', 'script', 'special'] as const).map(field => (
-                      <td key={field} className="border border-gray-100 p-1 align-top">
-                        <input
-                          value={row[field]}
-                          onChange={e => patchDoc(base => {
-                            if (!base.program.cueRows[i]) base.program.cueRows[i] = { time: '', order: '', content: '', staff: '', prep: '', script: '', special: '' }
-                            base.program.cueRows[i] = { ...base.program.cueRows[i], [field]: e.target.value }
-                            return base
-                          })}
-                          className="w-full min-w-[64px] bg-transparent text-xs rounded px-1"
-                        />
-                      </td>
-                    ))}
-                    <td className="border border-gray-100 p-1">
-                      <button type="button" className="text-red-400 text-xs" onClick={() => patchDoc(base => { base.program.cueRows.splice(i, 1); return base })}>✕</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <Button size="sm" onClick={() => patchDoc(base => { base.program.cueRows.push({ time: '', order: String((base.program.cueRows?.length || 0) + 1), content: '', staff: '', prep: '', script: '', special: '' }); return base })}>+ 큐 행 추가</Button>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-4">
-              <p className="text-[10px] font-semibold text-gray-400 md:col-span-3">투입 인력 (요약)</p>
-              {(program.staffing || []).map((s, i) => (
-                <div key={i} className="bg-gray-50 rounded-lg p-2 text-xs">{s.role} ×{s.count} — {s.note}</div>
-              ))}
-            </div>
           </div>
         )}
 
