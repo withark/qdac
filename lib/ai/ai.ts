@@ -9,6 +9,7 @@ import {
   applySuggestedPrices,
 } from './parsers'
 import { resolveGenerateMaxTokens } from './generate-config'
+import { logInfo } from '@/lib/utils/logger'
 
 export type { GenerateInput, QuoteDoc, PriceCategory }
 
@@ -21,9 +22,22 @@ const RETRY_SUFFIX_LITE = `
 [재시도 지시] 방금 응답이 잘리거나 JSON이 아니었을 수 있습니다. markdown·설명 없이 반드시 완전한 단일 JSON 객체만 출력하세요. { 로 시작해 } 로 끝나야 합니다.
 견적서(quoteItems)와 기획안(program.programRows, program.timeline)은 반드시 실무 수준으로 채우세요. cueRows·scenario는 최소 스켈레톤만 유지해도 됩니다.`
 
-export async function generateQuote(input: GenerateInput): Promise<QuoteDoc> {
-  const mock = (process.env.AI_MODE || '').trim().toLowerCase() === 'mock'
+export async function generateQuote(
+  input: GenerateInput,
+  opts?: {
+    requestId?: string
+    quoteId?: string
+  },
+): Promise<QuoteDoc> {
+  const requestId = opts?.requestId
+  const quoteId = opts?.quoteId
+  const aiModeRaw = (process.env.AI_MODE || '').trim().toLowerCase()
+  const forceProvider = (process.env.AI_FORCE_PROVIDER || '').trim() === '1'
+  const mock = aiModeRaw === 'mock' && !forceProvider
   if (mock) {
+    logInfo('generate.timing', { requestId, quoteId, step: 'prompt 생성', ms: 0, branchUsed: 'mock', skipped: true })
+    logInfo('generate.timing', { requestId, quoteId, step: 'AI 호출', ms: 0, branchUsed: 'mock', skipped: true })
+    const parseStartAt = Date.now()
     const mode = input.generationMode ?? 'full'
     const start = input.eventStartHHmm || '19:00'
     const end = input.eventEndHHmm || '21:00'
@@ -168,7 +182,7 @@ export async function generateQuote(input: GenerateInput): Promise<QuoteDoc> {
     ]
     const timeline = mode === 'lite' ? timelineLite : mode === 'balanced' ? timelineBalanced : timelineFull
 
-    return normalizeQuoteDoc(
+    const out = normalizeQuoteDoc(
       {
         eventName: input.eventName,
         clientName: input.clientName || '',
@@ -195,7 +209,10 @@ export async function generateQuote(input: GenerateInput): Promise<QuoteDoc> {
           programRows,
           timeline,
           staffing: staffingCore,
-          tips: mode === 'lite' ? ['모의 데이터'] : ['사전 리허설 1회 권장', 'VIP 동선/포토타임 구간은 별도 관리', '마이크/송출 백업(배터리/케이블) 준비'],
+          tips:
+            mode === 'lite'
+              ? ['모의 데이터']
+              : ['사전 리허설 1회 권장', 'VIP 동선/포토타임 구간은 별도 관리', '마이크/송출 백업(배터리/케이블) 준비'],
           cueRows:
             mode === 'lite'
               ? [
@@ -208,8 +225,16 @@ export async function generateQuote(input: GenerateInput): Promise<QuoteDoc> {
         scenario: {
           summaryTop: mode === 'lite' ? input.eventName + ' 시나리오 요약' : `${input.eventName} 진행 요약(핵심 장면/체크포인트).`,
           opening: mode === 'lite' ? '오프닝' : '개회 멘트 + 안내(안전/동선/공지) 후 메인 흐름으로 연결',
-          development: mode === 'lite' ? '전개' : isAward ? '호명/수상자 동선/포토타임을 끊김 없이 연결' : '메인 세션 진행(자료 송출/마이크 핸들링/전환)',
-          mainPoints: mode === 'lite' ? ['포인트1', '포인트2'] : ['동선(등록→입장→무대) 병목 제거', '포토타임/전환 구간 스태프 배치', '송출/마이크 백업 체크'],
+          development:
+            mode === 'lite'
+              ? '전개'
+              : isAward
+                ? '호명/수상자 동선/포토타임을 끊김 없이 연결'
+                : '메인 세션 진행(자료 송출/마이크 핸들링/전환)',
+          mainPoints:
+            mode === 'lite'
+              ? ['포인트1', '포인트2']
+              : ['동선(등록→입장→무대) 병목 제거', '포토타임/전환 구간 스태프 배치', '송출/마이크 백업 체크'],
           closing: mode === 'lite' ? '클로징' : '단체사진/퇴장 안내 후 정리·분실물·주차 안내로 마감',
           directionNotes: mode === 'lite' ? '연출 메모' : '현장PM이 타임라인 기준으로 “다음 전환”을 5분 전에 무전 공유',
         },
@@ -224,26 +249,63 @@ export async function generateQuote(input: GenerateInput): Promise<QuoteDoc> {
         eventDuration: input.eventDuration,
       },
     )
+    logInfo('generate.timing', { requestId, quoteId, step: '결과 파싱', ms: Date.now() - parseStartAt, branchUsed: 'mock' })
+    return out
   }
 
   const eff = await getEffectiveEngineConfig()
-  const maxOut = resolveGenerateMaxTokens(eff.maxTokens, eff.provider)
+  const maxOutResolved = resolveGenerateMaxTokens(eff.maxTokens, eff.provider)
+  let maxOut = maxOutResolved
+  const promptStartAt = Date.now()
   const prompt = buildGeneratePrompt(input)
   const mode = input.generationMode ?? 'full'
   const retrySuffix = mode === 'lite' ? RETRY_SUFFIX_LITE : RETRY_SUFFIX_FULL
+  // LITE는 출력 밀도가 낮아도 되는 모드라, 기본 maxTokens를 더 보수적으로 줄여 timeout 위험을 낮춘다.
+  if (mode === 'lite') {
+    maxOut = Math.max(4096, Math.min(maxOutResolved, eff.maxTokens))
+  }
+  logInfo('generate.timing', {
+    requestId,
+    quoteId,
+    step: 'prompt 생성',
+    ms: Date.now() - promptStartAt,
+    branchUsed: 'provider',
+    provider: eff.provider,
+    model: eff.model,
+    maxTokens: maxOut,
+    promptChars: prompt.length,
+    approxPromptTokens: Math.ceil(prompt.length / 4),
+    generationMode: mode,
+  })
+
+  let aiCallMs = 0
+  let aiAttempts = 0
+  let retrySuffixUsedAttempts = 0
+  let parseMs = 0
 
   async function runOnce(extra = ''): Promise<string> {
-    return callLLM(prompt + extra, { maxTokens: maxOut, system: GENERATION_SYSTEM_PROMPT })
+    aiAttempts += 1
+    if (extra.trim().length > 0) retrySuffixUsedAttempts += 1
+    const startAt = Date.now()
+    const text = await callLLM(prompt + extra, { maxTokens: maxOut, system: GENERATION_SYSTEM_PROMPT })
+    aiCallMs += Date.now() - startAt
+    return text
   }
 
   let text = await runOnce()
   let jsonText: string
   try {
+    const t = Date.now()
     jsonText = extractQuoteJson(text)
+    // JSON 추출 + 정리(파싱) 구간에 포함
+    // (AI 호출 지연/재시도 원인 분석을 위해 LLM 호출 시간은 별도 누적)
+    parseMs += Date.now() - t
   } catch {
     text = await runOnce(retrySuffix)
     try {
+      const t = Date.now()
       jsonText = extractQuoteJson(text)
+      parseMs += Date.now() - t
     } catch {
       throw new Error('플래닉 응답에서 견적 JSON을 찾을 수 없습니다. 잠시 후 다시 시도해 주세요.')
     }
@@ -251,17 +313,15 @@ export async function generateQuote(input: GenerateInput): Promise<QuoteDoc> {
 
   let doc: QuoteDoc
   try {
+    const t = Date.now()
     doc = safeParseQuoteJson(jsonText)
+    parseMs += Date.now() - t
   } catch {
-    text = await runOnce(retrySuffix)
-    try {
-      jsonText = extractQuoteJson(text)
-      doc = safeParseQuoteJson(jsonText)
-    } catch {
-      throw new Error('플래닉 JSON 파싱에 실패했습니다. 다시 생성해 주세요.')
-    }
+    // JSON 파싱 실패 시(이미 안전 파싱을 시도한 뒤) 기본 generate에서는 추가 LLM 재시도를 줄여 timeout 재발 가능성을 낮춘다.
+    throw new Error('플래닉 JSON 파싱에 실패했습니다. 다시 생성해 주세요.')
   }
 
+  const normalizeStartAt = Date.now()
   doc = normalizeQuoteDoc(doc, {
     eventStartHHmm: input.eventStartHHmm,
     eventEndHHmm: input.eventEndHHmm,
@@ -269,6 +329,34 @@ export async function generateQuote(input: GenerateInput): Promise<QuoteDoc> {
     eventType: input.eventType,
     headcount: input.headcount,
     eventDuration: input.eventDuration,
+  })
+  const normalizeMs = Date.now() - normalizeStartAt
+  parseMs += normalizeMs
+
+  logInfo('generate.timing', {
+    requestId,
+    quoteId,
+    step: 'AI 호출',
+    ms: aiCallMs,
+    branchUsed: 'provider',
+    provider: eff.provider,
+    model: eff.model,
+    maxTokens: maxOut,
+    promptChars: prompt.length,
+    generationMode: mode,
+    attempts: aiAttempts,
+    retrySuffixUsedAttempts,
+    retrySuffix: mode === 'lite' ? 'RETRY_SUFFIX_LITE' : 'RETRY_SUFFIX_FULL',
+  })
+
+  logInfo('generate.timing', {
+    requestId,
+    quoteId,
+    step: '결과 파싱',
+    ms: parseMs,
+    branchUsed: 'provider',
+    attempts: aiAttempts,
+    retrySuffixUsedAttempts,
   })
   return doc
 }
