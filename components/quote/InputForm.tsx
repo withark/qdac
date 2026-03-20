@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Input, Select, Textarea, SectionLabel, Btn, Spinner } from '@/components/ui'
 import CalendarPicker, { formatKorDate } from '@/components/ui/CalendarPicker'
 import DurationInput, { durationToString, type DurationValue } from '@/components/ui/DurationInput'
-import type { QuoteDoc } from '@/lib/types'
+import type { QuoteDoc, ReferenceDoc } from '@/lib/types'
 import { apiFetch, ApiError } from '@/lib/api/client'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
 import { buildAuthHref } from '@/lib/auth-redirect'
@@ -174,6 +174,7 @@ export default function InputForm({
   const [requirements,  setRequirements]  = useState('')
   const [generationMode, setGenerationMode] = useState<'normal' | 'taskOrderBase'>('normal')
   const [styleMode, setStyleMode] = useState<'userStyle' | 'aiTemplate'>(initialStyleMode ?? 'userStyle')
+  const [activeRef, setActiveRef] = useState<ReferenceDoc | null>(null)
   const autoFilledRef = useRef(false)
 
   useEffect(() => {
@@ -248,6 +249,12 @@ export default function InputForm({
     // generate?taskOrderBaseId=... 로 진입하면 빠른 생성 모드로 자동 전환
     if (taskOrderBaseId && taskOrderBaseId.trim()) setGenerationMode('taskOrderBase')
   }, [taskOrderBaseId])
+
+  useEffect(() => {
+    apiFetch<{ active: ReferenceDoc | null }>('/api/reference-estimate/active')
+      .then(d => setActiveRef(d.active))
+      .catch(() => setActiveRef(null))
+  }, [])
 
   // 시작·종료 시간이 모두 있으면 행사 시간(시간/분) 자동 반영
   useEffect(() => {
@@ -482,6 +489,27 @@ export default function InputForm({
         <p className="text-[11px] text-gray-500 mt-1">
           사용자 학습 스타일은 참고 견적서 업로드로 항목명/구성/문체 경향을 따라갑니다. AI 추천 템플릿 모드는 플래닉 표준 포맷을 사용합니다.
         </p>
+
+        <div className="mt-2 text-[11px] text-gray-600">
+          {styleMode === 'userStyle' ? (
+            activeRef ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="font-semibold text-primary-700">현재 견적 생성에 반영</span>
+                <span>· 참고: {activeRef.filename}</span>
+                <span className="text-gray-400">({new Date(activeRef.uploadedAt).toLocaleDateString('ko-KR')})</span>
+              </span>
+            ) : (
+              <span className="text-amber-800">
+                활성 참고 견적서가 없습니다. 생성은 AI 추천 템플릿(표준 포맷)으로 폴백합니다.
+              </span>
+            )
+          ) : (
+            <span>
+              AI 추천 템플릿으로 생성합니다.
+              {activeRef ? <span className="text-gray-400"> (참고 견적서: {activeRef.filename}는 이번 생성에 적용되지 않음)</span> : null}
+            </span>
+          )}
+        </div>
       </div>
 
       {error && (

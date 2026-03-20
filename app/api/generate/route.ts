@@ -21,7 +21,7 @@ import { insertGenerationRun } from '@/lib/db/generation-runs-db'
 import { kvGet, kvSet } from '@/lib/db/kv'
 import type { EngineConfigOverlay } from '@/lib/admin-types'
 import { normalizeQuoteDoc } from '@/lib/ai/parsers'
-import type { QuoteDoc } from '@/lib/types'
+import type { QuoteDoc, PriceCategory } from '@/lib/types'
 import { listScenarioRefs } from '@/lib/db/scenario-refs-db'
 import { getCuesheetFile } from '@/lib/db/cuesheet-samples-db'
 import { extractTextFromBuffer } from '@/lib/file-utils'
@@ -151,6 +151,43 @@ export async function POST(req: NextRequest) {
       ])
     const contextLoadMs = Date.now() - contextStartedAt
 
+    // 예측/생성에서 "활성 참고 견적서"가 없으면 사용자 학습 스타일을 따르지 않고
+    // AI 추천 템플릿으로 폴백합니다(프롬프트가 사용자 스타일 규칙을 따르되 참고 컨텍스트는 없는 상태 방지).
+    const effectiveStyleMode: 'userStyle' | 'aiTemplate' =
+      styleMode === 'userStyle' && references.length > 0 ? 'userStyle' : 'aiTemplate'
+    const referencesForPrompt = effectiveStyleMode === 'userStyle' ? references : []
+
+    const pricesForPrompt: PriceCategory[] =
+      documentTarget === 'estimate' && effectiveStyleMode === 'userStyle'
+        ? (() => {
+            const base = structuredClone(prices) as PriceCategory[]
+            referencesForPrompt.forEach((r) => {
+              const baseName = (r.filename || '').replace(/\.[^.]+$/, '')
+              const extracted = (r.extractedPrices || []) as any[]
+              if (!Array.isArray(extracted) || extracted.length === 0) return
+              extracted.forEach((cat) => {
+                const categoryName = cat.category || '참고'
+                const newCat: PriceCategory = {
+                  id: uid(),
+                  name: `참고 - ${baseName} (${categoryName})`,
+                  items:
+                    (cat.items || []).map((it: any) => ({
+                      id: uid(),
+                      name: String(it.name ?? ''),
+                      spec: String(it.spec ?? ''),
+                      unit: String(it.unit ?? '식'),
+                      price: Number.isFinite(it.price) ? Math.round(it.price) : 0,
+                      note: '',
+                      types: [],
+                    })) || [],
+                }
+                base.push(newCat)
+              })
+            })
+            return base
+          })()
+        : prices
+
     const filteredTaskOrderRefs =
       generationMode === 'taskOrderBase' && taskOrderBaseId
         ? taskOrderRefs.filter(r => r.id === taskOrderBaseId)
@@ -208,15 +245,15 @@ export async function POST(req: NextRequest) {
 
     const input: GenerateInput = {
       ...bodyWithoutScenarioRefIds,
-      prices,
+      prices: pricesForPrompt,
       settings,
-      references,
+      references: referencesForPrompt,
       taskOrderRefs: filteredTaskOrderRefs,
       scenarioRefs,
       cuesheetSampleContext,
       engineQuality,
       documentTarget,
-      styleMode,
+      styleMode: effectiveStyleMode,
       existingDoc,
     }
 

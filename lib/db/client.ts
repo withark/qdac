@@ -167,9 +167,13 @@ export async function initDb(): Promise<void> {
       filename text NOT NULL DEFAULT '',
       uploaded_at timestamptz NOT NULL DEFAULT now(),
       summary text NOT NULL DEFAULT '',
-      raw_text text NOT NULL DEFAULT ''
+      raw_text text NOT NULL DEFAULT '',
+      is_active boolean NOT NULL DEFAULT false,
+      extracted_prices jsonb NOT NULL DEFAULT '[]'::jsonb
     )
   `
+  await sql`ALTER TABLE reference_docs ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT false`
+  await sql`ALTER TABLE reference_docs ADD COLUMN IF NOT EXISTS extracted_prices jsonb NOT NULL DEFAULT '[]'::jsonb`
   await sql`CREATE INDEX IF NOT EXISTS idx_reference_docs_user_id ON reference_docs (user_id)`
   await sql`CREATE INDEX IF NOT EXISTS idx_reference_docs_uploaded_at ON reference_docs (user_id, uploaded_at DESC)`
 

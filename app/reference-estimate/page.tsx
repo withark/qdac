@@ -28,11 +28,29 @@ export default function ReferenceEstimatePage() {
   }, [])
 
   useEffect(() => {
-    if (styleMode !== 'userStyle') return
     apiFetch<ReferenceDoc[]>('/api/upload-reference')
       .then(setRefs)
       .catch(() => setRefs([]))
-  }, [styleMode])
+  }, [])
+
+  const activeRef = useMemo(() => refs.find(r => r.isActive), [refs])
+
+  const parseRefSummary = useCallback((raw: string) => {
+    try {
+      const parsed = JSON.parse(raw || '{}') as any
+      if (!parsed || typeof parsed !== 'object') return null
+      return parsed as {
+        namingRules?: string
+        categoryOrder?: string[]
+        unitPricingStyle?: string
+        toneStyle?: string
+        proposalPhraseStyle?: string
+        oneLineSummary?: string
+      }
+    } catch {
+      return null
+    }
+  }, [])
 
   const taskCheckFileSize = (file: File) => {
     if (file.size <= MAX_UPLOAD_BYTES) return true
@@ -80,10 +98,26 @@ export default function ReferenceEstimatePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
       })
-      setRefs(r => r.filter(x => x.id !== id))
+      const list = await apiFetch<ReferenceDoc[]>('/api/upload-reference')
+      setRefs(list)
       showToast('삭제 완료!')
     } catch (e) {
       showToast(toUserMessage(e, '삭제 실패'), 'err')
+    }
+  }
+
+  async function activateRef(id: string | null) {
+    try {
+      await apiFetch<unknown>('/api/reference-estimate/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      } as any)
+      const list = await apiFetch<ReferenceDoc[]>('/api/upload-reference')
+      setRefs(list)
+      showToast(id ? '견적 생성에 반영됨' : '활성 참고 견적서 해제됨')
+    } catch (e) {
+      showToast(toUserMessage(e, '활성화 처리 실패'), 'err')
     }
   }
 
@@ -108,6 +142,31 @@ export default function ReferenceEstimatePage() {
           <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-card">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
+                <div className="text-sm font-semibold text-gray-900">활성화 상태</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {activeRef ? (
+                    <>
+                      현재 적용: <b className="text-gray-800">{activeRef.filename}</b>
+                      {' · '}업로드 {new Date(activeRef.uploadedAt).toLocaleString('ko-KR')}
+                    </>
+                  ) : (
+                    '현재 견적 생성에 반영 중인 참고 견적서가 없습니다.'
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                {activeRef ? (
+                  <Btn size="sm" variant="danger" onClick={() => void activateRef(null)}>
+                    반영 해제
+                  </Btn>
+                ) : null}
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-card">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div>
                 <div className="text-sm font-semibold text-gray-900">스타일 모드</div>
                 <div className="text-xs text-gray-500 mt-1">{inputRefModeText}</div>
               </div>
@@ -124,45 +183,103 @@ export default function ReferenceEstimatePage() {
             </div>
           </section>
 
-          {styleMode === 'userStyle' ? (
-            <section className="rounded-2xl border border-gray-100 bg-white shadow-card overflow-hidden">
-              <div className="p-4 border-b border-gray-100 bg-slate-50/50">
-                <div className="text-sm font-semibold text-gray-900">사용자 견적서 업로드</div>
-                <div className="text-xs text-gray-500 mt-1">
-                  업로드한 견적서로 항목명/카테고리 구조/문체 경향을 학습합니다. 큐시트/시나리오 업로드는 이 메뉴에서 하지 않습니다.
+          <section className="rounded-2xl border border-gray-100 bg-white shadow-card overflow-hidden">
+            {styleMode === 'aiTemplate' ? (
+              <div className="p-4 border-b border-gray-100 bg-primary-50/30">
+                <div className="text-sm font-semibold text-primary-800">AI 추천 템플릿 모드 사용 중</div>
+                <div className="text-xs text-gray-600 mt-1">
+                  현재는 사용자 참고(활성 참고 견적서) 대신 AI 표준 템플릿으로 생성합니다. 스타일 모드를 사용자 학습 스타일로 바꾸면 활성 참고 견적서가 반영됩니다.
                 </div>
               </div>
+            ) : null}
+            <div className="p-4 border-b border-gray-100 bg-slate-50/50">
+              <div className="text-sm font-semibold text-gray-900">사용자 견적서 업로드</div>
+              <div className="text-xs text-gray-500 mt-1">
+                업로드한 견적서로 항목명/카테고리 구조/문체 경향을 학습합니다. 큐시트/시나리오 업로드는 이 메뉴에서 하지 않습니다.
+              </div>
+            </div>
 
-              <div className="p-5 space-y-4">
-                <UploadBox uploading={uploading} onUpload={upload} />
+            <div className="p-5 space-y-4">
+              <UploadBox uploading={uploading} onUpload={upload} />
 
-                {refs.length === 0 ? (
-                  <div className="text-sm text-gray-500 py-10 rounded-2xl border border-dashed border-gray-200 bg-gray-50 text-center">
-                    아직 등록된 참고 견적서가 없습니다. 파일을 업로드해 주세요.
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {refs.map(r => (
-                      <div key={r.id} className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white p-4">
-                        <div className="min-w-0 flex-1">
+              {refs.length === 0 ? (
+                <div className="text-sm text-gray-500 py-10 rounded-2xl border border-dashed border-gray-200 bg-gray-50 text-center">
+                  아직 등록된 참고 견적서가 없습니다. 파일을 업로드해 주세요.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {refs.map(r => (
+                    <div key={r.id} className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white p-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <div className="text-sm font-semibold text-gray-900 truncate">{r.filename}</div>
-                          <div className="text-xs text-gray-500 mt-1">{new Date(r.uploadedAt).toLocaleString('ko-KR')}</div>
+                          {r.isActive ? (
+                            <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-800 border border-emerald-100 px-2 py-0.5 text-[11px] font-semibold">
+                              활성화됨
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-full bg-slate-50 text-slate-600 border border-slate-200 px-2 py-0.5 text-[11px] font-semibold">
+                              미활성
+                            </span>
+                          )}
                         </div>
-                        <Btn size="sm" variant="danger" onClick={() => deleteRef(r.id)}>삭제</Btn>
+                        <div className="text-xs text-gray-500 mt-1">
+                          업로드 {new Date(r.uploadedAt).toLocaleString('ko-KR')}
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {(() => {
+                            const parsed = parseRefSummary(r.summary)
+                            if (!parsed) {
+                              return (
+                                <div className="text-[11px] text-amber-900/80 bg-amber-50 border border-amber-200 rounded-xl p-2">
+                                  요약 인식 실패(구조 확인 필요)
+                                </div>
+                              )
+                            }
+                            return (
+                              <>
+                                <div className="text-[11px] text-gray-700 bg-slate-50 border border-slate-200 rounded-xl p-2">
+                                  <div className="font-semibold text-[11px] text-slate-700">항목/카테고리 스타일</div>
+                                  <div className="mt-1">{parsed.namingRules || '—'}</div>
+                                  <div className="mt-1 text-slate-600">카테고리 순서: {(parsed.categoryOrder || []).join(' > ') || '—'}</div>
+                                </div>
+                                <div className="text-[11px] text-gray-700 bg-slate-50 border border-slate-200 rounded-xl p-2">
+                                  <div className="font-semibold text-[11px] text-slate-700">가격/문서 스타일</div>
+                                  <div className="mt-1">단가표 스타일: {parsed.unitPricingStyle || '—'}</div>
+                                  <div className="mt-1 text-slate-600">문체/제안: {(parsed.toneStyle || '').slice(0, 40) || '—'}</div>
+                                  <div className="mt-1 text-slate-600">제안 문구 톤: {(parsed.proposalPhraseStyle || '').slice(0, 40) || '—'}</div>
+                                  <div className="mt-1 text-slate-500">{parsed.oneLineSummary ? `요약: ${parsed.oneLineSummary.slice(0, 50)}` : ''}</div>
+                                </div>
+                              </>
+                            )
+                          })()}
+                        </div>
+                        <div className="mt-2 text-[11px] text-slate-500">
+                          {r.isActive ? '현재 견적 생성에 반영 중' : '활성화하면 다음 견적 생성에 반영됩니다.'}
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </section>
-          ) : (
-            <section className="rounded-2xl border border-dashed border-primary-200 bg-primary-50/30 p-6 text-center">
-              <div className="text-sm font-semibold text-primary-800">AI 추천 템플릿 모드 사용 중</div>
-              <div className="text-xs text-gray-600 mt-2">
-                이 모드에서는 사용자 업로드 학습을 적용하지 않습니다. 업로드/삭제는 하지 않아도 됩니다.
-              </div>
-            </section>
-          )}
+
+                      <div className="flex flex-col items-end gap-2 shrink-0">
+                        {r.isActive ? (
+                          <Btn size="sm" variant="secondary" onClick={() => void activateRef(null)}>
+                            반영 해제
+                          </Btn>
+                        ) : (
+                          <Btn size="sm" variant="primary" onClick={() => void activateRef(r.id)}>
+                            견적 생성에 반영
+                          </Btn>
+                        )}
+                        <Btn size="sm" variant="danger" onClick={() => deleteRef(r.id)}>
+                          삭제
+                        </Btn>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
         </div>
       </div>
 
@@ -188,7 +305,7 @@ function UploadBox({ uploading, onUpload }: { uploading: boolean; onUpload: (f: 
         지원 형식: txt/csv/md/pdf/xlsx/xls/ppt/pptx/doc/docx · 파일 크기 {formatUploadLimitText()} 이하
       </div>
       <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-xs text-gray-600">
-        참고 견적서가 0개인 상태에서 Estimate Generator의 스타일 모드는 기본 템플릿으로 동작합니다.
+        참고 견적서 업로드와 별개로, <b>활성화된 참고 견적서</b>가 있어야 사용자 학습 스타일이 적용됩니다.
       </div>
     </div>
   )

@@ -1,14 +1,12 @@
 import { NextRequest } from 'next/server'
 import { summarizeReference, extractPricesFromReference } from '@/lib/ai'
 import { extractTextFromFile } from '@/lib/file-utils'
-import { uid } from '@/lib/calc'
-import type { PriceCategory, PriceItem } from '@/lib/types'
+import type { ReferenceDoc } from '@/lib/types'
 import { okResponse, errorResponse } from '@/lib/api/response'
 import { logError } from '@/lib/utils/logger'
 import { getUserIdFromSession } from '@/lib/auth-server'
 import { ensureFreeSubscription } from '@/lib/db/subscriptions-db'
 import { insertReferenceDoc, listReferenceDocs, deleteReferenceDoc } from '@/lib/db/reference-docs-db'
-import { getUserPrices, replaceUserPrices } from '@/lib/db/prices-db'
 import { MAX_UPLOAD_BYTES, formatUploadLimitText } from '@/lib/upload-limits'
 
 export async function GET() {
@@ -63,41 +61,14 @@ export async function POST(req: NextRequest) {
       uploadedAt: new Date().toISOString(),
       summary,
       rawText: rawText.slice(0, 5000),
+      extractedPrices: extracted,
+      isActive: false,
     })
-
-    if (extracted.length > 0) {
-      const prices = await getUserPrices(userId)
-      const baseName = file.name.replace(/\.[^.]+$/, '')
-      extracted.forEach(
-        ({
-          category,
-          items,
-        }: {
-          category: string
-          items: { name: string; spec: string; unit: string; price: number }[]
-        }) => {
-          const newCat: PriceCategory = {
-            id: uid(),
-            name: `참고 - ${baseName} (${category})`,
-            items: items.map((it): PriceItem => ({
-              id: uid(),
-              name: it.name,
-              spec: it.spec,
-              unit: it.unit,
-              price: it.price,
-              note: '',
-              types: [],
-            })),
-          }
-          prices.push(newCat)
-        },
-      )
-      await replaceUserPrices(userId, prices)
-    }
 
     return okResponse({
       summary,
-      pricesApplied: extracted.length > 0,
+      extractedPricesCount: extracted.length,
+      extractedItemsCount: extracted.reduce((acc, c) => acc + (c.items?.length || 0), 0),
     })
   } catch (e) {
     logError('upload-reference:POST', e)

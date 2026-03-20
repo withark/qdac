@@ -208,6 +208,13 @@ export interface ReferenceDoc {
   uploadedAt: string
   summary: string
   rawText: string
+  /** 참고 견적서 활성 상태(견적 생성에 실제 반영되는 소스) */
+  isActive?: boolean
+  /** 업로드 시 추출한 단가표(activation 시 생성에 반영) */
+  extractedPrices?: {
+    category: string
+    items: { name: string; spec: string; unit: string; price: number }[]
+  }[]
 }
 
 // ─── 큐시트 샘플 (참고용 업로드) ─────────────────
