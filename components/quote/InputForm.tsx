@@ -340,7 +340,7 @@ export default function InputForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 p-4 overflow-y-auto overflow-x-hidden h-full min-w-0">
+    <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overflow-x-hidden p-4 min-w-0">
       <SectionLabel>행사 기본 정보</SectionLabel>
       <p className="text-[11px] text-gray-500 mb-1">
         입력한 정보와 참고 자료(과업지시서 요약/참고 견적서 스타일)를 바탕으로 AI가 견적서만 생성합니다. 프로그램/타임테이블/기획/시나리오는 탭에서 필요할 때 생성하세요.

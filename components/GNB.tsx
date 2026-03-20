@@ -10,7 +10,6 @@ import { AccountPanel } from '@/components/account/AccountPanel'
 type NavItem = {
   href: string
   text: string
-  label: string
   icon: (props: { className?: string }) => React.ReactNode
 }
 
@@ -18,7 +17,6 @@ const NAVS: NavItem[] = [
   {
     href: '/dashboard',
     text: '홈',
-    label: 'Home',
     icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
         <path d="M4 10.5 12 4l8 6.5V20a1.5 1.5 0 0 1-1.5 1.5H5.5A1.5 1.5 0 0 1 4 20v-9.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -29,7 +27,6 @@ const NAVS: NavItem[] = [
   {
     href: '/task-order-summary',
     text: '과업지시서 요약',
-    label: 'Task Order Summary',
     icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
         <path d="M7 3.5h7l3 3V20.5A1.5 1.5 0 0 1 15.5 22h-8A1.5 1.5 0 0 1 6 20.5v-15A2 2 0 0 1 7 3.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -40,8 +37,7 @@ const NAVS: NavItem[] = [
   },
   {
     href: '/estimate-generator',
-    text: '견적 생성',
-    label: 'Estimate Generator',
+    text: '견적서 생성',
     icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
         <path d="M7 3.5h7l3 3V20.5A1.5 1.5 0 0 1 15.5 22h-8A1.5 1.5 0 0 1 6 20.5v-15A2 2 0 0 1 7 3.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -52,8 +48,7 @@ const NAVS: NavItem[] = [
   },
   {
     href: '/planning-generator',
-    text: '기획 생성',
-    label: 'Planning Generator',
+    text: '기획안 생성',
     icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
         <path d="M7 3.5h10l3 3V20.5A1.5 1.5 0 0 1 18.5 22h-11A1.5 1.5 0 0 1 6 20.5v-15A2 2 0 0 1 7 3.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -64,8 +59,7 @@ const NAVS: NavItem[] = [
   },
   {
     href: '/program-proposal-generator',
-    text: '프로그램 생성',
-    label: 'Program Proposal Generator',
+    text: '프로그램 제안서 생성',
     icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
         <path d="M4.5 7.5A3 3 0 0 1 7.5 4.5h9A3 3 0 0 1 19.5 7.5v9a3 3 0 0 1-3 3h-9a3 3 0 0 1-3-3v-9Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -77,7 +71,6 @@ const NAVS: NavItem[] = [
   {
     href: '/scenario-generator',
     text: '시나리오 생성',
-    label: 'Scenario Generator',
     icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
         <path d="M7 4.5h12A2.5 2.5 0 0 1 21.5 7v12A2.5 2.5 0 0 1 19 21.5H7A2.5 2.5 0 0 1 4.5 19V7A2.5 2.5 0 0 1 7 4.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -89,7 +82,6 @@ const NAVS: NavItem[] = [
   {
     href: '/cue-sheet-generator',
     text: '큐시트 생성',
-    label: 'Cue Sheet Generator',
     icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
         <path d="M6.5 4.5h9A2.5 2.5 0 0 1 18 7v14.5H8.5A2.5 2.5 0 0 0 6 24V7A2.5 2.5 0 0 1 6.5 4.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -100,8 +92,7 @@ const NAVS: NavItem[] = [
   },
   {
     href: '/reference-estimate',
-    text: '참고 견적 스타일',
-    label: 'Reference Estimate',
+    text: '참고 견적서',
     icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
         <path d="M6.5 4.5h9A2.5 2.5 0 0 1 18 7v14.5H8.5A2.5 2.5 0 0 0 6 24V7A2.5 2.5 0 0 1 6.5 4.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -112,8 +103,7 @@ const NAVS: NavItem[] = [
   },
   {
     href: '/prices',
-    text: '가격',
-    label: 'Pricing',
+    text: '요금제',
     icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
         <path d="M6.5 3.5h11A2.5 2.5 0 0 1 20 6v14.5A2.5 2.5 0 0 1 17.5 23h-11A2.5 2.5 0 0 1 4 20.5V6A2.5 2.5 0 0 1 6.5 3.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -124,8 +114,7 @@ const NAVS: NavItem[] = [
   },
   {
     href: '/history',
-    text: '이력',
-    label: 'History',
+    text: '작업 이력',
     icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
         <path d="M12 22a9 9 0 1 0-6.3-2.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -137,7 +126,6 @@ const NAVS: NavItem[] = [
   {
     href: '/settings',
     text: '설정',
-    label: 'Settings',
     icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
         <path
@@ -182,7 +170,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               <Link
                 href={n.href}
                 onClick={onNavigate}
-                title={n.label}
+                title={n.text}
                 className={clsx(
                   'group flex items-center gap-3 rounded-xl px-2.5 py-2 text-[13px] font-semibold transition-colors',
                   path.startsWith(n.href)
@@ -201,7 +189,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                 >
                   {n.icon({ className: 'h-[18px] w-[18px]' })}
                 </span>
-                <span className="truncate">{n.label}</span>
+                <span className="truncate">{n.text}</span>
               </Link>
             </li>
           ))}

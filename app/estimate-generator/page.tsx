@@ -130,13 +130,13 @@ export default function EstimateGeneratorPage() {
     <div className="flex h-screen overflow-hidden">
       <GNB />
 
-      <div className="flex-shrink-0 overflow-hidden bg-white border-r border-slate-200/80 shadow-sm w-[288px]">
-        <div className="p-4 border-b border-slate-100 bg-white/90">
-          <h1 className="text-base font-semibold text-gray-900">Estimate Generator</h1>
-          <p className="text-xs text-gray-500 mt-1">태스크 요약(선택) → 스타일 모드 → 견적만 생성합니다.</p>
+      <div className="flex flex-col flex-shrink-0 h-full min-h-0 w-[288px] overflow-hidden bg-white border-r border-slate-200/80 shadow-sm">
+        <div className="flex-shrink-0 p-4 border-b border-slate-100 bg-white/90">
+          <h1 className="text-base font-semibold text-gray-900">견적서 생성</h1>
+          <p className="text-xs text-gray-500 mt-1">과업 요약(선택) → 스타일 모드 → 견적만 생성합니다.</p>
         </div>
 
-        <div className="p-4 space-y-3 border-b border-slate-100 bg-white">
+        <div className="flex-shrink-0 p-4 space-y-3 border-b border-slate-100 bg-white">
           <label className="text-xs text-gray-500 font-semibold">과업지시서 요약(선택)</label>
           <select
             value={taskOrderBaseId || ''}
@@ -154,14 +154,16 @@ export default function EstimateGeneratorPage() {
           ) : null}
         </div>
 
-        <InputForm
-          onGenerated={handleGenerated}
-          onLoadingChange={() => {}}
-          taskOrderRefsCount={taskOrderRefs.length}
-          taskOrderBaseId={taskOrderBaseId}
-          taskOrderSummary={taskOrderSummary}
-          initialStyleMode={initialStyleMode}
-        />
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <InputForm
+            onGenerated={handleGenerated}
+            onLoadingChange={() => {}}
+            taskOrderRefsCount={taskOrderRefs.length}
+            taskOrderBaseId={taskOrderBaseId}
+            taskOrderSummary={taskOrderSummary}
+            initialStyleMode={initialStyleMode}
+          />
+        </div>
       </div>
 
       <div className="flex-1 flex flex-col overflow-hidden bg-slate-50/50">
