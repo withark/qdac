@@ -490,7 +490,7 @@ export function QuoteResult({
                 <p className="text-xs text-gray-500">아직 생성되지 않았습니다.</p>
                 {!hideOnDemandGenerate && (
                   <Button size="sm" variant="primary" onClick={() => onGenerateTab?.('program')} disabled={!!generatingTabs.program}>
-                    {generatingTabs.program ? '프로그램 생성 중...' : 'Generate Program Proposal'}
+                    {generatingTabs.program ? '프로그램 생성 중...' : '프로그램 제안서 생성'}
                   </Button>
                 )}
               </div>
@@ -677,7 +677,7 @@ export function QuoteResult({
                 <p className="text-xs text-gray-500">아직 생성되지 않았습니다.</p>
                 {!hideOnDemandGenerate && (
                   <Button size="sm" variant="primary" onClick={() => onGenerateTab?.('timetable')} disabled={!!generatingTabs.timetable}>
-                    {generatingTabs.timetable ? '타임테이블 생성 중...' : 'Generate Timetable'}
+                    {generatingTabs.timetable ? '타임테이블 생성 중...' : '타임테이블 생성'}
                   </Button>
                 )}
               </div>
@@ -734,7 +734,7 @@ export function QuoteResult({
                 <p className="text-xs text-gray-500">아직 생성되지 않았습니다.</p>
                 {!hideOnDemandGenerate && (
                   <Button size="sm" variant="primary" onClick={() => onGenerateTab?.('planning')} disabled={!!generatingTabs.planning}>
-                    {generatingTabs.planning ? '기획 문서 생성 중...' : 'Generate Planning Document'}
+                    {generatingTabs.planning ? '기획 문서 생성 중...' : '기획 문서 생성'}
                   </Button>
                 )}
               </div>
@@ -783,7 +783,7 @@ export function QuoteResult({
                 <p className="text-xs text-gray-500">아직 생성되지 않았습니다.</p>
                 {!hideOnDemandGenerate && (
                   <Button size="sm" variant="primary" onClick={() => onGenerateTab?.('scenario')} disabled={!!generatingTabs.scenario}>
-                    {generatingTabs.scenario ? '시나리오 생성 중...' : 'Generate Scenario'}
+                    {generatingTabs.scenario ? '시나리오 생성 중...' : '시나리오 생성'}
                   </Button>
                 )}
               </div>
