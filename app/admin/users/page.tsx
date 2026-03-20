@@ -31,16 +31,26 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState('')
   const [planFilter, setPlanFilter] = useState<string>('')
   const [activeFilter, setActiveFilter] = useState<string>('')
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
+  const [resetting, setResetting] = useState(false)
+
+  async function loadUsers() {
+    setLoading(true)
+    setError(null)
+    try {
+      const r = await fetch('/api/admin/users')
+      const res = await r.json()
+      if (res?.ok && Array.isArray(res?.data)) setList(res.data)
+      else setError(res?.error?.message || '조회 실패')
+    } catch {
+      setError('요청 실패')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    fetch('/api/admin/users')
-      .then((r) => r.json())
-      .then((res) => {
-        if (res?.ok && Array.isArray(res?.data)) setList(res.data)
-        else setError(res?.error?.message || '조회 실패')
-      })
-      .catch(() => setError('요청 실패'))
-      .finally(() => setLoading(false))
+    loadUsers()
   }, [])
 
   const filtered = useMemo(() => {
@@ -73,6 +83,27 @@ export default function AdminUsersPage() {
     const set = new Set(list.map((u) => u.currentPlan))
     return Array.from(set).sort()
   }, [list])
+
+  const selectableOverUsers = useMemo(() => {
+    return filtered.filter((u) => u.quotaExceeded).map((u) => u.userId)
+  }, [filtered])
+
+  const selectedSet = useMemo(() => new Set(selectedUserIds), [selectedUserIds])
+
+  function toggleUserSelect(userId: string, next: boolean) {
+    setSelectedUserIds((prev) => {
+      const has = prev.includes(userId)
+      if (next) {
+        return has ? prev : [...prev, userId]
+      }
+      return prev.filter((id) => id !== userId)
+    })
+  }
+
+  function toggleAllSelect(next: boolean) {
+    if (next) setSelectedUserIds(selectableOverUsers)
+    else setSelectedUserIds([])
+  }
 
   if (loading) return <p className="text-sm text-slate-500">로딩 중…</p>
   if (error) return <p className="text-sm text-red-600">{error}</p>
@@ -144,6 +175,15 @@ export default function AdminUsersPage() {
           <table className="min-w-full text-sm">
             <thead className="bg-slate-50 text-xs text-slate-600">
               <tr>
+                <th className="px-3 py-2 text-center font-medium">
+                  <input
+                    type="checkbox"
+                    aria-label="한도 초과 사용자 전체 선택"
+                    checked={selectableOverUsers.length > 0 && selectedSet.size === selectableOverUsers.length}
+                    onChange={(e) => toggleAllSelect(e.target.checked)}
+                    disabled={selectableOverUsers.length === 0 || resetting}
+                  />
+                </th>
                 <th className="px-3 py-2 text-left font-medium">이름/이메일</th>
                 <th className="px-3 py-2 text-left font-medium">가입일</th>
                 <th className="px-3 py-2 text-left font-medium">최근 로그인</th>
@@ -161,13 +201,22 @@ export default function AdminUsersPage() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="px-4 py-8 text-center text-slate-500">
+                  <td colSpan={13} className="px-4 py-8 text-center text-slate-500">
                     조건에 맞는 사용자가 없습니다.
                   </td>
                 </tr>
               ) : (
                 filtered.slice(0, 200).map((u) => (
                   <tr key={u.userId} className="border-t border-slate-100 hover:bg-slate-50/50">
+                    <td className="px-3 py-2 text-center">
+                      <input
+                        type="checkbox"
+                        aria-label={`${u.userId} 무료 체험 초기화 선택`}
+                        checked={selectedSet.has(u.userId)}
+                        disabled={!u.quotaExceeded || resetting}
+                        onChange={(e) => toggleUserSelect(u.userId, e.target.checked)}
+                      />
+                    </td>
                     <td className="px-3 py-2">
                       <span className="font-medium text-gray-900">{u.name || u.email || '—'}</span>
                       {u.email && <span className="block text-xs text-slate-500 truncate max-w-[140px]">{u.email}</span>}
@@ -202,6 +251,45 @@ export default function AdminUsersPage() {
             </tbody>
           </table>
         </div>
+
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-slate-500">
+            한도 초과 사용자만 선택할 수 있습니다. 선택: <span className="font-semibold">{selectedUserIds.length}</span>명
+          </p>
+          <button
+            type="button"
+            disabled={selectedUserIds.length === 0 || resetting}
+            onClick={async () => {
+              const ok = window.confirm(`선택한 ${selectedUserIds.length}명의 무료 체험(이번 달 생성) 횟수를 0으로 초기화할까요?`)
+              if (!ok) return
+              setResetting(true)
+              try {
+                for (const id of selectedUserIds) {
+                  const res = await fetch('/api/admin/users', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: id, action: 'reset_free_trial_quota' }),
+                  })
+                  const data = await res.json().catch(() => ({}))
+                  if (!res.ok || data?.ok === false) {
+                    throw new Error(data?.error?.message ?? `초기화 실패: ${id}`)
+                  }
+                }
+                alert('선택한 사용자 무료 체험 횟수를 초기화했습니다.')
+                setSelectedUserIds([])
+                await loadUsers()
+              } catch (e) {
+                alert(e instanceof Error ? e.message : '초기화 실패')
+              } finally {
+                setResetting(false)
+              }
+            }}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+          >
+            {resetting ? '초기화 중…' : '선택 사용자 무료 체험 횟수 0으로 초기화'}
+          </button>
+        </div>
+
         {filtered.length > 200 && (
           <p className="mt-2 text-xs text-slate-500">상위 200명만 표시. 검색·필터로 범위를 좁혀 주세요.</p>
         )}
