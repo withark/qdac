@@ -167,7 +167,7 @@ export function QuoteForm({ onSubmit, loading }: Props) {
           <option value="소">소규모 (300만원 이하)</option>
           <option value="중">중규모 (300~1,000만원)</option>
           <option value="대">대규모 (1,000만원 이상)</option>
-          <option value="미정">미정 / AI에게 맡김</option>
+          <option value="미정">미정 / 인공지능에게 맡김</option>
         </select>
       </Field>
 
@@ -188,7 +188,7 @@ export function QuoteForm({ onSubmit, loading }: Props) {
           onClick={handleSubmit}
           disabled={loading}
         >
-          {loading ? '생성 중...' : 'AI로 견적서 생성하기'}
+          {loading ? '생성 중...' : '인공지능으로 견적서 생성하기'}
         </Button>
         {loading && (
           <div className="mt-2 space-y-1">

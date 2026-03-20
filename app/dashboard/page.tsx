@@ -86,7 +86,7 @@ function DashboardContent() {
             <div className="rounded-2xl border border-primary-200 bg-white px-5 py-4 shadow-card">
               <p className="text-sm font-semibold text-gray-900">무료 플랜으로 시작되었습니다</p>
               <p className="text-xs text-gray-500 mt-1">
-                지금 바로 첫 견적을 만들거나, 기업정보를 저장해 두면 PDF/Excel 출력이 훨씬 빨라져요.
+                지금 바로 첫 견적을 만들거나, 기업정보를 저장해 두면 PDF/엑셀 출력이 훨씬 빨라져요.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link href="/estimate-generator" className="btn-primary px-4 py-2 text-xs font-semibold rounded-xl">첫 견적 만들기</Link>

@@ -266,11 +266,11 @@ export function QuoteResult({
             <Button size="sm" onClick={onRegenerate} disabled={regenerating}>{regenerating ? '재작성 중...' : '재 작성'}</Button>
           )}
           {tab === 'estimate' ? (
-            <Button size="sm" onClick={() => onExcel('quote')}>Excel 다운로드</Button>
+            <Button size="sm" onClick={() => onExcel('quote')}>엑셀 다운로드</Button>
           ) : tab === 'timetable' ? (
-            <Button size="sm" onClick={() => onExcel('timeline')}>Excel 다운로드</Button>
+            <Button size="sm" onClick={() => onExcel('timeline')}>엑셀 다운로드</Button>
           ) : (
-            <Button size="sm" disabled>Excel 다운로드</Button>
+            <Button size="sm" disabled>엑셀 다운로드</Button>
           )}
           <Button size="sm" variant="primary" onClick={onPdf}>PDF 저장</Button>
           {planType !== 'FREE' && (
@@ -280,7 +280,7 @@ export function QuoteResult({
       </div>
       <p className="text-[10px] text-slate-500 px-4 pb-1.5 flex-shrink-0">
         {tab === 'estimate' && '개당 단가·수량·항목명 등 견적 표에서 바로 수정 가능'}
-        {tab === 'program' && 'AI가 생성한 프로그램 제안을 기반으로 내용/구성을 편집하세요.'}
+        {tab === 'program' && '인공지능이 생성한 프로그램 제안을 기반으로 내용/구성을 편집하세요.'}
         {tab === 'timetable' && '생성 시 입력한 시작·종료 시각에 맞춰 배치됩니다. 수정 시 즉시 반영됩니다.'}
         {tab === 'planning' && '기획/운영/산출물 계획을 섹션별로 편집할 수 있습니다.'}
         {tab === 'scenario' && '연출/진행 흐름을 문장 형태로 확인하고 편집할 수 있습니다.'}

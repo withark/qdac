@@ -301,7 +301,7 @@ export default function InputForm({
           : budgetPreset === '대'
             ? '대규모(1000만원 이상)'
             : budgetPreset === '미정'
-              ? '미정 / AI에게 맡김'
+              ? '미정 / 인공지능에게 맡김'
               : '중규모(300~1000만원)'
 
     const eventDuration =
@@ -350,7 +350,7 @@ export default function InputForm({
     <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overflow-x-hidden p-4 min-w-0">
       <SectionLabel>행사 기본 정보</SectionLabel>
       <p className="text-[11px] text-gray-500 mb-1">
-        입력한 정보와 참고 자료(과업지시서 요약/참고 견적서 스타일)를 바탕으로 AI가 견적서만 생성합니다. 프로그램/타임테이블/기획/시나리오는 탭에서 필요할 때 생성하세요.
+        입력한 정보와 참고 자료(과업지시서 요약/참고 견적서 스타일)를 바탕으로 인공지능이 견적서만 생성합니다. 프로그램/타임테이블/기획/시나리오는 탭에서 필요할 때 생성하세요.
       </p>
 
       <Select label="행사 유형" value={eventType} onChange={e => setEventType(e.target.value)}>
@@ -462,7 +462,7 @@ export default function InputForm({
           <option value="소">소규모 (300만원 이하)</option>
           <option value="중">중규모 (300~1,000만원)</option>
           <option value="대">대규모 (1,000만원 이상)</option>
-          <option value="미정">미정 / AI에게 맡김</option>
+          <option value="미정">미정 / 인공지능에게 맡김</option>
           <option value="custom">직접 입력</option>
         </Select>
         {budgetPreset === 'custom' && (
@@ -484,10 +484,10 @@ export default function InputForm({
       <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
         <Select label="스타일 모드" value={styleMode} onChange={e => setStyleMode(e.target.value as 'userStyle' | 'aiTemplate')}>
           <option value="userStyle">사용자 학습 스타일</option>
-          <option value="aiTemplate">AI 추천 템플릿 모드</option>
+          <option value="aiTemplate">인공지능 추천 템플릿 모드</option>
         </Select>
         <p className="text-[11px] text-gray-500 mt-1">
-          사용자 학습 스타일은 참고 견적서 업로드로 항목명/구성/문체 경향을 따라갑니다. AI 추천 템플릿 모드는 플래닉 표준 포맷을 사용합니다.
+          사용자 학습 스타일은 참고 견적서 업로드로 항목명/구성/문체 경향을 따라갑니다. 인공지능 추천 템플릿 모드는 플래닉 표준 포맷을 사용합니다.
         </p>
 
         <div className="mt-2 text-[11px] text-gray-600">
@@ -500,12 +500,12 @@ export default function InputForm({
               </span>
             ) : (
               <span className="text-amber-800">
-                활성 참고 견적서가 없습니다. 생성은 AI 추천 템플릿(표준 포맷)으로 폴백합니다.
+                활성 참고 견적서가 없습니다. 생성은 인공지능 추천 템플릿(표준 포맷)으로 폴백합니다.
               </span>
             )
           ) : (
             <span>
-              AI 추천 템플릿으로 생성합니다.
+              인공지능 추천 템플릿으로 생성합니다.
               {activeRef ? <span className="text-gray-400"> (참고 견적서: {activeRef.filename}는 이번 생성에 적용되지 않음)</span> : null}
             </span>
           )}

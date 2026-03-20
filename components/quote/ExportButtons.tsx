@@ -18,7 +18,7 @@ export default function ExportButtons({ doc, companySettings }: Props) {
     setTimeout(() => setToast(null), 2200)
   }
 
-  /* ── Excel 다운로드 ── */
+  /* ── 엑셀 다운로드 ── */
   async function downloadExcel() {
     const XLSX = (await import('xlsx')).default
     const wb = XLSX.utils.book_new()
@@ -82,7 +82,7 @@ export default function ExportButtons({ doc, companySettings }: Props) {
 
     const date = getQuoteDateForFilename(doc.quoteDate)
     XLSX.writeFile(wb, `견적서_${(doc.eventName||'행사').replace(/\s/g,'_')}_${date}.xlsx`)
-    showToast('Excel 다운로드 완료!')
+    showToast('엑셀 다운로드 완료!')
   }
 
   /* ── PDF 출력 ── */
@@ -133,7 +133,7 @@ export default function ExportButtons({ doc, companySettings }: Props) {
     <>
       <div className="flex gap-2 flex-wrap">
         <Btn variant="ghost" size="sm" onClick={copyText}>텍스트 복사</Btn>
-        <Btn variant="secondary" size="sm" onClick={downloadExcel}>Excel 다운로드</Btn>
+        <Btn variant="secondary" size="sm" onClick={downloadExcel}>엑셀 다운로드</Btn>
         <Btn variant="primary" size="sm" onClick={downloadPDF}>PDF 다운로드</Btn>
       </div>
       {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}

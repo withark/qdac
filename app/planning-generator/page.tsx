@@ -282,7 +282,7 @@ export default function PlanningGeneratorPage() {
                   disableAutoGenerate
                   onExcel={(view) => {
                     exportToExcel(doc, companySettings ?? undefined, view)
-                    showToast('Excel 다운로드 완료!')
+                    showToast('엑셀 다운로드 완료!')
                   }}
                   onPdf={async () => {
                     if (me?.subscription?.planType === 'FREE') {
