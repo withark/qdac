@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { generateQuote, type GenerateInput } from '@/lib/ai'
+import { generateQuoteWithMeta, type GenerateInput } from '@/lib/ai'
 import { calcTotals, uid } from '@/lib/calc'
 import { okResponse, errorResponse } from '@/lib/api/response'
 import { getEnv } from '@/lib/env'
@@ -14,7 +14,7 @@ import { DEFAULT_SETTINGS } from '@/lib/defaults'
 import { quotesDbAppend } from '@/lib/db/quotes-db'
 import { normalizeTemplateForPlan } from '@/lib/plan-entitlements'
 import { getUserPrices } from '@/lib/db/prices-db'
-import { listReferenceDocs } from '@/lib/db/reference-docs-db'
+import { listReferenceDocsForStyle } from '@/lib/db/reference-docs-db'
 import { listTaskOrderRefs } from '@/lib/db/task-order-refs-db'
 import { insertGeneratedDoc } from '@/lib/db/generated-docs-db'
 import { insertGenerationRun } from '@/lib/db/generation-runs-db'
@@ -61,7 +61,9 @@ const GenerateRequestSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+  const reqStartedAt = Date.now()
   try {
+    const authStartedAt = Date.now()
     const userId = await getUserIdFromSession()
     if (!userId) {
       return errorResponse(401, 'UNAUTHORIZED', '로그인이 필요합니다.')
@@ -69,6 +71,7 @@ export async function POST(req: NextRequest) {
     await ensureFreeSubscription(userId)
     const sub = await getActiveSubscription(userId)
     const plan = sub?.planType ?? 'FREE'
+    const authMs = Date.now() - authStartedAt
 
     const json = await req.json()
     const parsed = GenerateRequestSchema.safeParse(json)
@@ -109,23 +112,21 @@ export async function POST(req: NextRequest) {
     const styleMode = body.styleMode
     const existingDoc = body.existingDoc as QuoteDoc | undefined
     const taskOrderBaseId = (body.taskOrderBaseId || '').trim() || undefined
-    const [
-      prices,
-      settings,
-      references,
-      taskOrderRefs,
-      scenarioRefs,
-      cuesheetSampleContext,
-      engineOverlay,
-    ] =
+    const contextStartedAt = Date.now()
+    const needPrices = documentTarget === 'estimate'
+    // userStyle은 이후 문서에서도 “사용자 학습 신호(네이밍/톤/카테고리 구조)”가 이어져야 합니다.
+    // raw_text는 컨텍스트에 필요 없으므로 요약만 로드합니다(속도 비용 최소화).
+    const needReferences = styleMode === 'userStyle'
+    const needTaskOrderRefs = generationMode === 'taskOrderBase' || documentTarget === 'estimate' || documentTarget === 'planning'
+    const [prices, settings, references, taskOrderRefs, scenarioRefs, cuesheetSampleContext, engineOverlay] =
       await Promise.all([
-        getUserPrices(userId),
+        needPrices ? getUserPrices(userId) : Promise.resolve([]),
         (async () => {
           const p = await getDefaultCompanyProfile(userId)
           return p ? profileToCompanySettings(p) : DEFAULT_SETTINGS
         })(),
-        styleMode === 'userStyle' ? listReferenceDocs(userId) : Promise.resolve([]),
-        listTaskOrderRefs(userId),
+        needReferences ? listReferenceDocsForStyle(userId, 3) : Promise.resolve([]),
+        needTaskOrderRefs ? listTaskOrderRefs(userId) : Promise.resolve([]),
         documentTarget === 'scenario' && scenarioRefIds.length
           ? listScenarioRefs(userId).then(list => list.filter(r => scenarioRefIds.includes(r.id)))
           : Promise.resolve([]),
@@ -146,6 +147,7 @@ export async function POST(req: NextRequest) {
           ? kvGet<EngineConfigOverlay | null>('engine_config', null).catch(() => null as EngineConfigOverlay | null)
           : Promise.resolve(null as EngineConfigOverlay | null),
       ])
+    const contextLoadMs = Date.now() - contextStartedAt
 
     const filteredTaskOrderRefs =
       generationMode === 'taskOrderBase' && taskOrderBaseId
@@ -218,8 +220,11 @@ export async function POST(req: NextRequest) {
 
     const quoteId = uid()
     let doc: QuoteDoc
+    let genMeta: Awaited<ReturnType<typeof generateQuoteWithMeta>>['meta'] | undefined
     try {
-      doc = await generateQuote(input)
+      const generation = await generateQuoteWithMeta(input)
+      doc = generation.doc
+      genMeta = generation.meta
     } catch (genErr) {
       await insertGenerationRun({
         userId,
@@ -282,7 +287,20 @@ export async function POST(req: NextRequest) {
       sampleId: appliedSampleId,
       sampleFilename: appliedSampleFilename,
       cuesheetApplied,
-      engineSnapshot,
+      engineSnapshot: {
+        ...engineSnapshot,
+        timings: {
+          authSessionMs: authMs,
+          contextLoadMs,
+          promptBuildMs: genMeta?.promptBuildMs ?? 0,
+          aiCallMs: genMeta?.aiCallMs ?? 0,
+          parseNormalizeMs: genMeta?.parseNormalizeMs ?? 0,
+          stagedRefineMs: genMeta?.stagedRefineMs ?? 0,
+          retries: genMeta?.retries ?? 0,
+          saveMs: Date.now() - reqStartedAt - authMs - contextLoadMs - (genMeta?.totalMs ?? 0),
+          totalMs: Date.now() - reqStartedAt,
+        },
+      },
     }).catch((err) => logError('generation_run.insert', err))
     await kvSet('generationRunsLast', { at: new Date().toISOString(), userId, ok: true }).catch((err) =>
       logError('generation_run.kvSet', err),

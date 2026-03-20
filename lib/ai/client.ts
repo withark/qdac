@@ -12,6 +12,7 @@ export type AIProvider = 'anthropic' | 'openai'
 export interface CallLLMOptions {
   maxTokens?: number
   model?: string
+  timeoutMs?: number
 }
 
 export function getAIProvider(): AIProvider {
@@ -73,33 +74,48 @@ export async function callLLM(prompt: string, opts: CallLLMOptions = {}): Promis
   const provider = effective.provider
   const maxTokens = opts.maxTokens ?? effective.maxTokens
   const model = opts.model ?? effective.model
+  const timeoutMs = opts.timeoutMs ?? 90_000
   logInfo('ai.call.start', { provider, model, maxTokens })
 
-  if (provider === 'openai') {
-    const client = getOpenAIClient()
-    const res = await client.chat.completions.create({
-      model: model as string,
-      max_tokens: maxTokens,
-      messages: [{ role: 'user', content: prompt }],
-    })
-    const text = res.choices[0]?.message?.content
-    if (text == null) throw new Error('OpenAI 응답이 비어 있습니다.')
-    logInfo('ai.call.ok', { provider, model, id: res.id ?? null, openai: { id: res.id ?? null } })
-    return text
-  }
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      const err = new Error('timeout') as Error & { code?: string; timedOut?: boolean }
+      err.code = 'ETIMEDOUT'
+      err.timedOut = true
+      reject(err)
+    }, timeoutMs)
+  })
 
-  const client = getAnthropicClient()
-  const message = await client.messages.create({
-    model: model as string,
-    max_tokens: maxTokens,
-    messages: [{ role: 'user', content: prompt }],
-  })
-  logInfo('ai.call.ok', {
-    provider,
-    model,
-    id: (message as { id?: string }).id ?? null,
-    anthropic: { id: (message as { id?: string }).id ?? null },
-  })
-  return message.content[0].type === 'text' ? message.content[0].text : ''
+  const requestPromise =
+    provider === 'openai'
+      ? (async () => {
+          const client = getOpenAIClient()
+          const res = await client.chat.completions.create({
+            model: model as string,
+            max_tokens: maxTokens,
+            messages: [{ role: 'user', content: prompt }],
+          })
+          const text = res.choices[0]?.message?.content
+          if (text == null) throw new Error('OpenAI 응답이 비어 있습니다.')
+          logInfo('ai.call.ok', { provider, model, id: res.id ?? null, openai: { id: res.id ?? null } })
+          return text
+        })()
+      : (async () => {
+          const client = getAnthropicClient()
+          const message = await client.messages.create({
+            model: model as string,
+            max_tokens: maxTokens,
+            messages: [{ role: 'user', content: prompt }],
+          })
+          logInfo('ai.call.ok', {
+            provider,
+            model,
+            id: (message as { id?: string }).id ?? null,
+            anthropic: { id: (message as { id?: string }).id ?? null },
+          })
+          return message.content[0].type === 'text' ? message.content[0].text : ''
+        })()
+
+  return await Promise.race([requestPromise, timeoutPromise])
 }
 

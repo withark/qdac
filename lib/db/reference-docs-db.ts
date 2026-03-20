@@ -20,6 +20,29 @@ export async function listReferenceDocs(userId: string): Promise<ReferenceDoc[]>
   }))
 }
 
+/**
+ * 스타일 학습/프롬프트 주입용(요약만 필요) 목록
+ * - raw_text를 조회하지 않아 컨텍스트 로딩/DB IO 비용을 줄입니다.
+ */
+export async function listReferenceDocsForStyle(userId: string, limit = 3): Promise<ReferenceDoc[]> {
+  await initDb()
+  const sql = getDb()
+  const rows = await sql`
+    SELECT id, filename, uploaded_at, summary, '' as raw_text
+    FROM reference_docs
+    WHERE user_id = ${userId}
+    ORDER BY uploaded_at DESC
+    LIMIT ${limit}
+  `
+  return (rows as any[]).map((r) => ({
+    id: String(r.id),
+    filename: String(r.filename),
+    uploadedAt: new Date(r.uploaded_at).toISOString(),
+    summary: String(r.summary ?? ''),
+    rawText: '',
+  }))
+}
+
 export async function insertReferenceDoc(userId: string, input: Omit<ReferenceDoc, 'id'>): Promise<ReferenceDoc> {
   await initDb()
   const sql = getDb()

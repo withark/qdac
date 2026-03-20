@@ -3,8 +3,39 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { tmpdir } from 'node:os'
 import * as XLSX from 'xlsx'
+import JSZip from 'jszip'
 
 const require = createRequire(import.meta.url)
+
+async function extractPptxTextViaZip(buf: Buffer): Promise<string> {
+  const zip = await JSZip.loadAsync(buf)
+  const slideNames = Object.keys(zip.files)
+    .filter(name => /^ppt\/slides\/slide\d+\.xml$/i.test(name))
+    .sort((a, b) => {
+      const an = Number((a.match(/slide(\d+)\.xml/i) || [])[1] || 0)
+      const bn = Number((b.match(/slide(\d+)\.xml/i) || [])[1] || 0)
+      return an - bn
+    })
+
+  const slides: string[] = []
+  for (let i = 0; i < slideNames.length; i++) {
+    const xml = await zip.files[slideNames[i]].async('string')
+    const texts = Array.from(xml.matchAll(/<a:t[^>]*>([\s\S]*?)<\/a:t>/g))
+      .map(m => decodeXmlEntities(m[1] || '').trim())
+      .filter(Boolean)
+    if (texts.length > 0) slides.push(`[슬라이드 ${i + 1}]\n${texts.join('\n')}`)
+  }
+  return slides.join('\n\n')
+}
+
+function decodeXmlEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+}
 
 /** PPTX에서 슬라이드별 텍스트 추출 (버퍼 → 임시 파일 → node-pptx-parser) */
 export async function extractPptxTextFromBuffer(buf: Buffer, filename = 'deck.pptx'): Promise<string> {
@@ -19,10 +50,20 @@ export async function extractPptxTextFromBuffer(buf: Buffer, filename = 'deck.pp
       const body = (slide.text || []).filter(Boolean).join('\n').trim()
       if (body) parts.push(`[슬라이드 ${idx + 1}]\n${body}`)
     })
-    return parts.join('\n\n') || '(PPTX에서 추출한 텍스트가 없습니다.)'
+    const direct = parts.join('\n\n').trim()
+    if (direct) return direct
+    const zipFallback = await extractPptxTextViaZip(buf)
+    if (zipFallback.trim()) return zipFallback
+    return '(PPTX에서 추출한 텍스트가 없습니다.)'
   } catch (e) {
+    try {
+      const zipFallback = await extractPptxTextViaZip(buf)
+      if (zipFallback.trim()) return zipFallback
+    } catch {
+      // ignore and return a clear fallback message below
+    }
     const msg = e instanceof Error ? e.message : String(e)
-    return `(PPTX 파싱 실패: ${msg}. 슬라이드가 있는 pptx인지 확인해 주세요.)`
+    return `(PPTX 직접 파싱/ZIP 추출 모두 실패: ${msg}. 구형 PPT는 .pptx로 저장 후 업로드해 주세요.)`
   } finally {
     try {
       fs.unlinkSync(tmp)
