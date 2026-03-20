@@ -52,6 +52,7 @@ export default function AdminGenerationLogsPage() {
   const [loading, setLoading] = useState(true)
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<string>('')
 
   useEffect(() => {
     setLoading(true)
@@ -68,12 +69,20 @@ export default function AdminGenerationLogsPage() {
         } else {
           setAiRuntime(null)
         }
+        setLastUpdatedAt(new Date().toISOString())
       })
       .finally(() => {
         setLoading(false)
         setHasLoadedOnce(true)
       })
   }, [refreshKey])
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setRefreshKey((k) => k + 1)
+    }, 5000)
+    return () => clearInterval(timer)
+  }, [])
 
   if (!hasLoadedOnce && loading) return <p className="text-sm text-slate-500">로딩 중…</p>
 
@@ -87,7 +96,13 @@ export default function AdminGenerationLogsPage() {
             과업지시서만 업로드하거나 다른 API만 쓴 경우에는 여기에 나오지 않습니다.
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            생성 직후 이 페이지를 열었다면 <strong>새로고침</strong>으로 최신 목록을 불러오세요.
+            5초마다 자동 갱신됩니다. 필요하면 <strong>새로고침</strong>으로 즉시 다시 불러오세요.
+            {lastUpdatedAt ? (
+              <>
+                {' '}
+                (마지막 갱신: {new Date(lastUpdatedAt).toLocaleTimeString('ko-KR')})
+              </>
+            ) : null}
           </p>
         </div>
         <button
