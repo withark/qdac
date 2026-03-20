@@ -61,8 +61,8 @@ function DashboardContent() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="flex items-center justify-between px-6 h-14 border-b border-gray-100 bg-white/90 flex-shrink-0">
           <div>
-            <h1 className="text-base font-semibold text-gray-900">대시보드</h1>
-            <p className="text-xs text-gray-500 mt-0.5">현재 플랜과 사용량을 한눈에 확인하세요</p>
+            <h1 className="text-base font-semibold text-gray-900">Home</h1>
+            <p className="text-xs text-gray-500 mt-0.5">문서 생성으로 바로 이동하세요</p>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-500">현재 플랜</span>
@@ -119,21 +119,91 @@ function DashboardContent() {
           </section>
 
           <section className="bg-white border border-gray-100 rounded-2xl p-5 shadow-card">
-            <h2 className="text-sm font-semibold text-gray-900">다음 단계</h2>
-            <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <Link href="/estimate-generator" className="rounded-xl border border-gray-100 bg-gray-50 hover:bg-gray-100 px-3 py-3">
-                <p className="text-sm font-semibold text-gray-900">견적 생성</p>
-                <p className="text-xs text-gray-500 mt-0.5">문서별로 생성하고 수정</p>
+            <h2 className="text-sm font-semibold text-gray-900">Create Documents</h2>
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Link href="/estimate-generator" className="block rounded-2xl bg-white border border-gray-100 p-5 shadow-card hover:shadow-card-hover hover:border-primary-200 transition-shadow">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-base font-bold text-gray-900 truncate">Create Estimate</div>
+                    <div className="mt-1 text-sm text-gray-500 truncate">견적서 생성</div>
+                  </div>
+                  <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center text-primary-700">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M5 12h14"></path>
+                      <path d="M12 5l7 7-7 7"></path>
+                    </svg>
+                  </div>
+                </div>
               </Link>
-              <Link href="/history" className="rounded-xl border border-gray-100 bg-gray-50 hover:bg-gray-100 px-3 py-3">
-                <p className="text-sm font-semibold text-gray-900">이력 확인</p>
-                <p className="text-xs text-gray-500 mt-0.5">저장된 견적을 복제/재편집</p>
+              <Link href="/planning-generator" className="block rounded-2xl bg-white border border-gray-100 p-5 shadow-card hover:shadow-card-hover hover:border-primary-200 transition-shadow">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-base font-bold text-gray-900 truncate">Create Planning Document</div>
+                    <div className="mt-1 text-sm text-gray-500 truncate">기획 문서 생성</div>
+                  </div>
+                  <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center text-primary-700">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M5 12h14"></path>
+                      <path d="M12 5l7 7-7 7"></path>
+                    </svg>
+                  </div>
+                </div>
               </Link>
-              <Link href="/plans" className="rounded-xl border border-primary-200 bg-primary-50 hover:bg-primary-100 px-3 py-3">
-                <p className="text-sm font-semibold text-primary-800">업그레이드</p>
-                <p className="text-xs text-primary-700 mt-0.5">
-                  BASIC {PRICES_KRW.BASIC.monthly.toLocaleString('ko-KR')}원부터
-                </p>
+              <Link href="/program-proposal-generator" className="block rounded-2xl bg-white border border-gray-100 p-5 shadow-card hover:shadow-card-hover hover:border-primary-200 transition-shadow">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-base font-bold text-gray-900 truncate">Create Program Proposal</div>
+                    <div className="mt-1 text-sm text-gray-500 truncate">프로그램 제안서 생성</div>
+                  </div>
+                  <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center text-primary-700">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M5 12h14"></path>
+                      <path d="M12 5l7 7-7 7"></path>
+                    </svg>
+                  </div>
+                </div>
+              </Link>
+              <Link href="/scenario-generator" className="block rounded-2xl bg-white border border-gray-100 p-5 shadow-card hover:shadow-card-hover hover:border-primary-200 transition-shadow">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-base font-bold text-gray-900 truncate">Create Scenario</div>
+                    <div className="mt-1 text-sm text-gray-500 truncate">시나리오 생성</div>
+                  </div>
+                  <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center text-primary-700">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M5 12h14"></path>
+                      <path d="M12 5l7 7-7 7"></path>
+                    </svg>
+                  </div>
+                </div>
+              </Link>
+              <Link href="/cue-sheet-generator" className="block rounded-2xl bg-white border border-gray-100 p-5 shadow-card hover:shadow-card-hover hover:border-primary-200 transition-shadow">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-base font-bold text-gray-900 truncate">Create Cue Sheet</div>
+                    <div className="mt-1 text-sm text-gray-500 truncate">큐시트 생성</div>
+                  </div>
+                  <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center text-primary-700">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M5 12h14"></path>
+                      <path d="M12 5l7 7-7 7"></path>
+                    </svg>
+                  </div>
+                </div>
+              </Link>
+              <Link href="/task-order-summary" className="block rounded-2xl bg-white border border-gray-100 p-5 shadow-card hover:shadow-card-hover hover:border-primary-200 transition-shadow">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-base font-bold text-gray-900 truncate">Summarize Task Order</div>
+                    <div className="mt-1 text-sm text-gray-500 truncate">과업지시서 요약</div>
+                  </div>
+                  <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center text-primary-700">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M5 12h14"></path>
+                      <path d="M12 5l7 7-7 7"></path>
+                    </svg>
+                  </div>
+                </div>
               </Link>
             </div>
           </section>

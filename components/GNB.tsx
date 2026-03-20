@@ -16,7 +16,7 @@ type NavItem = {
 const NAVS: NavItem[] = [
   {
     href: '/dashboard',
-    text: '홈',
+    text: 'Home',
     icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
         <path d="M4 10.5 12 4l8 6.5V20a1.5 1.5 0 0 1-1.5 1.5H5.5A1.5 1.5 0 0 1 4 20v-9.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -25,74 +25,19 @@ const NAVS: NavItem[] = [
     ),
   },
   {
-    href: '/task-order-summary',
-    text: '과업지시서 요약',
+    href: '/create-documents',
+    text: 'Create Documents',
     icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-        <path d="M7 3.5h7l3 3V20.5A1.5 1.5 0 0 1 15.5 22h-8A1.5 1.5 0 0 1 6 20.5v-15A2 2 0 0 1 7 3.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-        <path d="M14 3.5v3A1 1 0 0 0 15 7.5h3" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-        <path d="M9 11h6M9 14.5h5M9 18h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    href: '/estimate-generator',
-    text: '견적서 생성',
-    icon: ({ className }) => (
-      <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-        <path d="M7 3.5h7l3 3V20.5A1.5 1.5 0 0 1 15.5 22h-8A1.5 1.5 0 0 1 6 20.5v-15A2 2 0 0 1 7 3.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-        <path d="M14 3.5v3A1 1 0 0 0 15 7.5h3" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-        <path d="M8.5 11h6M8.5 14.5h7M8.5 18h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    href: '/planning-generator',
-    text: '기획안 생성',
-    icon: ({ className }) => (
-      <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-        <path d="M7 3.5h10l3 3V20.5A1.5 1.5 0 0 1 18.5 22h-11A1.5 1.5 0 0 1 6 20.5v-15A2 2 0 0 1 7 3.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-        <path d="M17 3.5v3A1 1 0 0 0 18 7.5h2" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-        <path d="M9 10h6M9 13.5h8M9 17h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    href: '/program-proposal-generator',
-    text: '프로그램 제안서 생성',
-    icon: ({ className }) => (
-      <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-        <path d="M4.5 7.5A3 3 0 0 1 7.5 4.5h9A3 3 0 0 1 19.5 7.5v9a3 3 0 0 1-3 3h-9a3 3 0 0 1-3-3v-9Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-        <path d="M8 9.5h8M8 13h5M8 16.5h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M6.5 5.5l11 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    href: '/scenario-generator',
-    text: '시나리오 생성',
-    icon: ({ className }) => (
-      <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-        <path d="M7 4.5h12A2.5 2.5 0 0 1 21.5 7v12A2.5 2.5 0 0 1 19 21.5H7A2.5 2.5 0 0 1 4.5 19V7A2.5 2.5 0 0 1 7 4.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-        <path d="M8 10h8M8 13.5h6M8 17h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M4.5 8.5l.5-.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    href: '/cue-sheet-generator',
-    text: '큐시트 생성',
-    icon: ({ className }) => (
-      <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-        <path d="M6.5 4.5h9A2.5 2.5 0 0 1 18 7v14.5H8.5A2.5 2.5 0 0 0 6 24V7A2.5 2.5 0 0 1 6.5 4.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-        <path d="M6 20.5c.6-.6 1.5-1 2.5-1H18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M9 8h6M9 11.5h6M9 15h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M12 3.5h4.5L20 7v13.5A2 2 0 0 1 18 22.5H6A2 2 0 0 1 4 20.5V5.5A2 2 0 0 1 6 3.5h6Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M16.5 3.5V7a1 1 0 0 0 1 1h2.5" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M8 12h8M8 15.5h6M8 9h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
       </svg>
     ),
   },
   {
     href: '/reference-estimate',
-    text: '참고 견적서',
+    text: 'Reference Materials',
     icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
         <path d="M6.5 4.5h9A2.5 2.5 0 0 1 18 7v14.5H8.5A2.5 2.5 0 0 0 6 24V7A2.5 2.5 0 0 1 6.5 4.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -102,8 +47,8 @@ const NAVS: NavItem[] = [
     ),
   },
   {
-    href: '/prices',
-    text: '단가표',
+    href: '/plans',
+    text: 'Pricing Table',
     icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
         <path d="M6.5 3.5h11A2.5 2.5 0 0 1 20 6v14.5A2.5 2.5 0 0 1 17.5 23h-11A2.5 2.5 0 0 1 4 20.5V6A2.5 2.5 0 0 1 6.5 3.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -114,7 +59,7 @@ const NAVS: NavItem[] = [
   },
   {
     href: '/history',
-    text: '작업 이력',
+    text: 'History',
     icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
         <path d="M12 22a9 9 0 1 0-6.3-2.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -125,7 +70,7 @@ const NAVS: NavItem[] = [
   },
   {
     href: '/settings',
-    text: '설정',
+    text: 'Settings',
     icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
         <path
