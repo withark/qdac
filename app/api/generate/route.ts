@@ -18,7 +18,7 @@ import { listReferenceDocs } from '@/lib/db/reference-docs-db'
 import { listTaskOrderRefs } from '@/lib/db/task-order-refs-db'
 import { insertGeneratedDoc } from '@/lib/db/generated-docs-db'
 import { insertGenerationRun } from '@/lib/db/generation-runs-db'
-import { kvGet } from '@/lib/db/kv'
+import { kvGet, kvSet } from '@/lib/db/kv'
 import type { EngineConfigOverlay } from '@/lib/admin-types'
 import { normalizeQuoteDoc } from '@/lib/ai/parsers'
 import type { QuoteDoc } from '@/lib/types'
@@ -231,6 +231,9 @@ export async function POST(req: NextRequest) {
         cuesheetApplied,
         engineSnapshot,
       }).catch((err) => logError('generation_run.insert', err))
+      await kvSet('generationRunsLast', { at: new Date().toISOString(), userId, ok: false }).catch((err) =>
+        logError('generation_run.kvSet', err),
+      )
       throw genErr
     }
     ;(doc as QuoteDoc).quoteTemplate = normalizeTemplateForPlan(plan, (doc as QuoteDoc).quoteTemplate as any)
@@ -281,6 +284,9 @@ export async function POST(req: NextRequest) {
       cuesheetApplied,
       engineSnapshot,
     }).catch((err) => logError('generation_run.insert', err))
+    await kvSet('generationRunsLast', { at: new Date().toISOString(), userId, ok: true }).catch((err) =>
+      logError('generation_run.kvSet', err),
+    )
 
     return okResponse({ doc, totals })
   } catch (e) {

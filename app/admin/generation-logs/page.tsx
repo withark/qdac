@@ -53,6 +53,7 @@ export default function AdminGenerationLogsPage() {
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string>('')
+  const [lastInsertAt, setLastInsertAt] = useState<string | null>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -63,6 +64,7 @@ export default function AdminGenerationLogsPage() {
         if (runsJson?.ok) {
           setRuns(runsJson.data?.runs ?? [])
           setPersistenceEnabled(runsJson.data?.persistenceEnabled !== false)
+          setLastInsertAt(runsJson.data?.lastInsertAt ?? null)
         }
         if (rtJson?.ok && rtJson.data) {
           setAiRuntime(rtJson.data as AiRuntimePayload)
@@ -101,6 +103,12 @@ export default function AdminGenerationLogsPage() {
               <>
                 {' '}
                 (마지막 갱신: {new Date(lastUpdatedAt).toLocaleTimeString('ko-KR')})
+              </>
+            ) : null}
+            {lastInsertAt ? (
+              <>
+                {' '}
+                · (마지막 생성 시도: {new Date(lastInsertAt).toLocaleTimeString('ko-KR')})
               </>
             ) : null}
           </p>

@@ -11,6 +11,8 @@ const KV_KEYS = {
   plans: 'plans',
   subscriptions: 'subscriptions',
   engine_config: 'engine_config',
+  generationRunsLast: 'generation_runs_last',
+  generationRunsLastByUser: 'generation_runs_last_by_user',
 } as const
 
 export type KvKey = keyof typeof KV_KEYS
