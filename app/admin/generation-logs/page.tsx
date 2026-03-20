@@ -19,13 +19,17 @@ type Run = {
 
 export default function AdminGenerationLogsPage() {
   const [runs, setRuns] = useState<Run[]>([])
+  const [persistenceEnabled, setPersistenceEnabled] = useState(true)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetch('/api/admin/generation-runs')
       .then((r) => r.json())
       .then((res) => {
-        if (res?.ok) setRuns(res.data?.runs ?? [])
+        if (res?.ok) {
+          setRuns(res.data?.runs ?? [])
+          setPersistenceEnabled(res.data?.persistenceEnabled !== false)
+        }
       })
       .finally(() => setLoading(false))
   }, [])
@@ -42,6 +46,16 @@ export default function AdminGenerationLogsPage() {
         </p>
       </header>
 
+      {!persistenceEnabled && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <p className="font-medium">생성 로그가 DB에 저장되지 않는 환경입니다.</p>
+          <p className="mt-1 text-xs text-amber-900/90">
+            서버에 <code className="rounded bg-amber-100/80 px-1">DATABASE_URL</code>이 없으면{' '}
+            <code className="rounded bg-amber-100/80 px-1">generation_runs</code> 테이블에 기록되지 않습니다. Neon 등 Postgres 연결 문자열을 설정한 뒤 다시 생성해 보세요.
+          </p>
+        </div>
+      )}
+
       <AdminSection
         title="생성 요청 목록"
         description="사용자·시각·샘플 반영 여부·엔진 스냅샷·에러·최종 출력(quote) 연결"
@@ -56,7 +70,7 @@ export default function AdminGenerationLogsPage() {
                 <th className="px-3 py-2 text-left font-medium">사용된 샘플</th>
                 <th className="px-3 py-2 text-center font-medium">샘플 반영</th>
                 <th className="px-3 py-2 text-center font-medium">반영 누락</th>
-                <th className="px-3 py-2 text-left font-medium">적용된 엔진 설정</th>
+                <th className="px-3 py-2 text-left font-medium">엔진(mock/실API)</th>
                 <th className="px-3 py-2 text-left font-medium">에러 로그</th>
                 <th className="px-3 py-2 text-left font-medium">최종 출력(quote)</th>
               </tr>
@@ -94,17 +108,39 @@ export default function AdminGenerationLogsPage() {
                         '—'
                       )}
                     </td>
-                    <td className="px-3 py-2 max-w-[180px]">
-                      <span className="text-xs text-slate-600">
-                        {r.engineSnapshot?.mockAi ? (
-                          <span className="text-amber-600 font-semibold text-[11px] mr-2">mock</span>
-                        ) : null}
-                        {r.engineSnapshot?.provider ? `provider: ${String(r.engineSnapshot.provider)}` : 'provider: —'}
-                        {r.engineSnapshot?.model ? ` · model: ${String(r.engineSnapshot.model)}` : ''}
-                        {r.engineSnapshot?.maxTokens != null ? ` · maxTokens:${String(r.engineSnapshot.maxTokens)}` : ''}
-                        {r.engineSnapshot?.structureFirst != null && ` · 구조:${String(r.engineSnapshot.structureFirst)}`}
-                        {r.engineSnapshot?.toneFirst != null && ` · 문체:${String(r.engineSnapshot.toneFirst)}`}
-                      </span>
+                    <td className="px-3 py-2 max-w-[200px]">
+                      <div className="text-xs text-slate-600 space-y-1">
+                        <div>
+                          {r.engineSnapshot?.branchUsed === 'mock' || r.engineSnapshot?.mockAi ? (
+                            <span className="inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold bg-amber-100 text-amber-900 mr-1">
+                              목업(mock)
+                            </span>
+                          ) : (
+                            <span className="inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold bg-emerald-100 text-emerald-900 mr-1">
+                              실API
+                            </span>
+                          )}
+                          <span className="text-[11px] text-slate-500">
+                            {String(r.engineSnapshot?.branchUsed ?? '—')}
+                          </span>
+                        </div>
+                        <div>
+                          {r.engineSnapshot?.provider ? `provider: ${String(r.engineSnapshot.provider)}` : 'provider: —'}
+                          {r.engineSnapshot?.provider === 'anthropic' && (
+                            <span className="text-slate-400"> (Claude)</span>
+                          )}
+                          {r.engineSnapshot?.model ? ` · ${String(r.engineSnapshot.model)}` : ''}
+                        </div>
+                        {r.engineSnapshot?.maxTokens != null && (
+                          <div className="text-[11px]">maxTokens: {String(r.engineSnapshot.maxTokens)}</div>
+                        )}
+                        {(r.engineSnapshot?.structureFirst != null || r.engineSnapshot?.toneFirst != null) && (
+                          <div className="text-[11px]">
+                            {r.engineSnapshot?.structureFirst != null && `구조:${String(r.engineSnapshot.structureFirst)}`}
+                            {r.engineSnapshot?.toneFirst != null && ` · 문체:${String(r.engineSnapshot.toneFirst)}`}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-2 max-w-[200px]">
                       <span className="text-xs text-red-600 truncate block" title={r.errorMessage}>

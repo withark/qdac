@@ -1,5 +1,6 @@
-import { getDb, initDb } from './client'
+import { getDb, hasDatabase, initDb } from './client'
 import { uid } from '@/lib/calc'
+import { logWarn } from '@/lib/utils/logger'
 
 export type GenerationRunRow = {
   id: string
@@ -24,6 +25,13 @@ export async function insertGenerationRun(input: {
   cuesheetApplied?: boolean
   engineSnapshot?: Record<string, unknown>
 }): Promise<string> {
+  if (!hasDatabase()) {
+    logWarn('generation_runs.skip', {
+      reason: 'no_database',
+      hint: 'DATABASE_URL을 설정하면 관리자「생성 로그」에 기록됩니다.',
+    })
+    return ''
+  }
   await initDb()
   const sql = getDb()
   const id = uid()
@@ -43,6 +51,7 @@ export async function insertGenerationRun(input: {
 }
 
 export async function listGenerationRunsAdmin(limit = 200): Promise<GenerationRunRow[]> {
+  if (!hasDatabase()) return []
   await initDb()
   const sql = getDb()
   const rows = await sql`

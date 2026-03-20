@@ -227,7 +227,7 @@ export async function POST(req: NextRequest) {
         sampleFilename: appliedSampleFilename,
         cuesheetApplied,
         engineSnapshot,
-      }).catch(() => {})
+      }).catch((err) => logError('generation_run.insert', err))
       throw genErr
     }
     ;(doc as QuoteDoc).quoteTemplate = normalizeTemplateForPlan(plan, (doc as QuoteDoc).quoteTemplate as any)
@@ -277,7 +277,7 @@ export async function POST(req: NextRequest) {
       sampleFilename: appliedSampleFilename,
       cuesheetApplied,
       engineSnapshot,
-    }).catch(() => {})
+    }).catch((err) => logError('generation_run.insert', err))
 
     return okResponse({ doc, totals })
   } catch (e) {
