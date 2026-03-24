@@ -158,14 +158,22 @@ export default async function IntroPage() {
         </section>
       </main>
 
-      <footer className="flex-shrink-0 py-8 px-6 border-t border-slate-100 bg-white text-center text-xs text-slate-400 space-y-3">
+      <footer className="flex-shrink-0 mt-20 sm:mt-24 pt-12 pb-12 px-6 border-t border-slate-100 bg-white text-center text-xs text-slate-400">
         <p className="text-slate-500 font-medium tracking-tight">
           플래닉 Planic — 행사 문서를 함께 기획하는 파트너
         </p>
-        <address className="not-italic text-slate-500 space-y-0.5 leading-relaxed">
-          <p className="font-medium text-slate-600">(주)시냇가에심은나무</p>
-          <p>사업자등록번호 438-81-01028</p>
-          <p>대표자 이다윗</p>
+        <address className="not-italic mt-6 text-slate-500 leading-relaxed">
+          <p className="inline-block max-w-full text-[13px] sm:text-xs text-slate-600">
+            (주)시냇가에심은나무
+            <span className="text-slate-300 mx-2" aria-hidden>
+              ·
+            </span>
+            사업자등록번호 438-81-01028
+            <span className="text-slate-300 mx-2" aria-hidden>
+              ·
+            </span>
+            대표자 이다윗
+          </p>
         </address>
       </footer>
     </div>
