@@ -1,4 +1,5 @@
 import { toUserMessage } from '@/lib/errors/toUserMessage'
+import { mapGenerationStageToKorean } from '@/lib/generation/generation-stage-labels'
 import type { QuoteDoc } from '@/lib/types'
 
 export type ApiOk<T> = { ok: true; data: T }
@@ -114,8 +115,9 @@ export async function apiGenerateStream(
       } catch {
         continue
       }
-      if (obj.type === 'stage' && typeof obj.label === 'string' && typeof obj.stage === 'string') {
-        callbacks?.onStage?.({ stage: obj.stage, label: obj.label })
+      if (obj.type === 'stage' && typeof obj.stage === 'string') {
+        const label = mapGenerationStageToKorean(obj.stage)
+        callbacks?.onStage?.({ stage: obj.stage, label })
       }
       if (obj.type === 'error') {
         const status = typeof obj.status === 'number' ? obj.status : 500

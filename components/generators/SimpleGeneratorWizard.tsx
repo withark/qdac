@@ -46,12 +46,12 @@ export default function SimpleGeneratorWizard({
           <div className="text-base font-semibold text-gray-900">{title}</div>
           {subtitle ? <div className="text-xs text-gray-500 mt-1">{subtitle}</div> : null}
         </div>
-        <div className="text-xs text-gray-500">3단계</div>
+        <div className="text-xs font-medium text-primary-700 bg-primary-50 border border-primary-100 rounded-full px-2.5 py-0.5">3단계</div>
       </div>
 
       <div className="mt-5 space-y-4">
         <section>
-          <div className="text-sm font-semibold text-gray-900 mb-3">1) 소스</div>
+          <div className="text-sm font-semibold text-gray-900 mb-3">1. 기준 선택</div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {modes.map((m) => {
               const active = m.id === modeId
@@ -71,9 +71,7 @@ export default function SimpleGeneratorWizard({
                     {m.title}
                   </div>
                   {m.desc ? (
-                    <div className={clsx('mt-1 text-xs', active ? 'text-gray-500' : 'text-gray-500')}>
-                      {m.desc}
-                    </div>
+                    <div className={clsx('mt-1 text-xs', active ? 'text-gray-500' : 'text-gray-500')}>{m.desc}</div>
                   ) : null}
                 </button>
               )
@@ -82,17 +80,17 @@ export default function SimpleGeneratorWizard({
         </section>
 
         <section>
-          <div className="text-sm font-semibold text-gray-900 mb-3">2) 입력</div>
+          <div className="text-sm font-semibold text-gray-900 mb-3">2. 필요한 입력</div>
           <div className="rounded-2xl border border-gray-100 bg-gray-50/30 p-4">
             {requiredInput}
           </div>
         </section>
 
         <section>
-          <div className="text-sm font-semibold text-gray-900 mb-3">3) 생성</div>
+          <div className="text-sm font-semibold text-gray-900 mb-3">3. 생성</div>
           {generating && generationProgressLabel ? (
             <div
-              className="mb-3 rounded-xl border border-primary-100 bg-primary-50/60 px-3 py-2 text-xs text-primary-800"
+              className="mb-3 rounded-xl border border-primary-200 bg-gradient-to-r from-primary-50 to-white px-3 py-2.5 text-sm text-primary-900 font-medium"
               role="status"
               aria-live="polite"
             >

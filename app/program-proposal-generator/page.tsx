@@ -175,7 +175,7 @@ export default function ProgramProposalGeneratorPage() {
       return
     }
     setGenerating(true)
-    setGenerationProgressLabel('요청 전송 중…')
+    setGenerationProgressLabel('입력 확인 중')
     try {
       const promptRequirements = [goal.trim(), notes.trim() ? `추가 메모: ${notes.trim()}` : ''].filter(Boolean).join('\n')
       const requirementsText =
@@ -214,7 +214,7 @@ export default function ProgramProposalGeneratorPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ doc: nextDoc }),
         })
-        showToast('저장 완료!')
+        showToast('저장이 완료되었습니다.')
       } catch (e) {
         showToast(toUserMessage(e, '저장에 실패했습니다.'))
       } finally {
@@ -254,8 +254,8 @@ export default function ProgramProposalGeneratorPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="flex items-center justify-between px-6 h-14 border-b border-gray-100 bg-white/90 flex-shrink-0">
           <div>
-            <h1 className="text-base font-semibold text-gray-900">프로그램 제안서 생성</h1>
-            <p className="text-xs text-gray-500 mt-0.5">견적 컨텍스트를 기반으로 프로그램 제안만 생성합니다.</p>
+            <h1 className="text-base font-semibold text-gray-900">프로그램 제안서 만들기</h1>
+            <p className="text-xs text-gray-500 mt-0.5">프로그램 제안서만 생성합니다</p>
           </div>
           {me?.subscription?.planType === 'FREE' && (
             <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1">
@@ -267,11 +267,11 @@ export default function ProgramProposalGeneratorPage() {
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <SimpleGeneratorWizard
             title="프로그램 제안서 만들기"
-            subtitle="견적/주제로 프로그램 제안서만 생성합니다"
+            subtitle=""
             modes={[
-              { id: 'fromTopic', title: '주제만 입력', desc: '주제/목표로 바로 초안 생성' },
-              { id: 'fromTaskOrder', title: '과업지시서 기준', desc: '요약을 바탕으로 더 정확하게' },
-              { id: 'fromEstimate', title: '기존 문서 기준', desc: '저장된 견적 컨텍스트 활용' },
+              { id: 'fromTopic', title: '주제만 입력' },
+              { id: 'fromEstimate', title: '견적서 기준' },
+              { id: 'fromTaskOrder', title: '과업지시서 기준' },
             ]}
             modeId={sourceMode}
             onModeChange={(id) => {

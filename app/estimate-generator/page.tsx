@@ -1,13 +1,15 @@
 'use client'
 
+import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
 import SimpleGeneratorWizard, { type WizardMode } from '@/components/generators/SimpleGeneratorWizard'
 import { Input, Textarea, Toast } from '@/components/ui'
-import type { CompanySettings, HistoryRecord, PriceCategory, QuoteDoc, TaskOrderDoc } from '@/lib/types'
+import type { CompanySettings, HistoryRecord, PriceCategory, QuoteDoc, ReferenceDoc, TaskOrderDoc } from '@/lib/types'
 import { apiFetch, apiGenerateStream } from '@/lib/api/client'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
+import { ESTIMATE_BUDGET_OPTIONS } from '@/lib/estimate-budget-options'
 import { exportToExcel } from '@/lib/exportExcel'
 import { exportToPdf } from '@/lib/exportPdf'
 import type { PlanType } from '@/lib/plans'
@@ -18,7 +20,9 @@ type MeLite = {
   limits: { monthlyQuoteGenerateLimit: number }
 }
 
-type SourceMode = 'fromEstimate' | 'fromTaskOrder' | 'fromTopic'
+type SourceMode = 'fromEstimate' | 'fromTaskOrder' | 'fromTopic' | 'fromReferenceStyle'
+
+type StyleMode = 'userStyle' | 'aiTemplate'
 
 type TaskOrderSummaryParsed = {
   projectTitle?: string
@@ -70,11 +74,15 @@ export default function EstimateGeneratorPage() {
   const [taskOrderRefs, setTaskOrderRefs] = useState<TaskOrderDoc[]>([])
   const [selectedTaskOrderId, setSelectedTaskOrderId] = useState<string | null>(null)
 
+  const [referenceDocs, setReferenceDocs] = useState<ReferenceDoc[]>([])
+  const [globalStyleMode, setGlobalStyleMode] = useState<StyleMode>('userStyle')
+
   const [topic, setTopic] = useState('')
   const [goal, setGoal] = useState('')
   const [headcount, setHeadcount] = useState('')
   const [venue, setVenue] = useState('')
   const [notes, setNotes] = useState('')
+  const [budget, setBudget] = useState('미정')
 
   const [doc, setDoc] = useState<QuoteDoc | null>(null)
   const [generatedDocId, setGeneratedDocId] = useState<string | null>(null)
@@ -83,14 +91,16 @@ export default function EstimateGeneratorPage() {
   const [saving, setSaving] = useState(false)
   const generatingTabs = useMemo(() => ({ estimate: generating }), [generating])
 
+  const activeReference = useMemo(() => referenceDocs.find((r) => r.isActive) ?? null, [referenceDocs])
+
   const selectedHistory = useMemo(
-    () => (selectedEstimateId ? historyList.find(r => r.id === selectedEstimateId) || null : null),
+    () => (selectedEstimateId ? historyList.find((r) => r.id === selectedEstimateId) || null : null),
     [historyList, selectedEstimateId],
   )
   const selectedHistoryDoc = selectedHistory?.doc || null
 
   const selectedTaskOrder = useMemo(
-    () => (selectedTaskOrderId ? taskOrderRefs.find(r => r.id === selectedTaskOrderId) || null : null),
+    () => (selectedTaskOrderId ? taskOrderRefs.find((r) => r.id === selectedTaskOrderId) || null : null),
     [taskOrderRefs, selectedTaskOrderId],
   )
   const selectedTaskOrderParsed = useMemo(
@@ -100,9 +110,10 @@ export default function EstimateGeneratorPage() {
 
   const modes: WizardMode[] = useMemo(
     () => [
-      { id: 'fromTopic', title: '주제만 입력', desc: '주제/목표로 바로 초안 생성' },
-      { id: 'fromTaskOrder', title: '과업지시서 기준', desc: '문서 컨텍스트로 더 정확하게' },
-      { id: 'fromEstimate', title: '기존 문서 기준', desc: '저장된 견적 컨텍스트 활용' },
+      { id: 'fromTopic', title: '주제만 입력' },
+      { id: 'fromReferenceStyle', title: '참고 견적서 스타일' },
+      { id: 'fromTaskOrder', title: '과업지시서 기준' },
+      { id: 'fromEstimate', title: '저장된 견적서 기준' },
     ],
     [],
   )
@@ -111,27 +122,39 @@ export default function EstimateGeneratorPage() {
     apiFetch<MeLite>('/api/me').then(setMe).catch(() => {})
     apiFetch<CompanySettings>('/api/settings').then(setCompanySettings).catch(() => {})
     apiFetch<PriceCategory[]>('/api/prices').then(setPrices).catch(() => setPrices([]))
+    apiFetch<{ mode: StyleMode }>('/api/estimate-style-mode')
+      .then((d) => setGlobalStyleMode(d.mode))
+      .catch(() => setGlobalStyleMode('userStyle'))
+    apiFetch<ReferenceDoc[]>('/api/upload-reference')
+      .then(setReferenceDocs)
+      .catch(() => setReferenceDocs([]))
   }, [])
 
   useEffect(() => {
-    // 선택 UI를 위해 필요한 목록만 미리 로딩합니다.
-    apiFetch<HistoryRecord[]>('/api/history').then(list => setHistoryList([...list].reverse().slice(0, 20))).catch(() => setHistoryList([]))
+    apiFetch<HistoryRecord[]>('/api/history')
+      .then((list) => setHistoryList([...list].reverse().slice(0, 20)))
+      .catch(() => setHistoryList([]))
     apiFetch<TaskOrderDoc[]>('/api/task-order-references').then(setTaskOrderRefs).catch(() => setTaskOrderRefs([]))
   }, [])
 
   useEffect(() => {
-    // 모드 전환 시 “이전 문서”가 남지 않도록 초기화합니다.
     setDoc(null)
     setGeneratedDocId(null)
     if (sourceMode === 'fromEstimate') setSelectedTaskOrderId(null)
     if (sourceMode === 'fromTaskOrder') setSelectedEstimateId(null)
-    if (sourceMode === 'fromTopic') {
+    if (sourceMode === 'fromTopic' || sourceMode === 'fromReferenceStyle') {
       setSelectedEstimateId(null)
       setSelectedTaskOrderId(null)
     }
   }, [sourceMode])
 
+  const resolveStyleModeForRequest = useCallback((): StyleMode => {
+    if (sourceMode === 'fromReferenceStyle') return 'userStyle'
+    return globalStyleMode
+  }, [globalStyleMode, sourceMode])
+
   const requestBodyForEstimate = useCallback(() => {
+    const styleMode = resolveStyleModeForRequest()
     const base = {
       eventDate: '',
       eventDuration: '',
@@ -139,8 +162,8 @@ export default function EstimateGeneratorPage() {
       eventEndHHmm: '',
       headcount: '',
       venue: '',
-      budget: '',
-      styleMode: 'userStyle' as const,
+      budget,
+      styleMode,
       documentTarget: 'estimate' as const,
       clientName: '',
       clientManager: '',
@@ -185,7 +208,6 @@ export default function EstimateGeneratorPage() {
       }
     }
 
-    // fromTopic (prompt-only)
     const safeTopic = topic.trim()
     const safeGoal = goal.trim()
     const safeNotes = notes.trim()
@@ -199,7 +221,20 @@ export default function EstimateGeneratorPage() {
       venue: venue.trim(),
       requirements: promptRequirements,
     }
-  }, [selectedHistoryDoc, selectedTaskOrder, selectedTaskOrderParsed, sourceMode, topic, goal, headcount, venue, notes])
+  }, [
+    budget,
+    globalStyleMode,
+    resolveStyleModeForRequest,
+    selectedHistoryDoc,
+    selectedTaskOrder,
+    selectedTaskOrderParsed,
+    sourceMode,
+    topic,
+    goal,
+    headcount,
+    venue,
+    notes,
+  ])
 
   const handleGenerateEstimate = useCallback(async () => {
     const body = requestBodyForEstimate()
@@ -215,7 +250,7 @@ export default function EstimateGeneratorPage() {
     }
 
     setGenerating(true)
-    setGenerationProgressLabel('요청 전송 중…')
+    setGenerationProgressLabel('입력 확인 중')
     try {
       const data = await apiGenerateStream(body, {
         onStage: ({ label }) => setGenerationProgressLabel(label),
@@ -241,16 +276,14 @@ export default function EstimateGeneratorPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ doc: nextDoc }),
         })
-        // estimate 문서는 quotes 테이블에도 저장되어 history에서 재사용됩니다.
         await apiFetch(`/api/quotes/${generatedDocId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ doc: nextDoc }),
         })
-        // 같은 화면에서 “저장된 견적” 컨텍스트를 즉시 재사용할 수 있게 히스토리를 갱신합니다.
         const updatedHistory = await apiFetch<HistoryRecord[]>('/api/history')
         setHistoryList([...updatedHistory].reverse().slice(0, 20))
-        showToast('저장 완료!')
+        showToast('저장이 완료되었습니다.')
       } catch (e) {
         showToast(toUserMessage(e, '저장에 실패했습니다.'))
       } finally {
@@ -265,11 +298,16 @@ export default function EstimateGeneratorPage() {
       ? !selectedEstimateId || !selectedHistoryDoc
       : sourceMode === 'fromTaskOrder'
         ? !selectedTaskOrderId || !selectedTaskOrder
-        : !topic.trim() || !goal.trim()
+        : sourceMode === 'fromReferenceStyle'
+          ? !activeReference || !topic.trim() || !goal.trim()
+          : !topic.trim() || !goal.trim()
 
   const validationMessage = useMemo(() => {
     if (!generateDisabled) return null
-    if (sourceMode === 'fromTopic') {
+    if (sourceMode === 'fromTopic' || sourceMode === 'fromReferenceStyle') {
+      if (sourceMode === 'fromReferenceStyle' && !activeReference) {
+        return '참고 자료에서 견적서를 올리고 「견적 생성에 반영」으로 활성화해 주세요.'
+      }
       if (!topic.trim()) return '이벤트 주제를 입력해 주세요.'
       if (!goal.trim()) return '목표를 입력해 주세요.'
       return null
@@ -287,11 +325,66 @@ export default function EstimateGeneratorPage() {
     sourceMode,
     topic,
     goal,
+    activeReference,
     selectedTaskOrderId,
     selectedTaskOrder,
     selectedEstimateId,
     selectedHistoryDoc,
   ])
+
+  const topicInputs = (
+    <div className="space-y-3">
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">예산 범위</label>
+        <select
+          value={budget}
+          onChange={(e) => setBudget(e.target.value)}
+          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-100"
+        >
+          {ESTIMATE_BUDGET_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <Input
+        label="이벤트 주제"
+        value={topic}
+        onChange={(e) => setTopic(e.target.value)}
+        placeholder="예) 기업 워크숍 / 신제품 론칭"
+      />
+      <Textarea
+        label="목표"
+        value={goal}
+        onChange={(e) => setGoal(e.target.value)}
+        placeholder="예) 참가자들이 핵심 메시지를 이해하고 행동까지 이어지게"
+        rows={3}
+      />
+      <div className="grid grid-cols-2 gap-3">
+        <Input
+          label="참석 인원(선택)"
+          value={headcount}
+          onChange={(e) => setHeadcount(e.target.value)}
+          placeholder="예) 80"
+          inputMode="numeric"
+        />
+        <Input
+          label="장소(선택)"
+          value={venue}
+          onChange={(e) => setVenue(e.target.value)}
+          placeholder="예) 잠실"
+        />
+      </div>
+      <Textarea
+        label="추가 메모(선택)"
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        placeholder="예) VIP 동선 고려, 발표 시간/세션 구조 등"
+        rows={3}
+      />
+    </div>
+  )
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50/50">
@@ -299,20 +392,37 @@ export default function EstimateGeneratorPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="flex items-center justify-between px-6 h-14 border-b border-gray-100 bg-white/90 flex-shrink-0">
           <div>
-            <h1 className="text-base font-semibold text-gray-900">견적 생성</h1>
+            <h1 className="text-base font-semibold text-gray-900">견적서 만들기</h1>
             <p className="text-xs text-gray-500 mt-0.5">견적서만 생성합니다</p>
           </div>
           {me?.subscription?.planType === 'FREE' && (
-            <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1">
-              무료
-            </span>
+            <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1">무료</span>
           )}
         </header>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm space-y-2">
+            <div className="text-sm font-semibold text-gray-900">스타일·참고 견적</div>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              전역 스타일:{' '}
+              <strong>{globalStyleMode === 'userStyle' ? '사용자 참고 견적 스타일' : 'AI 추천 템플릿'}</strong>
+              {activeReference ? (
+                <>
+                  {' · '}
+                  활성 참고 파일: <strong>{activeReference.filename}</strong> (현재 견적 생성에 반영 중)
+                </>
+              ) : (
+                <> · 활성 참고 견적 없음 (「참고 자료」에서 업로드·활성화)</>
+              )}
+            </p>
+            <Link href="/reference-estimate" className="inline-block text-xs font-semibold text-primary-700 hover:underline">
+              참고 자료 관리 →
+            </Link>
+          </div>
+
           <SimpleGeneratorWizard
             title="견적서 만들기"
-            subtitle="컨텍스트/주제로 견적서만 생성합니다"
+            subtitle=""
             modes={modes}
             modeId={sourceMode}
             onModeChange={(id) => {
@@ -323,6 +433,7 @@ export default function EstimateGeneratorPage() {
               setHeadcount('')
               setVenue('')
               setNotes('')
+              setBudget('미정')
             }}
             requiredInput={
               sourceMode === 'fromEstimate' ? (
@@ -338,72 +449,62 @@ export default function EstimateGeneratorPage() {
                   <option value="" disabled>
                     저장된 견적을 선택하세요
                   </option>
-                  {historyList.slice(0, 20).map(r => (
+                  {historyList.slice(0, 20).map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.eventName || '행사'} · {r.quoteDate}
                     </option>
                   ))}
                 </select>
               ) : sourceMode === 'fromTaskOrder' ? (
-                <select
-                  value={selectedTaskOrderId || ''}
-                  onChange={(e) => {
-                    setSelectedTaskOrderId(e.target.value || null)
-                    setDoc(null)
-                    setGeneratedDocId(null)
-                  }}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-100"
-                >
-                  <option value="" disabled>
-                    과업지시서를 선택하세요
-                  </option>
-                  {taskOrderRefs.slice(0, 20).map(t => (
-                    <option key={t.id} value={t.id}>
-                      {t.filename || '문서'}
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">예산 범위</label>
+                    <select
+                      value={budget}
+                      onChange={(e) => setBudget(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-100"
+                    >
+                      {ESTIMATE_BUDGET_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <select
+                    value={selectedTaskOrderId || ''}
+                    onChange={(e) => {
+                      setSelectedTaskOrderId(e.target.value || null)
+                      setDoc(null)
+                      setGeneratedDocId(null)
+                    }}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-100"
+                  >
+                    <option value="" disabled>
+                      과업지시서를 선택하세요
                     </option>
-                  ))}
-                </select>
+                    {taskOrderRefs.slice(0, 20).map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.filename || '문서'}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              ) : sourceMode === 'fromReferenceStyle' ? (
+                <>
+                  {activeReference ? (
+                    <p className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
+                      참고 견적 「{activeReference.filename}」 스타일이 이번 생성에 적용됩니다.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                      활성 참고 견적이 없습니다. 참고 자료 메뉴에서 파일을 올리고 「견적 생성에 반영」을 눌러 주세요.
+                    </p>
+                  )}
+                  {topicInputs}
+                </>
               ) : (
-                <div className="space-y-3">
-                  <div className="text-[11px] text-gray-500">
-                    필수: 주제, 목표 / 선택: 인원, 장소, 추가 메모
-                  </div>
-                  <Input
-                    label="이벤트 주제"
-                    value={topic}
-                    onChange={(e) => setTopic(e.target.value)}
-                    placeholder="예) 기업 워크숍 / 신제품 론칭"
-                  />
-                  <Textarea
-                    label="목표"
-                    value={goal}
-                    onChange={(e) => setGoal(e.target.value)}
-                    placeholder="예) 참가자들이 핵심 메시지를 이해하고 행동까지 이어지게"
-                    rows={3}
-                  />
-                  <div className="grid grid-cols-2 gap-3">
-                    <Input
-                      label="참석 인원(선택)"
-                      value={headcount}
-                      onChange={(e) => setHeadcount(e.target.value)}
-                      placeholder="예) 80"
-                      inputMode="numeric"
-                    />
-                    <Input
-                      label="장소(선택)"
-                      value={venue}
-                      onChange={(e) => setVenue(e.target.value)}
-                      placeholder="예) 잠실"
-                    />
-                  </div>
-                  <Textarea
-                    label="추가 메모(선택)"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="예) VIP 동선 고려, 발표 시간/세션 구조 등"
-                    rows={3}
-                  />
-                </div>
+                topicInputs
               )
             }
             generateLabel="견적 생성"
@@ -418,7 +519,7 @@ export default function EstimateGeneratorPage() {
             <section className="rounded-2xl border border-gray-100 bg-white shadow-card overflow-hidden">
               <div className="p-4 border-b border-gray-100 bg-slate-50/50">
                 <div className="text-sm font-semibold text-gray-900">견적 결과</div>
-                <div className="text-xs text-gray-500 mt-1">생성 후 내용을 편집하세요.</div>
+                <div className="text-xs text-gray-500 mt-1">생성 후 내용을 편집하고 저장하세요.</div>
               </div>
               <div className="h-[calc(100vh-220px)] min-h-[420px]">
                 <QuoteResult
@@ -459,7 +560,9 @@ export default function EstimateGeneratorPage() {
             <section className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center">
               <div className="text-sm font-semibold text-gray-900">입력 후 생성하세요</div>
               <div className="text-xs text-gray-500 mt-2">
-                {sourceMode === 'fromTopic' ? '주제/목표만 입력하면 됩니다' : '소스 선택과 필수 입력이 필요합니다'}
+                {sourceMode === 'fromTopic' || sourceMode === 'fromReferenceStyle'
+                  ? '주제와 목표만 있으면 됩니다'
+                  : '소스 선택과 필수 입력이 필요합니다'}
               </div>
             </section>
           )}
@@ -470,4 +573,3 @@ export default function EstimateGeneratorPage() {
     </div>
   )
 }
-

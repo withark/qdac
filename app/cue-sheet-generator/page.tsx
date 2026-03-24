@@ -27,7 +27,7 @@ type GeneratedDocListRow = {
   eventDate: string
 }
 
-type SourceMode = 'fromScenario' | 'fromProgram' | 'fromTimetable' | 'fromTopic'
+type SourceMode = 'fromScenario' | 'fromProgram' | 'fromTopic'
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
@@ -107,11 +107,9 @@ export default function CueSheetGeneratorPage() {
 
   const [scenarioList, setScenarioList] = useState<GeneratedDocListRow[]>([])
   const [programList, setProgramList] = useState<GeneratedDocListRow[]>([])
-  const [timetableList, setTimetableList] = useState<GeneratedDocListRow[]>([])
 
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null)
   const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null)
-  const [selectedTimetableId, setSelectedTimetableId] = useState<string | null>(null)
 
   const [topic, setTopic] = useState('')
   const [goal, setGoal] = useState('')
@@ -119,9 +117,7 @@ export default function CueSheetGeneratorPage() {
   const [venue, setVenue] = useState('')
   const [notes, setNotes] = useState('')
 
-  // contextDoc: 생성 요청에 쓰는 기존 문서
   const [contextDoc, setContextDoc] = useState<QuoteDoc | null>(null)
-  // doc: cuesheet 생성 결과 문서 (QuoteResult에서 편집)
   const [doc, setDoc] = useState<QuoteDoc | null>(null)
   const [generatedDocId, setGeneratedDocId] = useState<string | null>(null)
 
@@ -131,12 +127,7 @@ export default function CueSheetGeneratorPage() {
   const generatingTabs = useMemo(() => ({ program: generating }), [generating])
 
   const modes: WizardMode[] = useMemo(
-    () => [
-      { id: 'fromTopic', title: '주제만 입력', desc: '주제/목표로 바로 초안 생성' },
-      { id: 'fromScenario', title: '시나리오 기준', desc: '시나리오 기반 운영 흐름 반영' },
-      { id: 'fromProgram', title: '프로그램 제안서 기준', desc: '프로그램 제안 문구 기반으로 구성' },
-      { id: 'fromTimetable', title: '타임테이블에서' },
-    ],
+    () => [{ id: 'fromTopic', title: '주제만 입력' }, { id: 'fromScenario', title: '시나리오 기준' }, { id: 'fromProgram', title: '프로그램 제안서 기준' }],
     [],
   )
 
@@ -151,9 +142,6 @@ export default function CueSheetGeneratorPage() {
     apiFetch<GeneratedDocListRow[]>('/api/generated-docs?docType=program&limit=20')
       .then(setProgramList)
       .catch(() => setProgramList([]))
-    apiFetch<GeneratedDocListRow[]>('/api/generated-docs?docType=timetable&limit=20')
-      .then(setTimetableList)
-      .catch(() => setTimetableList([]))
   }, [])
 
   useEffect(() => {
@@ -163,7 +151,7 @@ export default function CueSheetGeneratorPage() {
       return
     }
     apiFetch<{ doc: QuoteDoc }>(`/api/generated-docs/${selectedScenarioId}`)
-      .then(res => setContextDoc(res.doc))
+      .then((res) => setContextDoc(res.doc))
       .catch(() => setContextDoc(null))
   }, [sourceMode, selectedScenarioId])
 
@@ -174,22 +162,9 @@ export default function CueSheetGeneratorPage() {
       return
     }
     apiFetch<{ doc: QuoteDoc }>(`/api/generated-docs/${selectedProgramId}`)
-      .then(res => setContextDoc(res.doc))
+      .then((res) => setContextDoc(res.doc))
       .catch(() => setContextDoc(null))
   }, [sourceMode, selectedProgramId])
-
-  useEffect(() => {
-    if (sourceMode !== 'fromTimetable') return
-    if (!selectedTimetableId) {
-      setContextDoc(null)
-      return
-    }
-    apiFetch<{ doc: QuoteDoc }>(`/api/generated-docs/${selectedTimetableId}`)
-      .then(res => setContextDoc(res.doc))
-      .catch(() => setContextDoc(null))
-  }, [sourceMode, selectedTimetableId])
-
-  // fromTopic(prompt-only)은 생성 버튼 클릭 시 더미 contextDoc을 구성합니다.
 
   const requestBaseFromDoc = useCallback((d: QuoteDoc, requirementsText: string) => {
     return {
@@ -219,7 +194,7 @@ export default function CueSheetGeneratorPage() {
       return
     }
     setGenerating(true)
-    setGenerationProgressLabel('요청 전송 중…')
+    setGenerationProgressLabel('입력 확인 중')
     try {
       const promptRequirements = [goal.trim(), notes.trim() ? `추가 메모: ${notes.trim()}` : ''].filter(Boolean).join('\n')
       const requirementsText = sourceMode === 'fromTopic' ? promptRequirements : ''
@@ -254,7 +229,7 @@ export default function CueSheetGeneratorPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ doc: nextDoc }),
         })
-        showToast('저장 완료!')
+        showToast('저장이 완료되었습니다.')
       } catch (e) {
         showToast(toUserMessage(e, '저장에 실패했습니다.'))
       } finally {
@@ -267,11 +242,7 @@ export default function CueSheetGeneratorPage() {
   const generateDisabled =
     sourceMode === 'fromTopic'
       ? !topic.trim() || !goal.trim()
-      : !contextDoc || !(sourceMode === 'fromScenario'
-          ? selectedScenarioId
-          : sourceMode === 'fromProgram'
-            ? selectedProgramId
-            : selectedTimetableId)
+      : !contextDoc || (sourceMode === 'fromScenario' ? !selectedScenarioId : !selectedProgramId)
 
   const validationMessage = useMemo(() => {
     if (!generateDisabled) return null
@@ -280,27 +251,12 @@ export default function CueSheetGeneratorPage() {
       if (!goal.trim()) return '목표를 입력해 주세요.'
       return null
     }
-    const sourceLabel =
-      sourceMode === 'fromScenario' ? '시나리오' : sourceMode === 'fromProgram' ? '프로그램 제안' : '타임테이블'
-    const sourceId =
-      sourceMode === 'fromScenario'
-        ? selectedScenarioId
-        : sourceMode === 'fromProgram'
-          ? selectedProgramId
-          : selectedTimetableId
+    const sourceLabel = sourceMode === 'fromScenario' ? '시나리오' : '프로그램 제안서'
+    const sourceId = sourceMode === 'fromScenario' ? selectedScenarioId : selectedProgramId
     if (!sourceId) return `${sourceLabel}을(를) 선택해 주세요.`
     if (!contextDoc) return `${sourceLabel} 문서를 불러오는 중이거나 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.`
     return null
-  }, [
-    generateDisabled,
-    sourceMode,
-    topic,
-    goal,
-    selectedScenarioId,
-    selectedProgramId,
-    selectedTimetableId,
-    contextDoc,
-  ])
+  }, [generateDisabled, sourceMode, topic, goal, selectedScenarioId, selectedProgramId, contextDoc])
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50/50">
@@ -308,20 +264,18 @@ export default function CueSheetGeneratorPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="flex items-center justify-between px-6 h-14 border-b border-gray-100 bg-white/90 flex-shrink-0">
           <div>
-            <h1 className="text-base font-semibold text-gray-900">큐시트 생성</h1>
-            <p className="text-xs text-gray-500 mt-0.5">큐시트(운영표)만 독립 생성합니다.</p>
+            <h1 className="text-base font-semibold text-gray-900">큐시트 만들기</h1>
+            <p className="text-xs text-gray-500 mt-0.5">큐시트(운영표)만 생성합니다</p>
           </div>
           {me?.subscription?.planType === 'FREE' && (
-            <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1">
-              무료
-            </span>
+            <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1">무료</span>
           )}
         </header>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <SimpleGeneratorWizard
             title="큐시트 만들기"
-            subtitle="시나리오/프로그램/타임테이블 또는 토픽으로 큐시트만 생성합니다"
+            subtitle=""
             modes={modes}
             modeId={sourceMode}
             onModeChange={(id) => {
@@ -329,7 +283,6 @@ export default function CueSheetGeneratorPage() {
               setSourceMode(next)
               setSelectedScenarioId(null)
               setSelectedProgramId(null)
-              setSelectedTimetableId(null)
               setTopic('')
               setGoal('')
               setHeadcount('')
@@ -353,7 +306,7 @@ export default function CueSheetGeneratorPage() {
                   <option value="" disabled>
                     시나리오를 선택하세요
                   </option>
-                  {scenarioList.slice(0, 20).map(r => (
+                  {scenarioList.slice(0, 20).map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.eventName || '행사명 없음'} · {r.quoteDate}
                     </option>
@@ -372,26 +325,7 @@ export default function CueSheetGeneratorPage() {
                   <option value="" disabled>
                     프로그램 제안을 선택하세요
                   </option>
-                  {programList.slice(0, 20).map(r => (
-                    <option key={r.id} value={r.id}>
-                      {r.eventName || '행사명 없음'} · {r.quoteDate}
-                    </option>
-                  ))}
-                </select>
-              ) : sourceMode === 'fromTimetable' ? (
-                <select
-                  value={selectedTimetableId || ''}
-                  onChange={(e) => {
-                    setSelectedTimetableId(e.target.value || null)
-                    setDoc(null)
-                    setGeneratedDocId(null)
-                  }}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-100"
-                >
-                  <option value="" disabled>
-                    타임테이블을 선택하세요
-                  </option>
-                  {timetableList.slice(0, 20).map(r => (
+                  {programList.slice(0, 20).map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.eventName || '행사명 없음'} · {r.quoteDate}
                     </option>
@@ -399,9 +333,6 @@ export default function CueSheetGeneratorPage() {
                 </select>
               ) : (
                 <div className="space-y-3">
-                  <div className="text-[11px] text-gray-500">
-                    필수: 주제, 목표 / 선택: 인원, 장소, 추가 메모
-                  </div>
                   <Input
                     label="이벤트 주제"
                     value={topic}
@@ -494,11 +425,9 @@ export default function CueSheetGeneratorPage() {
             </section>
           ) : (
             <section className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center">
-              <div className="text-sm font-semibold text-gray-900">
-                {doc ? '문서 컨텍스트 선택 후 생성하세요' : '입력 후 생성하세요'}
-              </div>
+              <div className="text-sm font-semibold text-gray-900">입력 후 생성하세요</div>
               <div className="text-xs text-gray-500 mt-2">
-                {sourceMode === 'fromTopic' ? '주제/목표만 입력하면 됩니다' : '소스 선택과 필수 입력이 필요합니다'}
+                {sourceMode === 'fromTopic' ? '주제와 목표만 있으면 됩니다' : '소스를 선택하세요'}
               </div>
             </section>
           )}
@@ -509,4 +438,3 @@ export default function CueSheetGeneratorPage() {
     </div>
   )
 }
-

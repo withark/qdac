@@ -103,20 +103,15 @@ export async function executeGeneratePipeline(
   const existingDoc = body.existingDoc as QuoteDoc | undefined
   const taskOrderBaseId = (body.taskOrderBaseId || '').trim() || undefined
 
-  pipelineEmit?.({ stage: 'context', label: '참고 자료·설정 불러오는 중' })
+  pipelineEmit?.({ stage: 'context', label: '자료 불러오는 중' })
 
   const contextStartedAt = Date.now()
   const needPrices = documentTarget === 'estimate'
   const needReferences = styleMode === 'userStyle'
-  const needTaskOrderRefs =
-    generationMode === 'taskOrderBase' || documentTarget === 'estimate' || documentTarget === 'planning'
-
   const taskOrderRefsPromise =
     generationMode === 'taskOrderBase' && taskOrderBaseId
       ? getTaskOrderRefById(userId, taskOrderBaseId).then((r) => (r ? [r] : []))
-      : needTaskOrderRefs
-        ? listTaskOrderRefsLight(userId)
-        : Promise.resolve([])
+      : Promise.resolve([])
 
   const [prices, settings, references, taskOrderRefs, scenarioRefs, cuesheetSampleContext, effective] =
     await Promise.all([
@@ -207,6 +202,12 @@ export async function executeGeneratePipeline(
     documentTarget: documentTarget,
     aiModeIsMock: isMockAi,
     mockBlockedInProduction,
+    requestStyleMode: styleMode,
+    effectiveStyleMode,
+    referenceFilenames: referencesForPrompt.map((r) => r.filename || r.id),
+    taskOrderRefsLoaded: filteredTaskOrderRefs.length,
+    taskOrderBaseId: taskOrderBaseId || null,
+    generationMode: generationMode,
 
     structureFirst: overlayForPrompt?.structureFirst,
     toneFirst: overlayForPrompt?.toneFirst,
@@ -259,8 +260,6 @@ export async function executeGeneratePipeline(
   let doc: QuoteDoc
   let genMeta: Awaited<ReturnType<typeof generateQuoteWithMeta>>['meta'] | undefined
   let budgetConstraint: QuoteDoc['budgetConstraint'] | undefined
-
-  pipelineEmit?.({ stage: 'generate', label: 'AI 문서 생성 중' })
 
   try {
     const generation = await generateQuoteWithMeta(input)

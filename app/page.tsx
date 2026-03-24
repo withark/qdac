@@ -9,7 +9,7 @@ import { PLAN_LIMITS, PRICES_KRW } from '@/lib/plans'
 
 export const dynamic = 'force-dynamic'
 
-const CATEGORY_ORDER: readonly string[] = ['견적·금액', '기획·제안', '운영·정리', '스타일·참고']
+const CATEGORY_ORDER: readonly string[] = ['견적·금액', '기획·제안', '운영·정리']
 
 const LANDING_NAV = [
   { href: '#features', label: '기능 소개' },
@@ -96,9 +96,7 @@ export default async function IntroPage() {
       <main className="flex-1 w-full bg-[#fafbfc]">
         {/* 히어로 CTA — 버튼 문구·스타일만 유지(본문은 짧은 헤드라인) */}
         <section className="max-w-5xl mx-auto px-5 sm:px-8 pt-12 sm:pt-16 pb-10 text-center border-b border-slate-100/80">
-          <p className="text-primary-600 text-xs font-semibold tracking-wide uppercase">
-            Partner for your event documents
-          </p>
+          <p className="text-primary-600 text-xs font-semibold tracking-wide">행사 문서 파트너</p>
           <h1 className="mt-3 text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 tracking-tight leading-snug">
             주제와 과업만 알려 주세요.
             <br />

@@ -42,8 +42,9 @@ export function buildReferenceContext(refs: GenerateInput['references']): string
           `- 사용 원칙: 위 표현을 그대로 “카테고리명/항목명/notes 문장”에 반영`,
       )
     } else {
-      // 예전 데이터 호환(문자열 요약)
-      lines.push(`\n▸ ${r.filename}\n${r.summary || ''}`)
+      const raw = (r.summary || '').trim()
+      const clipped = raw.length > 900 ? `${raw.slice(0, 900)}…` : raw
+      lines.push(`\n▸ ${r.filename}\n${clipped || '(요약 없음)'}`)
     }
   })
   return lines.join('\n')
@@ -179,7 +180,9 @@ function buildExistingDocContext(input: GenerateInput, target: NonNullable<Gener
 export function buildGeneratePrompt(input: GenerateInput): string {
   const target = input.documentTarget ?? 'estimate'
   const includePrice = target === 'estimate'
-  const includeTaskOrder = target === 'estimate' || target === 'planning' || input.generationMode === 'taskOrderBase'
+  /** 과업지시서 전체 목록을 매번 넣지 않음 — taskOrderBase(선택 문서)일 때만 컨텍스트에 포함 */
+  const includeTaskOrder =
+    input.generationMode === 'taskOrderBase' && (input.taskOrderRefs?.length ?? 0) > 0
   const priceCtx = includePrice ? buildPriceContext(input.prices) : ''
   const refCtx = input.styleMode === 'userStyle' ? buildReferenceContext(input.references) : ''
   const scenarioRefCtx = target === 'scenario' ? buildScenarioRefContext(input.scenarioRefs) : ''

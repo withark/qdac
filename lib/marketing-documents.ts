@@ -1,5 +1,5 @@
-/** 랜딩·문서 만들기 등에서 공통으로 쓰는 문서 종류 안내 */
-export type MarketingDocCategory = '견적·금액' | '기획·제안' | '운영·정리' | '스타일·참고'
+/** 랜딩·문서 만들기 등에서 공통으로 쓰는 문서 종류 안내 (참고 견적 스타일은 「참고 자료」 메뉴 전용) */
+export type MarketingDocCategory = '견적·금액' | '기획·제안' | '운영·정리'
 
 export type MarketingDocumentItem = {
   href: string
@@ -11,47 +11,44 @@ export type MarketingDocumentItem = {
 export const MARKETING_DOCUMENTS: MarketingDocumentItem[] = [
   {
     href: '/estimate-generator',
-    title: '견적서',
-    desc: '단가표·기업정보를 반영하고, 과업지시서·기존 견적과 연결해 항목·금액이 갖춰진 견적서를 만듭니다.',
+    title: '견적서 만들기',
+    desc: '주제만으로도 초안을 만들고, 단가·과업·저장 견적을 연결하면 더 정확해집니다.',
     category: '견적·금액',
   },
   {
     href: '/planning-generator',
-    title: '기획안',
-    desc: '콘셉트·진행 구조·투입 인력 등 행사를 설명하는 기획 문서 초안을 만듭니다.',
+    title: '기획안 만들기',
+    desc: '콘셉트·구성·운영 포인트가 담긴 기획 문서 초안입니다.',
     category: '기획·제안',
   },
   {
     href: '/program-proposal-generator',
-    title: '프로그램 제안서',
-    desc: '프로그램 구성·타임라인·운영 포인트가 담긴 제안 형태로 정리합니다.',
+    title: '프로그램 제안서 만들기',
+    desc: '프로그램 구성과 타임라인을 제안 형식으로 정리합니다.',
     category: '기획·제안',
   },
   {
     href: '/scenario-generator',
-    title: '시나리오',
-    desc: '행사 진행·연출·촬영 흐름을 순서에 맞게 담은 시나리오 문서를 만듭니다.',
+    title: '시나리오 만들기',
+    desc: '진행·연출·촬영 순서를 한 문서로 정리합니다.',
     category: '기획·제안',
   },
   {
     href: '/cue-sheet-generator',
-    title: '큐시트',
-    desc: '시나리오·프로그램·타임테이블을 이어 붙이거나 주제만으로 현장 운영 표를 만듭니다.',
+    title: '큐시트 만들기',
+    desc: '시나리오·프로그램을 바탕으로 하거나, 주제만으로 현장 운영 표를 만듭니다.',
     category: '운영·정리',
   },
   {
     href: '/task-order-summary',
-    title: '과업지시서 요약',
-    desc: '긴 과업지시서를 요약해 견적·기획 생성 시 그대로 활용할 수 있게 합니다.',
+    title: '과업지시서 요약하기',
+    desc: '긴 과업지시서를 요약해 이후 견적·기획에 바로 씁니다.',
     category: '운영·정리',
   },
-  {
-    href: '/reference-estimate',
-    title: '참고 견적 스타일',
-    desc: '샘플 견적을 올려 두면 문장 톤·항목 구성을 학습해, 우리 회사 스타일에 가깝게 생성합니다.',
-    category: '스타일·참고',
-  },
 ]
+
+/** 문서 만들기 허브 전용 — 위와 동일 목록(참고 자료 제외) */
+export const CREATE_DOCUMENT_HUB_ITEMS = MARKETING_DOCUMENTS
 
 export type LandingProcessStep = {
   title: string

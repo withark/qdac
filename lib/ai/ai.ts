@@ -711,7 +711,7 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
   const eff = input.cachedEngineConfig ?? (await getEffectiveEngineConfig())
   const maxOut = resolveGenerateMaxTokens(eff.maxTokens, eff.provider)
   const promptStart = Date.now()
-  input.pipelineEmit?.({ stage: 'prompt', label: '프롬프트 작성 중' })
+  input.pipelineEmit?.({ stage: 'prompt', label: '프롬프트 구성 중' })
   const prompt = buildGeneratePrompt(input)
   const promptBuildMs = Date.now() - promptStart
   let aiCallMs = 0
@@ -746,7 +746,7 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
   }
 
   const target = input.documentTarget
-  input.pipelineEmit?.({ stage: 'llm', label: 'AI 응답 생성 중' })
+  input.pipelineEmit?.({ stage: 'llm', label: 'AI 작성 중' })
   let text = await runOnce('', 'primary')
   let jsonText: string
   try {
@@ -775,7 +775,7 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
     }
   }
 
-  input.pipelineEmit?.({ stage: 'parse', label: 'JSON 해석·정규화 중' })
+  input.pipelineEmit?.({ stage: 'parse', label: '결과 정리 중' })
   const parseStart = Date.now()
   doc = normalizeQuoteDoc(doc, {
     eventStartHHmm: input.eventStartHHmm,
@@ -791,7 +791,6 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
   parseNormalizeMs += Date.now() - parseStart
 
   // 2차 refine LLM은 지연·비용이 커서 제거했습니다. 휴리스틱 보강(fillWeakOutputs)으로 실무 가능 수준을 맞춥니다.
-  input.pipelineEmit?.({ stage: 'post', label: '문서 보강 중' })
   doc = fillWeakOutputs(doc, input)
 
   const stages = [

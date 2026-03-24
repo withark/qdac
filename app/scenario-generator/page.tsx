@@ -190,7 +190,7 @@ export default function ScenarioGeneratorPage() {
       return
     }
     setGenerating(true)
-    setGenerationProgressLabel('요청 전송 중…')
+    setGenerationProgressLabel('입력 확인 중')
     try {
       const promptRequirements = [goal.trim(), notes.trim() ? `추가 메모: ${notes.trim()}` : ''].filter(Boolean).join('\n')
       const requirementsText =
@@ -227,7 +227,7 @@ export default function ScenarioGeneratorPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ doc: nextDoc }),
         })
-        showToast('저장 완료!')
+        showToast('저장이 완료되었습니다.')
       } catch (e) {
         showToast(toUserMessage(e, '저장에 실패했습니다.'))
       } finally {
@@ -262,8 +262,8 @@ export default function ScenarioGeneratorPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="flex items-center justify-between px-6 h-14 border-b border-gray-100 bg-white/90 flex-shrink-0">
           <div>
-            <h1 className="text-base font-semibold text-gray-900">시나리오 생성</h1>
-            <p className="text-xs text-gray-500 mt-0.5">시나리오 문서만 독립 생성합니다.</p>
+            <h1 className="text-base font-semibold text-gray-900">시나리오 만들기</h1>
+            <p className="text-xs text-gray-500 mt-0.5">시나리오만 생성합니다</p>
           </div>
           {me?.subscription?.planType === 'FREE' && (
             <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1">
@@ -275,11 +275,11 @@ export default function ScenarioGeneratorPage() {
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <SimpleGeneratorWizard
             title="시나리오 만들기"
-            subtitle="컨텍스트/주제로 시나리오만 생성합니다"
+            subtitle=""
             modes={[
-              { id: 'fromTopic', title: '주제만 입력', desc: '주제/목표로 바로 초안 생성' },
-              { id: 'fromPlanning', title: '기획안 기준', desc: '기획 문서 기반으로 더 정교하게' },
-              { id: 'fromProgram', title: '프로그램 제안서 기준', desc: '프로그램 제안 기반으로 구성' },
+              { id: 'fromTopic', title: '주제만 입력' },
+              { id: 'fromPlanning', title: '기획안 기준' },
+              { id: 'fromProgram', title: '프로그램 제안서 기준' },
             ]}
             modeId={sourceMode}
             onModeChange={(id) => {

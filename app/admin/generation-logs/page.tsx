@@ -36,6 +36,10 @@ function documentTargetLabel(s: Record<string, unknown> | undefined): string {
   return DOC_TARGET_KO[t] ?? t
 }
 
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === 'object' && !Array.isArray(v)
+}
+
 type AiRuntimePayload = {
   verdict: 'mock' | 'real' | 'no_keys'
   llmWillInvoke: boolean
@@ -294,14 +298,52 @@ export default function AdminGenerationLogsPage() {
                             {r.engineSnapshot?.toneFirst != null && ` · 문체:${String(r.engineSnapshot.toneFirst)}`}
                           </div>
                         )}
-                        {r.budgetCeilingKRW != null && (
+                        {r.budgetRange ? (
+                          <div className="text-[11px] text-slate-600">선택 예산: {r.budgetRange}</div>
+                        ) : null}
+                        {r.generatedFinalTotalKRW != null && (
                           <div className="text-[11px] text-slate-600">
-                            예산 상한:{' '}
-                            {Number(r.budgetCeilingKRW).toLocaleString('ko-KR')}
-                            원 · fit:{' '}
-                            {r.budgetFit === true ? '✓' : r.budgetFit === false ? '✗' : '—'}
+                            최종 합계: {Number(r.generatedFinalTotalKRW).toLocaleString('ko-KR')}원
                           </div>
                         )}
+                        {r.budgetCeilingKRW != null && (
+                          <div className="text-[11px] text-slate-600">
+                            예산 상한: {Number(r.budgetCeilingKRW).toLocaleString('ko-KR')}원 · 적합:{' '}
+                            {r.budgetFit === true ? '예' : r.budgetFit === false ? '아니오' : '—'}
+                          </div>
+                        )}
+                        {typeof r.engineSnapshot?.requestStyleMode === 'string' && (
+                          <div className="text-[11px] text-slate-600">
+                            스타일 요청: {String(r.engineSnapshot.requestStyleMode)} → 적용:{' '}
+                            {String(r.engineSnapshot.effectiveStyleMode ?? '—')}
+                          </div>
+                        )}
+                        {Array.isArray(r.engineSnapshot?.referenceFilenames) &&
+                        (r.engineSnapshot.referenceFilenames as unknown[]).length > 0 ? (
+                          <div className="text-[11px] text-slate-600 break-all">
+                            참고 견적: {(r.engineSnapshot.referenceFilenames as string[]).join(', ')}
+                          </div>
+                        ) : null}
+                        {r.engineSnapshot?.llmInvoked === false ? (
+                          <div className="text-[11px] text-amber-800">LLM 호출: 없음(모의)</div>
+                        ) : (
+                          <div className="text-[11px] text-emerald-800">LLM 호출: 있음</div>
+                        )}
+                        {isRecord(r.engineSnapshot?.timings) ? (
+                          <div className="text-[11px] text-slate-500 space-y-0.5 mt-1">
+                            {Object.entries(r.engineSnapshot.timings as Record<string, unknown>)
+                              .filter(([k]) =>
+                                ['authSessionMs', 'contextLoadMs', 'promptBuildMs', 'aiCallMs', 'parseNormalizeMs', 'saveMs', 'totalMs'].includes(
+                                  k,
+                                ),
+                              )
+                              .map(([k, v]) => (
+                                <div key={k}>
+                                  {k}: {typeof v === 'number' ? `${v}ms` : String(v)}
+                                </div>
+                              ))}
+                          </div>
+                        ) : null}
                       </div>
                     </td>
                     <td className="px-3 py-2 max-w-[200px]">
