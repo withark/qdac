@@ -50,7 +50,7 @@ export default function GuidePage() {
         <section className="space-y-3.5">
           {steps.map((step) => (
             <article key={step.n} className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 sm:px-6 sm:py-5">
-              <p className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
+              <p className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-600 text-sm font-semibold text-white">
                 {step.n}
               </p>
               <div>
