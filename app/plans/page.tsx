@@ -106,6 +106,7 @@ function PlansContent() {
           <p className="text-sm text-slate-600 sm:text-base">
             서비스 구독 요금입니다. 월간/연간을 선택하고 플랜별 한도와 기능을 비교하세요.
           </p>
+          <p className="text-xs text-slate-500">홈페이지는 간단히, 상세 비교와 업그레이드는 이 페이지에서 진행합니다.</p>
 
           <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
             <button
