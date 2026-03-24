@@ -7,50 +7,59 @@ export const metadata: Metadata = {
 }
 
 export default function FeaturesPage() {
+  const features = [
+    {
+      icon: '견',
+      title: '견적서 초안 생성',
+      description: '행사 주제와 조건을 바탕으로 항목 중심 견적서 초안을 빠르게 만듭니다.',
+      example: '예시: 행사 규모/예산 범위를 입력해 기본 비용 구조를 즉시 생성',
+      takeaway: '초안 작성 시간을 줄이고, 검토 가능한 첫 버전을 빠르게 확보합니다.',
+    },
+    {
+      icon: '기',
+      title: '기획안 구조 정리',
+      description: '목적, 구성, 운영 포인트를 문서 흐름에 맞게 정리해 기획안을 만듭니다.',
+      example: '예시: 행사 목표와 대상 정보를 넣어 섹션별 기획 구조 자동 제안',
+      takeaway: '아이디어를 문서 형태로 바로 전환해 내부 공유 속도를 높입니다.',
+    },
+    {
+      icon: '연',
+      title: '기존 문서 연결 반영',
+      description: '과거 문서와 참고 자료를 연결해 맥락과 표현을 더 정교하게 반영합니다.',
+      example: '예시: 기존 제안서와 단가표를 연결해 용어와 구성 일관성 강화',
+      takeaway: '새로 작성해도 팀의 기존 기준을 유지한 결과를 얻을 수 있습니다.',
+    },
+    {
+      icon: '저',
+      title: '저장 후 수정/재사용',
+      description: '생성한 문서를 저장하고 다시 열어 필요한 부분을 지속적으로 다듬을 수 있습니다.',
+      example: '예시: 초안을 저장한 뒤 행사 변경사항을 반영해 다음 버전 재작성',
+      takeaway: '문서를 일회성으로 끝내지 않고 반복 업무에 재사용할 수 있습니다.',
+    },
+  ] as const
+
   return (
     <PublicPageShell>
-      <article className="mx-auto max-w-3xl space-y-8">
+      <article className="mx-auto max-w-4xl space-y-8">
         <header>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">기능 소개</h1>
-          <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
-            플래닉은 행사 준비에 필요한 문서를 하나씩 빠르게 만들 수 있도록 돕는 행사 문서 생성 도구입니다.
-            주제만으로도 시작할 수 있고, 기존 견적서·과업지시서·참고 자료를 연결하면 더 정교하게 문서를 만들 수 있습니다.
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">기능 소개</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
+            플래닉은 행사 문서를 하나씩 빠르게 만드는 데 집중합니다. 시작은 단순하게, 결과는 실무에 맞게 정교화합니다.
           </p>
         </header>
 
-        <section className="space-y-5">
-          <div className="rounded-xl border border-slate-200 p-5">
-            <h2 className="text-lg font-bold text-slate-900">플래닉이 만들 수 있는 문서 종류</h2>
-            <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-relaxed text-slate-600">
-              <li>견적서: 행사 예산, 항목, 금액 기준이 필요한 상황</li>
-              <li>기획안: 행사 목적, 구성, 운영 방향을 정리해야 하는 상황</li>
-              <li>프로그램 제안서: 세션/순서 중심의 프로그램 구조가 필요한 상황</li>
-              <li>시나리오: 시간 흐름과 진행 멘트까지 포함한 실행안이 필요한 상황</li>
-              <li>큐시트: 현장 운영 순서와 역할 분담을 시간축으로 맞춰야 하는 상황</li>
-              <li>과업지시서 요약: 긴 요구사항 문서를 핵심만 빠르게 정리해야 하는 상황</li>
-            </ul>
-          </div>
-          <div className="rounded-xl border border-slate-200 p-5">
-            <h2 className="text-lg font-bold text-slate-900">문서를 하나씩 생성합니다</h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              플래닉은 견적서, 기획안, 프로그램 제안서, 시나리오, 큐시트를 한 번에 억지로 만들지 않습니다.
-              필요한 문서를 하나씩 생성하고, 이전 문서를 연결해 다음 문서를 더 정교하게 이어갈 수 있습니다.
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-200 p-5">
-            <h2 className="text-lg font-bold text-slate-900">주제만 시작 / 기존 문서 연결 방식</h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              아직 참고 문서가 없어도 행사 주제, 목적, 간단한 아이디어만으로 바로 초안을 시작할 수 있습니다.
-              기존 견적서·과업지시서·참고 자료를 연결하면 같은 맥락으로 더 정교한 문서를 만들 수 있습니다.
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-200 p-5">
-            <h2 className="text-lg font-bold text-slate-900">저장하고 다시 수정할 수 있습니다</h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              생성한 문서는 저장한 뒤 다시 불러와 수정할 수 있습니다.
-              초안을 빠르게 만든 뒤, 필요한 부분을 다듬어 실제 업무 문서로 이어서 활용할 수 있습니다.
-            </p>
-          </div>
+        <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {features.map((feature) => (
+            <article key={feature.title} className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+              <div className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary-50 text-sm font-bold text-primary-700">
+                {feature.icon}
+              </div>
+              <h2 className="mt-4 text-lg font-bold tracking-tight text-slate-900">{feature.title}</h2>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">{feature.description}</p>
+              <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">{feature.example}</p>
+              <p className="mt-3 text-sm font-semibold text-primary-700">{feature.takeaway}</p>
+            </article>
+          ))}
         </section>
       </article>
     </PublicPageShell>

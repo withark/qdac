@@ -7,46 +7,56 @@ export const metadata: Metadata = {
 }
 
 export default function GuidePage() {
+  const steps = [
+    {
+      n: 1,
+      title: '주제만 입력하거나 기존 문서를 선택합니다',
+      description: '행사 주제만으로도 시작할 수 있고, 참고 문서를 연결하면 맥락 반영이 더 정교해집니다.',
+    },
+    {
+      n: 2,
+      title: '필요한 문서를 선택합니다',
+      description: '견적서, 기획안, 프로그램 제안서, 시나리오, 큐시트 중 현재 필요한 문서를 고릅니다.',
+    },
+    {
+      n: 3,
+      title: '문서를 하나씩 생성합니다',
+      description: '한 번에 모두 만들지 않고, 문서를 하나씩 생성해 품질을 확인하며 진행합니다.',
+    },
+    {
+      n: 4,
+      title: '저장하고 수정합니다',
+      description: '생성한 결과를 저장한 뒤 다시 열어 문장, 항목, 구성 흐름을 업무에 맞게 보완합니다.',
+    },
+    {
+      n: 5,
+      title: '다음 문서로 이어서 활용합니다',
+      description: '앞서 만든 문서를 기반으로 다음 문서를 연결 생성해 문서 간 일관성을 유지합니다.',
+    },
+  ] as const
+
   return (
     <PublicPageShell>
-      <article className="mx-auto max-w-3xl space-y-8">
+      <article className="mx-auto max-w-4xl space-y-8">
         <header>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">사용 방법</h1>
-          <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
-            플래닉은 복잡한 설정 없이, 필요한 문서를 하나씩 생성하는 방식으로 사용할 수 있습니다.
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">사용 방법</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
+            플래닉은 단계 흐름에 맞춰 문서를 하나씩 만드는 방식입니다. 짧은 입력으로 시작해 저장/수정까지 이어집니다.
           </p>
         </header>
 
-        <section className="space-y-4">
-          <div className="rounded-xl border border-slate-200 p-5">
-            <h2 className="text-lg font-bold text-slate-900">1. 주제만 입력하거나 기존 문서를 선택합니다</h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              행사 주제, 목적, 간단한 설명만 입력해도 시작할 수 있습니다.
-              기존 견적서나 과업지시서, 참고 자료가 있다면 함께 연결해 더 정교한 결과를 만들 수 있습니다.
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-200 p-5">
-            <h2 className="text-lg font-bold text-slate-900">2. 필요한 문서를 하나씩 생성합니다</h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              견적서, 기획안, 프로그램 제안서, 시나리오, 큐시트 중 필요한 문서를 선택해 생성합니다.
-              각 문서는 독립적으로 만들 수 있고, 이전 문서를 기반으로 다음 문서를 이어서 만들 수도 있습니다.
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-200 p-5">
-            <h2 className="text-lg font-bold text-slate-900">3. 저장하고 다시 불러와 수정합니다</h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              생성 결과를 저장한 뒤 다시 열어 수정할 수 있습니다.
-              초안을 만든 뒤 문장을 다듬고, 항목을 조정하고, 실제 업무에 맞게 정리해 사용할 수 있습니다.
-            </p>
-          </div>
-        </section>
-
-        <section className="rounded-xl border border-primary-100 bg-primary-50/50 p-5">
-          <h2 className="text-lg font-bold text-slate-900">더 정교하게 만들고 싶다면</h2>
-          <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            참고 견적서, 단가표, 과업지시서 같은 자료를 연결하면 더 실제 업무에 가까운 결과를 만들 수 있습니다.
-            하지만 그런 자료가 없어도, 주제만으로 시작할 수 있습니다.
-          </p>
+        <section className="space-y-3">
+          {steps.map((step) => (
+            <article key={step.n} className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+              <p className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+                {step.n}
+              </p>
+              <div>
+                <h2 className="text-base font-bold text-slate-900 sm:text-lg">{step.title}</h2>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">{step.description}</p>
+              </div>
+            </article>
+          ))}
         </section>
       </article>
     </PublicPageShell>

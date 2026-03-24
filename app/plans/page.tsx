@@ -2,8 +2,7 @@
 import Link from 'next/link'
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { SiteFooter } from '@/components/SiteFooter'
-import { PublicSiteHeader } from '@/components/public/PublicSiteHeader'
+import { PublicPageShell } from '@/components/public/PublicPageShell'
 import { apiFetch } from '@/lib/api/client'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
 import type { PlanType } from '@/lib/plans'
@@ -97,37 +96,43 @@ function PlansContent() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
-      <PublicSiteHeader />
-
-      <main className="flex-1 px-4 py-12 sm:px-6 sm:py-14">
-        <div className="mx-auto mb-10 max-w-5xl space-y-3 text-center">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">요금제</h1>
-          <p className="text-sm text-slate-600 sm:text-base">
-            서비스 구독 요금입니다. 월간/연간을 선택하고 플랜별 한도와 기능을 비교하세요.
+    <PublicPageShell>
+      <section className="mx-auto max-w-5xl">
+        <div className="mx-auto mb-8 max-w-3xl text-center">
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">요금제</h1>
+          <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
+            플래닉은 행사 문서 생성 흐름에 맞춘 플랜을 제공합니다. 월간/연간을 선택해 팀에 맞는 구성을 비교해보세요.
           </p>
-          <p className="text-xs text-slate-500">홈페이지는 간단히, 상세 비교와 업그레이드는 이 페이지에서 진행합니다.</p>
+        </div>
 
-          <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+        <div className="mb-5 flex justify-center">
+          <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
             <button
               type="button"
               onClick={() => setCycle('monthly')}
-              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
-                cycle === 'monthly' ? 'bg-primary-600 text-white' : 'text-gray-600 hover:bg-slate-50'
+              className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+                cycle === 'monthly' ? 'bg-primary-600 text-white' : 'text-slate-600 hover:bg-slate-50'
               }`}
             >
-              월간
+              월간 결제
             </button>
             <button
               type="button"
               onClick={() => setCycle('annual')}
-              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
-                cycle === 'annual' ? 'bg-primary-600 text-white' : 'text-gray-600 hover:bg-slate-50'
+              className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+                cycle === 'annual' ? 'bg-primary-600 text-white' : 'text-slate-600 hover:bg-slate-50'
               }`}
             >
-              연간 <span className="ml-1 text-[11px] font-bold text-amber-200">할인</span>
+              연간 결제
             </button>
           </div>
+        </div>
+
+        <div className="mx-auto mb-8 max-w-5xl rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-600 sm:px-6">
+          <p className="font-semibold text-slate-900">안내</p>
+          <p className="mt-1">
+            연간 결제 선택 시 월간 대비 할인 혜택이 적용됩니다. 현재 플랜은 카드 상단에서 바로 확인할 수 있습니다.
+          </p>
         </div>
 
         <div className="mx-auto grid max-w-5xl grid-cols-1 gap-5 md:grid-cols-3">
@@ -140,7 +145,7 @@ function PlansContent() {
               <div
                 key={c.plan}
                 className={`flex flex-col rounded-2xl border-2 bg-white p-6 ${
-                  c.highlight ? 'border-primary-500 shadow-xl shadow-primary-500/10 ring-2 ring-primary-500/10' : 'border-slate-200'
+                  c.highlight ? 'border-primary-500 shadow-lg shadow-primary-500/10 ring-2 ring-primary-500/10' : 'border-slate-200'
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -247,29 +252,25 @@ function PlansContent() {
           })}
         </div>
 
-      </main>
-
-      <SiteFooter compact />
+      </section>
 
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
           <div className="px-4 py-2 rounded-xl bg-gray-900 text-white text-sm shadow-lg">{toast}</div>
         </div>
       )}
-    </div>
+    </PublicPageShell>
   )
 }
 
 export default function PlansPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex flex-col bg-white">
-        <PublicSiteHeader />
-        <main className="flex-1 flex items-center justify-center">
+      <PublicPageShell>
+        <main className="flex items-center justify-center py-24">
           <p className="text-sm text-slate-500">로딩 중...</p>
         </main>
-        <SiteFooter compact />
-      </div>
+      </PublicPageShell>
     }>
       <PlansContent />
     </Suspense>
