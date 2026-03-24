@@ -32,10 +32,10 @@ export default async function IntroPage() {
       <main className="flex-1 flex flex-col items-center justify-center px-6 py-16 text-center">
         <div className="max-w-2xl mx-auto space-y-8">
           <EvQuoteLogo showText size="lg" className="justify-center mx-auto" />
-          <p className="text-slate-500 text-lg">
-            이벤트 문서를 문서별 도구에서 독립 생성합니다.
+          <p className="text-slate-500 text-lg leading-relaxed">
+            행사 문서의 모든 것, 플래닉이 함께 기획하고 만듭니다.
             <br />
-            <span className="text-gray-700 font-medium">AI가 만들어 드립니다.</span>
+            <span className="text-gray-700 font-medium">AI가 견적·제안·큐시트까지 문서별로 완성합니다.</span>
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
             <Link
@@ -69,7 +69,9 @@ export default async function IntroPage() {
       </main>
 
       <footer className="flex-shrink-0 py-8 px-6 border-t border-slate-100/90 text-center text-xs text-slate-400 space-y-3">
-        <p className="text-slate-500">플래닉 Planic · 이벤트 문서 생성 도구</p>
+        <p className="text-slate-500 font-medium tracking-tight">
+          플래닉 Planic — 행사 문서를 함께 기획하는 파트너
+        </p>
         <address className="not-italic text-slate-500 space-y-0.5 leading-relaxed">
           <p className="font-medium text-slate-600">(주)시냇가에심은나무</p>
           <p>사업자등록번호 438-81-01028</p>
