@@ -13,14 +13,14 @@ export async function MainPageContent() {
 
   return (
     <PublicPageShell loginHref={loginHref} loginLabel={loginLabel}>
-      <section className="mx-auto mt-1 w-full max-w-[980px] rounded-[28px] bg-slate-100/70 px-6 pb-16 pt-16 text-center sm:px-10 sm:pt-20">
+      <section className="mx-auto mt-1 w-full max-w-[960px] rounded-[28px] border border-slate-200/70 bg-slate-100/70 px-6 pb-14 pt-14 text-center sm:px-10 sm:pb-16 sm:pt-20">
         <p className="text-[11px] font-semibold tracking-[0.1em] text-primary-600">행사 문서 생성을 위한 파트너</p>
         <h1 className="mt-5 text-[30px] font-bold leading-[1.3] tracking-tight text-slate-900 sm:text-[42px]">
           행사 문서 준비를 더 빠르게,
           <br />
           플래닉과 함께 시작하세요
         </h1>
-        <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-slate-500 sm:text-[15px]">
+        <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-[15px]">
           주제만으로 초안을 만들고, 기존 문서를 연결해 실무 흐름에 맞는 결과로 정리합니다.
         </p>
         <p className="mt-2 text-sm font-medium text-slate-600">가입 후 무료로 시작 가능합니다.</p>

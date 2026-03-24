@@ -34,10 +34,10 @@ export function SiteFooter({ compact = false }: SiteFooterProps) {
             </div>
           </nav>
 
-          <address className="mt-5 space-y-1 not-italic text-slate-600">
+          <address className="mt-5 max-w-[920px] space-y-1 text-[11px] leading-relaxed not-italic text-slate-600 sm:text-xs">
             <p>
-              <span className="font-medium text-slate-700">(주)시냇가에심은나무</span> · 사업자번호: 438-81-01028 · 대표자: 이다윗 ·
-              주소: 광릉수목원로 600 A동
+              <span className="font-medium text-slate-700">(주)시냇가에심은나무</span> · 사업자번호: 438-81-01028 · 대표자: 이다윗 · 주소:
+              광릉수목원로 600 A동
             </p>
             <p>
               대표 연락처:{' '}

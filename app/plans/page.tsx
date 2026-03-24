@@ -267,9 +267,9 @@ export default function PlansPage() {
   return (
     <Suspense fallback={
       <PublicPageShell>
-        <main className="flex items-center justify-center py-24">
+        <section className="flex items-center justify-center py-24">
           <p className="text-sm text-slate-500">로딩 중...</p>
-        </main>
+        </section>
       </PublicPageShell>
     }>
       <PlansContent />

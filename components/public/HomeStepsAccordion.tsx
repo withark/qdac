@@ -47,13 +47,13 @@ export function HomeStepsAccordion() {
       <p className="mb-4 text-xs font-medium text-slate-500">서비스 핵심 흐름</p>
       <div className="space-y-2.5">
         {STEP_ITEMS.map((step) => (
-          <article key={step.n} className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 sm:px-6">
+          <article key={step.n} className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 sm:min-h-[86px] sm:px-6">
             <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-xs font-semibold text-primary-700">
               {step.n}
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-[15px] font-semibold text-slate-900">{step.title}</p>
-              <p className="mt-1 truncate text-sm text-slate-600">{step.summary}</p>
+              <p className="mt-1 text-sm leading-relaxed text-slate-600">{step.summary}</p>
             </div>
             <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-primary-600">
               {step.icon}

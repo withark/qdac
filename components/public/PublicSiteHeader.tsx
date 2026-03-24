@@ -24,6 +24,7 @@ const NAV_LINKS: readonly NavLink[] = [
 
 export function PublicSiteHeader({ loginHref = '/auth', loginLabel = '로그인' }: PublicSiteHeaderProps) {
   const pathname = usePathname()
+  const normalizedPath = pathname === '/' ? '/' : pathname.replace(/\/$/, '')
 
   return (
     <header className="sticky top-0 z-20 border-b border-slate-100/90 bg-white/95 backdrop-blur">
@@ -36,7 +37,7 @@ export function PublicSiteHeader({ loginHref = '/auth', loginLabel = '로그인'
           aria-label="공개 사이트 메뉴"
         >
           {NAV_LINKS.map((item) => {
-            const isActive = item.activePaths.includes(pathname)
+            const isActive = item.activePaths.includes(normalizedPath)
             return (
             <Link
               key={item.href}
