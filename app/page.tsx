@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { getServerSession } from 'next-auth/next'
+import { SiteFooter } from '@/components/SiteFooter'
 import { EvQuoteLogo } from '@/components/EvQuoteLogo'
 import { StartNowLink } from '@/components/StartNowLink'
 import { authOptions } from '@/lib/auth'
@@ -168,22 +169,7 @@ export default async function IntroPage() {
         </section>
       </main>
 
-      <footer className="flex-shrink-0 py-8 px-4 border-t border-slate-100 bg-white text-center text-xs text-slate-400">
-        <p className="text-slate-500 font-medium tracking-tight">플래닉 Planic — 행사 문서를 함께 기획하는 파트너</p>
-        <address className="not-italic mt-4 text-slate-500 leading-relaxed">
-          <p className="text-xs text-slate-600">
-            (주)시냇가에심은나무
-            <span className="text-slate-300 mx-2" aria-hidden>
-              ·
-            </span>
-            사업자등록번호 438-81-01028
-            <span className="text-slate-300 mx-2" aria-hidden>
-              ·
-            </span>
-            대표자 이다윗
-          </p>
-        </address>
-      </footer>
+      <SiteFooter />
     </div>
   )
 }
