@@ -39,7 +39,7 @@ const INTRO_FEATURE_BLOCKS = [
 
 export default async function IntroPage() {
   const session = await getServerSession(authOptions)
-  const initialStartHref = buildStartHref({ isAuthenticated: !!session, targetPath: '/estimate-generator' })
+  const initialStartHref = buildStartHref({ isAuthenticated: !!session, targetPath: '/dashboard' })
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 via-white to-primary-50/30">
