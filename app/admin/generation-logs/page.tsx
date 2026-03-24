@@ -40,6 +40,18 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === 'object' && !Array.isArray(v)
 }
 
+const TIMING_STAGE_KO: Record<string, string> = {
+  authSessionMs: '인증·세션',
+  contextLoadMs: '자료 로드',
+  promptBuildMs: '프롬프트 구성',
+  aiCallMs: 'AI 호출',
+  parseNormalizeMs: '결과 정리',
+  stagedRefineMs: '추가 다듬기',
+  saveMs: '저장',
+  totalMs: '전체',
+  retries: '재시도',
+}
+
 type AiRuntimePayload = {
   verdict: 'mock' | 'real' | 'no_keys'
   llmWillInvoke: boolean
@@ -325,9 +337,11 @@ export default function AdminGenerationLogsPage() {
                           </div>
                         ) : null}
                         {r.engineSnapshot?.llmInvoked === false ? (
-                          <div className="text-[11px] text-amber-800">LLM 호출: 없음(모의)</div>
+                          <div className="text-[11px] text-amber-800">AI 호출: 없음(모의 생성)</div>
+                        ) : r.engineSnapshot?.llmInvoked === true ? (
+                          <div className="text-[11px] text-emerald-800">AI 호출: 있음</div>
                         ) : (
-                          <div className="text-[11px] text-emerald-800">LLM 호출: 있음</div>
+                          <div className="text-[11px] text-slate-500">AI 호출: —</div>
                         )}
                         {isRecord(r.engineSnapshot?.timings) ? (
                           <div className="text-[11px] text-slate-500 space-y-0.5 mt-1">
@@ -339,7 +353,8 @@ export default function AdminGenerationLogsPage() {
                               )
                               .map(([k, v]) => (
                                 <div key={k}>
-                                  {k}: {typeof v === 'number' ? `${v}ms` : String(v)}
+                                  {TIMING_STAGE_KO[k] ?? k}:{' '}
+                                  {typeof v === 'number' ? `${v}ms` : String(v)}
                                 </div>
                               ))}
                           </div>
