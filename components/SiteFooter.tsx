@@ -21,10 +21,10 @@ export function SiteFooter({ compact = false }: SiteFooterProps) {
             <EvQuoteLogo showText size="sm" className="justify-center" />
           </Link>
 
-          <p className="mt-3 text-slate-600">행사 준비에 필요한 문서를 하나씩 빠르게 만드는 AI 도구</p>
+          <p className="mt-2.5 text-slate-600">행사 준비에 필요한 문서를 하나씩 빠르게 만드는 AI 도구</p>
 
-          <nav className="mt-5" aria-label="서비스 및 정책 링크">
-            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-slate-600">
+          <nav className="mt-4" aria-label="서비스 및 정책 링크">
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-slate-600">
               <Link href="/guide" className="transition-colors hover:text-primary-600">사용 방법</Link>
               <Link href="/features" className="transition-colors hover:text-primary-600">기능 소개</Link>
               <Link href="/help" className="transition-colors hover:text-primary-600">도움말</Link>
@@ -34,7 +34,7 @@ export function SiteFooter({ compact = false }: SiteFooterProps) {
             </div>
           </nav>
 
-          <address className="mt-5 max-w-[920px] space-y-1 text-[11px] leading-relaxed not-italic text-slate-600 sm:text-xs">
+          <address className="mt-4 max-w-[920px] space-y-0.5 text-[11px] leading-[1.45] not-italic text-slate-600 sm:text-xs">
             <p>
               <span className="font-medium text-slate-700">(주)시냇가에심은나무</span> · 사업자번호: 438-81-01028 · 대표자: 이다윗 · 주소:
               광릉수목원로 600 A동
