@@ -9,12 +9,18 @@ type PublicSiteHeaderProps = {
   loginLabel?: string
 }
 
-const NAV_LINKS = [
+type NavLink = {
+  href: string
+  label: string
+  activePaths: readonly string[]
+}
+
+const NAV_LINKS: readonly NavLink[] = [
   { href: '/features', label: '기능 소개', activePaths: ['/features'] },
   { href: '/guide', label: '사용 방법', activePaths: ['/guide', '/how-it-works'] },
   { href: '/help', label: '도움말', activePaths: ['/help', '/support'] },
   { href: '/plans', label: '요금제', activePaths: ['/plans'] },
-] as const
+]
 
 export function PublicSiteHeader({ loginHref = '/auth', loginLabel = '로그인' }: PublicSiteHeaderProps) {
   const pathname = usePathname()
