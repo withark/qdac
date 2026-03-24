@@ -2,7 +2,8 @@
 import Link from 'next/link'
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { EvQuoteLogo } from '@/components/EvQuoteLogo'
+import { SiteFooter } from '@/components/SiteFooter'
+import { PublicSiteHeader } from '@/components/public/PublicSiteHeader'
 import { apiFetch } from '@/lib/api/client'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
 import type { PlanType } from '@/lib/plans'
@@ -96,25 +97,17 @@ function PlansContent() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
-      <header className="flex-shrink-0 flex items-center justify-between px-6 py-4 bg-white border-b border-slate-100">
-        <Link href="/" className="flex items-center gap-2 text-gray-800 hover:text-primary-600 transition-colors">
-          <EvQuoteLogo showText size="md" />
-        </Link>
-        <nav className="flex items-center gap-4">
-          <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">홈</Link>
-          <Link href="/dashboard" className="text-sm font-medium text-primary-600 hover:text-primary-700">대시보드</Link>
-        </nav>
-      </header>
+    <div className="min-h-screen flex flex-col bg-white">
+      <PublicSiteHeader />
 
-      <main className="flex-1 px-6 py-14">
-        <div className="max-w-5xl mx-auto text-center mb-10 space-y-3">
+      <main className="flex-1 px-4 py-12 sm:px-6 sm:py-14">
+        <div className="mx-auto mb-10 max-w-5xl space-y-3 text-center">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">요금제</h1>
-          <p className="text-slate-500">
-            서비스 구독 요금입니다. 월간/연간을 선택하고 플랜별 한도·기능을 비교하세요.
+          <p className="text-sm text-slate-600 sm:text-base">
+            서비스 구독 요금입니다. 월간/연간을 선택하고 플랜별 한도와 기능을 비교하세요.
           </p>
 
-          <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-white border border-slate-200 shadow-sm">
+          <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
             <button
               type="button"
               onClick={() => setCycle('monthly')}
@@ -136,7 +129,7 @@ function PlansContent() {
           </div>
         </div>
 
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="mx-auto grid max-w-5xl grid-cols-1 gap-5 md:grid-cols-3">
           {cards.map((c) => {
             const isCurrent = currentPlan === c.plan
             const price = priceOf(c.plan)
@@ -145,7 +138,7 @@ function PlansContent() {
             return (
               <div
                 key={c.plan}
-                className={`rounded-2xl border-2 p-6 flex flex-col bg-white ${
+                className={`flex flex-col rounded-2xl border-2 bg-white p-6 ${
                   c.highlight ? 'border-primary-500 shadow-xl shadow-primary-500/10 ring-2 ring-primary-500/10' : 'border-slate-200'
                 }`}
               >
@@ -255,6 +248,8 @@ function PlansContent() {
 
       </main>
 
+      <SiteFooter compact />
+
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
           <div className="px-4 py-2 rounded-xl bg-gray-900 text-white text-sm shadow-lg">{toast}</div>
@@ -267,13 +262,12 @@ function PlansContent() {
 export default function PlansPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex flex-col bg-slate-50">
-        <header className="flex-shrink-0 flex items-center justify-between px-6 py-4 bg-white border-b border-slate-100">
-          <EvQuoteLogo showText size="md" />
-        </header>
+      <div className="min-h-screen flex flex-col bg-white">
+        <PublicSiteHeader />
         <main className="flex-1 flex items-center justify-center">
           <p className="text-sm text-slate-500">로딩 중...</p>
         </main>
+        <SiteFooter compact />
       </div>
     }>
       <PlansContent />

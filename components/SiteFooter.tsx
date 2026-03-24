@@ -9,55 +9,46 @@ type SiteFooterProps = {
  * 공통 사업자·약관 푸터 (랜딩, 약관 페이지 등)
  */
 export function SiteFooter({ compact = false }: SiteFooterProps) {
-  const pad = compact ? 'py-5 sm:py-6' : 'py-8 sm:py-9'
-  const gap = compact ? 'gap-4 sm:gap-8' : 'gap-6 sm:gap-10'
-  const titleSpace = compact ? 'space-y-2' : 'space-y-4'
-  const tagline = !compact
+  const pad = compact ? 'py-6 sm:py-7' : 'py-9 sm:py-10'
+  const textSize = compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
 
   return (
     <footer className="flex-shrink-0 border-t border-slate-100 bg-white">
-      <div className={`mx-auto max-w-5xl px-4 sm:px-6 ${pad}`}>
-        <div className={`flex flex-col sm:flex-row sm:items-start sm:justify-between ${gap}`}>
-          <div className={`min-w-0 ${titleSpace} text-left`}>
-            <div>
-              <p className="text-sm font-semibold text-slate-900 tracking-tight">플래닉 Planic</p>
-              {tagline && (
-                <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-                  행사 문서를 함께 기획하는 파트너
-                </p>
-              )}
+      <div className={`mx-auto max-w-5xl px-4 sm:px-6 ${pad} ${textSize}`}>
+        <div className="grid gap-8 sm:grid-cols-[1.5fr_1fr_1.4fr]">
+          <section className="space-y-2">
+            <p className="text-sm font-semibold tracking-tight text-slate-900">플래닉 Planic</p>
+            <p className="text-slate-600">행사 준비에 필요한 문서를 하나씩 빠르게 만드는 AI 도구</p>
+          </section>
+
+          <nav className="space-y-2" aria-label="서비스 링크">
+            <p className="font-semibold text-slate-900">서비스</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-slate-600">
+              <Link href="/features" className="transition-colors hover:text-primary-600">기능 소개</Link>
+              <Link href="/guide" className="transition-colors hover:text-primary-600">사용 방법</Link>
+              <Link href="/help" className="transition-colors hover:text-primary-600">도움말</Link>
+              <Link href="/plans" className="transition-colors hover:text-primary-600">요금제</Link>
             </div>
-            <address className="not-italic space-y-1.5 text-[11px] sm:text-xs text-slate-600 leading-relaxed">
-              <p className="text-slate-700 font-medium">(주)시냇가에심은나무</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-slate-600">
+              <Link href="/terms" className="transition-colors hover:text-primary-600">이용약관</Link>
+              <Link href="/privacy" className="transition-colors hover:text-primary-600">개인정보처리방침</Link>
+            </div>
+          </nav>
+
+          <section className="space-y-2">
+            <p className="font-semibold text-slate-900">사업자 정보</p>
+            <address className="not-italic space-y-1 text-slate-600">
+              <p>주소: 광릉수목원로 600 A동</p>
               <p>
-                사업자등록번호 438-81-01028
-                <span className="text-slate-300 mx-1.5" aria-hidden>
-                  ·
-                </span>
-                대표자 이다윗
-              </p>
-              <p>주소 광릉수목원로 600 A동</p>
-              <p>
-                대표 연락처{' '}
-                <a href="tel:07086661112" className="text-primary-700 hover:underline font-medium">
+                대표 연락처:{' '}
+                <a href="tel:07086661112" className="font-medium text-primary-700 hover:underline">
                   070-8666-1112
                 </a>
               </p>
-              <p>고객센터 운영시간 오전 10:00 ~ 16:00</p>
-              <p>통신판매업 신고번호 제2017-경기포천-0319호</p>
+              <p>통신판매업 신고번호: 제2017-경기포천-0319호</p>
+              <p>고객센터 운영시간: 오전 10:00 ~ 16:00</p>
             </address>
-          </div>
-          <nav
-            className={`flex flex-row sm:flex-col flex-wrap gap-x-5 gap-y-2 sm:items-end sm:gap-2 shrink-0 ${compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'}`}
-            aria-label="약관 및 정책"
-          >
-            <Link href="/terms" className="font-medium text-slate-700 hover:text-primary-600 transition-colors">
-              이용약관
-            </Link>
-            <Link href="/privacy" className="font-medium text-slate-700 hover:text-primary-600 transition-colors">
-              개인정보처리방침
-            </Link>
-          </nav>
+          </section>
         </div>
       </div>
     </footer>
