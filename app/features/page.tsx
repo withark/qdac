@@ -41,9 +41,9 @@ export default function FeaturesPage() {
   return (
     <PublicPageShell>
       <article className="mx-auto max-w-4xl space-y-8">
-        <header>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">기능 소개</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
+        <header className="max-w-2xl">
+          <h1 className="text-[30px] font-extrabold tracking-tight text-slate-900 sm:text-[34px]">기능 소개</h1>
+          <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-[15px]">
             플래닉은 행사 문서를 하나씩 빠르게 만드는 데 집중합니다. 시작은 단순하게, 결과는 실무에 맞게 정교화합니다.
           </p>
         </header>
@@ -60,6 +60,47 @@ export default function FeaturesPage() {
               <p className="mt-3 text-sm font-semibold text-primary-700">{feature.takeaway}</p>
             </article>
           ))}
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+          <h2 className="text-lg font-bold text-slate-900">플래닉이 만들 수 있는 문서 종류</h2>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+              <p className="text-sm font-semibold text-slate-900">견적서</p>
+              <p className="mt-1 text-sm text-slate-600">행사 예산·항목·금액 기준을 빠르게 정리해야 할 때</p>
+            </div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+              <p className="text-sm font-semibold text-slate-900">기획안</p>
+              <p className="mt-1 text-sm text-slate-600">행사 목적과 구성 흐름을 문서로 정리해야 할 때</p>
+            </div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+              <p className="text-sm font-semibold text-slate-900">프로그램 제안서</p>
+              <p className="mt-1 text-sm text-slate-600">세션·순서 중심의 프로그램 구성을 제안해야 할 때</p>
+            </div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+              <p className="text-sm font-semibold text-slate-900">시나리오</p>
+              <p className="mt-1 text-sm text-slate-600">시간 흐름과 진행 멘트까지 포함한 실행안이 필요할 때</p>
+            </div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+              <p className="text-sm font-semibold text-slate-900">큐시트</p>
+              <p className="mt-1 text-sm text-slate-600">현장 운영 순서와 역할 분담을 시간축으로 맞출 때</p>
+            </div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+              <p className="text-sm font-semibold text-slate-900">과업지시서 요약</p>
+              <p className="mt-1 text-sm text-slate-600">긴 요구사항 문서에서 핵심만 빠르게 추려야 할 때</p>
+            </div>
+          </div>
+          <div className="mt-5 space-y-2 rounded-xl border border-primary-100 bg-primary-50/40 p-4">
+            <p className="text-sm text-slate-700">
+              <span className="font-semibold text-slate-900">주제만 시작:</span> 참고 문서가 없어도 주제와 목적만으로 초안을 만들 수 있습니다.
+            </p>
+            <p className="text-sm text-slate-700">
+              <span className="font-semibold text-slate-900">기존 문서 연결:</span> 기존 자료를 연결하면 맥락과 표현을 더 정교하게 반영합니다.
+            </p>
+            <p className="text-sm text-slate-700">
+              <span className="font-semibold text-slate-900">저장 후 수정:</span> 생성한 문서는 저장 후 다시 열어 지속적으로 수정·재사용할 수 있습니다.
+            </p>
+          </div>
         </section>
       </article>
     </PublicPageShell>

@@ -1,4 +1,7 @@
+'use client'
+
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { EvQuoteLogo } from '@/components/EvQuoteLogo'
 
 type PublicSiteHeaderProps = {
@@ -14,6 +17,8 @@ const NAV_LINKS = [
 ] as const
 
 export function PublicSiteHeader({ loginHref = '/auth', loginLabel = '로그인' }: PublicSiteHeaderProps) {
+  const pathname = usePathname()
+
   return (
     <header className="sticky top-0 z-20 border-b border-slate-100 bg-white/95 backdrop-blur">
       <div className="mx-auto flex h-12 w-full max-w-5xl items-center gap-2.5 px-4 sm:px-6">
@@ -28,7 +33,11 @@ export function PublicSiteHeader({ loginHref = '/auth', loginLabel = '로그인'
             <Link
               key={item.href}
               href={item.href}
-              className="whitespace-nowrap px-1 py-1 leading-none transition-colors hover:text-primary-600"
+              className={`whitespace-nowrap rounded-md px-2.5 py-1.5 leading-none transition-colors ${
+                pathname === item.href
+                  ? 'border border-slate-200 bg-slate-50 text-slate-900'
+                  : 'text-slate-600 hover:text-primary-600'
+              }`}
             >
               {item.label}
             </Link>

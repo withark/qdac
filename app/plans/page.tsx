@@ -98,9 +98,9 @@ function PlansContent() {
   return (
     <PublicPageShell>
       <section className="mx-auto max-w-5xl">
-        <div className="mx-auto mb-8 max-w-3xl text-center">
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">요금제</h1>
-          <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
+        <div className="mx-auto mb-8 max-w-3xl">
+          <h1 className="text-[30px] font-extrabold tracking-tight text-slate-900 sm:text-[34px]">요금제</h1>
+          <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-[15px]">
             플래닉은 행사 문서 생성 흐름에 맞춘 플랜을 제공합니다. 월간/연간을 선택해 팀에 맞는 구성을 비교해보세요.
           </p>
         </div>

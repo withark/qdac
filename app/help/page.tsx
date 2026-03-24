@@ -11,12 +11,14 @@ export default function HelpPage() {
   return (
     <PublicPageShell>
       <article className="mx-auto max-w-4xl space-y-8">
-        <header>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">도움말</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
+        <header className="max-w-2xl">
+          <h1 className="text-[30px] font-extrabold tracking-tight text-slate-900 sm:text-[34px]">도움말</h1>
+          <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-[15px]">
             자주 묻는 질문을 먼저 확인해보세요. 추가 문의는 아래 대표 연락처로 빠르게 안내해드립니다.
           </p>
         </header>
+
+        <h2 className="text-lg font-bold text-slate-900">자주 묻는 질문</h2>
 
         <HelpFaqAccordion />
 

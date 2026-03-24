@@ -38,12 +38,14 @@ export default function GuidePage() {
   return (
     <PublicPageShell>
       <article className="mx-auto max-w-4xl space-y-8">
-        <header>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">사용 방법</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
+        <header className="max-w-2xl">
+          <h1 className="text-[30px] font-extrabold tracking-tight text-slate-900 sm:text-[34px]">사용 방법</h1>
+          <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-[15px]">
             플래닉은 단계 흐름에 맞춰 문서를 하나씩 만드는 방식입니다. 짧은 입력으로 시작해 저장/수정까지 이어집니다.
           </p>
         </header>
+
+        <h2 className="text-lg font-bold text-slate-900">문서 생성 단계</h2>
 
         <section className="space-y-3">
           {steps.map((step) => (
@@ -57,6 +59,13 @@ export default function GuidePage() {
               </div>
             </article>
           ))}
+        </section>
+
+        <section className="rounded-2xl border border-primary-100 bg-primary-50/40 p-5 sm:p-6">
+          <h3 className="text-base font-bold text-slate-900">더 정교하게 만들고 싶다면</h3>
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">
+            단가표, 참고 견적서, 과업지시서 같은 기존 자료를 연결해 문서 간 기준과 표현을 통일하면 실무 반영도가 더 높아집니다.
+          </p>
         </section>
       </article>
     </PublicPageShell>
