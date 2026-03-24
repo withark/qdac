@@ -13,7 +13,8 @@ export async function MainPageContent() {
 
   return (
     <PublicPageShell loginHref={loginHref} loginLabel={loginLabel}>
-      <section className="mx-auto mt-1 w-full max-w-[960px] rounded-[28px] border border-slate-200/70 bg-slate-100/70 px-6 pb-14 pt-14 text-center sm:px-10 sm:pb-16 sm:pt-20">
+      <section className="mx-auto -mt-2 w-full max-w-none bg-gradient-to-b from-[#eef7ff] to-white px-6 pb-14 pt-16 text-center sm:pb-16 sm:pt-20">
+        <div className="mx-auto max-w-[860px]">
         <p className="text-[11px] font-semibold tracking-[0.1em] text-primary-600">행사 문서 생성을 위한 파트너</p>
         <h1 className="mt-5 text-[30px] font-bold leading-[1.3] tracking-tight text-slate-900 sm:text-[42px]">
           행사 문서 준비를 더 빠르게,
@@ -33,6 +34,7 @@ export async function MainPageContent() {
           >
             무료로 시작하기
           </StartNowLink>
+        </div>
         </div>
       </section>
 
