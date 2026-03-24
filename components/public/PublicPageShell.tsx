@@ -12,7 +12,7 @@ export function PublicPageShell({ children, loginHref, loginLabel, compactFooter
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <PublicSiteHeader loginHref={loginHref} loginLabel={loginLabel} />
-      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-12">{children}</main>
+      <main className="mx-auto w-full max-w-5xl px-4 py-12 sm:px-6 sm:py-14">{children}</main>
       <SiteFooter compact={compactFooter} />
     </div>
   )
