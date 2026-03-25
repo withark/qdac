@@ -1,6 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import { useRef } from 'react'
 import clsx from 'clsx'
 import { Button } from '@/components/ui'
 
@@ -39,6 +40,21 @@ export default function SimpleGeneratorWizard({
   /** 생성 버튼이 비활성일 때, 부족한 입력을 한눈에 설명 */
   validationMessage?: string | null
 }) {
+  // 부모 컴포넌트의 `generating` 상태 업데이트가 렌더되기 전
+  // 아주 빠른 더블 클릭에서 `onGenerate`가 2번 호출되는 것을 방지합니다.
+  const inFlightRef = useRef(false)
+
+  const handleGenerateClick = async () => {
+    if (generateDisabled || generating) return
+    if (inFlightRef.current) return
+    inFlightRef.current = true
+    try {
+      await onGenerate()
+    } finally {
+      inFlightRef.current = false
+    }
+  }
+
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-card">
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -106,7 +122,7 @@ export default function SimpleGeneratorWizard({
             variant="primary"
             className="w-full justify-center py-3.5 text-sm"
             disabled={generateDisabled || generating}
-            onClick={() => void onGenerate()}
+            onClick={() => void handleGenerateClick()}
           >
             {generating ? `${generateLabel}...` : generateLabel}
           </Button>
