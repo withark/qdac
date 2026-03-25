@@ -10,3 +10,6 @@ trace.zip
 repomix-output.md
 *.log
 .DS_Store
+
+# 다른 프로젝트(블로비 등) 실수로 복사된 폴더 — 플래닉 레포에는 포함하지 않음
+blogbi/
