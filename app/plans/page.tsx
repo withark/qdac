@@ -111,6 +111,88 @@ function PlansContent() {
           </p>
         </div>
 
+        <section className="mx-auto mb-8 max-w-5xl" aria-labelledby="plans-compare-heading">
+          <h2 id="plans-compare-heading" className="text-[17px] font-semibold text-slate-900">
+            플랜 핵심 비교
+          </h2>
+          <p className="mt-1 text-xs text-slate-500 sm:text-sm">한도·보관 기간을 한눈에 비교한 뒤 아래에서 결제 주기를 고르세요.</p>
+          <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <table
+              className="w-full min-w-[520px] border-collapse text-left text-sm text-slate-700"
+              aria-label="무료, 베이직, 프리미엄 플랜 비교"
+            >
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50/90">
+                  <th scope="col" className="px-4 py-3 font-semibold text-slate-900 sm:px-5">
+                    항목
+                  </th>
+                  <th scope="col" className="px-3 py-3 text-center font-semibold text-slate-900 sm:px-4">
+                    무료
+                  </th>
+                  <th scope="col" className="px-3 py-3 text-center font-semibold text-primary-800 sm:px-4">
+                    베이직
+                  </th>
+                  <th scope="col" className="px-3 py-3 text-center font-semibold text-slate-900 sm:px-4">
+                    프리미엄
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                <tr>
+                  <th scope="row" className="px-4 py-3 font-medium text-slate-600 sm:px-5">
+                    월 견적 생성
+                  </th>
+                  {(['FREE', 'BASIC', 'PREMIUM'] as const).map((p) => (
+                    <td key={p} className="px-3 py-3 text-center tabular-nums sm:px-4">
+                      {Number.isFinite(PLAN_LIMITS[p].monthlyQuoteGenerateLimit)
+                        ? `${PLAN_LIMITS[p].monthlyQuoteGenerateLimit}건`
+                        : '—'}
+                    </td>
+                  ))}
+                </tr>
+                <tr>
+                  <th scope="row" className="px-4 py-3 font-medium text-slate-600 sm:px-5">
+                    기업정보 저장
+                  </th>
+                  {(['FREE', 'BASIC', 'PREMIUM'] as const).map((p) => (
+                    <td key={p} className="px-3 py-3 text-center tabular-nums sm:px-4">
+                      {Number.isFinite(PLAN_LIMITS[p].companyProfileLimit)
+                        ? `${PLAN_LIMITS[p].companyProfileLimit}개`
+                        : '무제한'}
+                    </td>
+                  ))}
+                </tr>
+                <tr>
+                  <th scope="row" className="px-4 py-3 font-medium text-slate-600 sm:px-5">
+                    이력 보관
+                  </th>
+                  {(['FREE', 'BASIC', 'PREMIUM'] as const).map((p) => (
+                    <td key={p} className="px-3 py-3 text-center tabular-nums sm:px-4">
+                      {PLAN_LIMITS[p].historyRetentionDays == null
+                        ? '무제한'
+                        : `${PLAN_LIMITS[p].historyRetentionDays}일`}
+                    </td>
+                  ))}
+                </tr>
+                <tr className="bg-slate-50/50">
+                  <th scope="row" className="px-4 py-3 font-medium text-slate-600 sm:px-5">
+                    가격 ({cycle === 'monthly' ? '월' : '연'})
+                  </th>
+                  {(['FREE', 'BASIC', 'PREMIUM'] as const).map((p) => {
+                    const price = priceOf(p)
+                    const unit = p === 'FREE' ? '' : cycle === 'annual' ? '/년' : '/월'
+                    return (
+                      <td key={p} className="px-3 py-3 text-center text-[13px] font-semibold tabular-nums text-slate-900 sm:px-4 sm:text-sm">
+                        {p === 'FREE' ? '0원' : `${fmtKRW(price)}원${unit}`}
+                      </td>
+                    )
+                  })}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         <div className="mb-5 flex justify-center">
           <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
             <button

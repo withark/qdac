@@ -46,16 +46,29 @@ function usageLine(label: string, used: number, limit: number) {
   return { label, used, limit, pct: safeLimit > 0 ? Math.min(100, Math.round((used / safeLimit) * 100)) : 0 }
 }
 
+const ONBOARDING_STORAGE_KEY = 'planic_dashboard_onboarding_dismissed'
+
 function DashboardContent() {
   const searchParams = useSearchParams()
   const [me, setMe] = useState<MeResponse | null>(null)
   const [err, setErr] = useState('')
   const [successToast, setSuccessToast] = useState('')
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   useEffect(() => {
     apiFetch<MeResponse>('/api/me')
       .then(setMe)
       .catch((e) => setErr(toUserMessage(e, '정보를 불러오지 못했습니다.')))
+  }, [])
+
+  useEffect(() => {
+    try {
+      if (typeof window === 'undefined') return
+      if (window.localStorage.getItem(ONBOARDING_STORAGE_KEY) === '1') return
+      setShowOnboarding(true)
+    } catch {
+      /* ignore */
+    }
   }, [])
 
   useEffect(() => {
@@ -98,6 +111,42 @@ function DashboardContent() {
         <div className="flex-1 overflow-y-auto p-6 space-y-6 max-w-5xl mx-auto w-full">
           {err && (
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{err}</div>
+          )}
+
+          {me && showOnboarding && (
+            <div
+              className="rounded-2xl border border-primary-200 bg-gradient-to-br from-primary-50/90 to-white px-5 py-4 shadow-card"
+              role="status"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-sm font-bold text-gray-900">처음이신가요? 문서 만들기부터 시작해 보세요</p>
+                  <p className="mt-1 text-sm text-slate-600 leading-snug">
+                    견적·기획·큐시트 등 원하는 유형을 고르고, 주제만 입력해도 초안을 만들 수 있어요.
+                  </p>
+                  <Link
+                    href="/create-documents"
+                    className="mt-3 inline-flex items-center justify-center rounded-xl bg-primary-600 px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-primary-700"
+                  >
+                    문서 만들기 화면으로 이동
+                  </Link>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      window.localStorage.setItem(ONBOARDING_STORAGE_KEY, '1')
+                    } catch {
+                      /* ignore */
+                    }
+                    setShowOnboarding(false)
+                  }}
+                  className="shrink-0 self-end text-xs font-semibold text-slate-500 underline underline-offset-2 hover:text-slate-700 sm:self-start"
+                >
+                  다시 보지 않기
+                </button>
+              </div>
+            </div>
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">

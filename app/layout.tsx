@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { SessionProvider } from '@/components/auth/SessionProvider'
+import { SiteJsonLd } from '@/components/seo/SiteJsonLd'
 import { SITE_DESCRIPTION, SITE_NAME } from '@/lib/site-metadata'
 
 const raw = process.env.NEXTAUTH_URL?.trim() ?? ''
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet" />
       </head>
       <body className="bg-slate-50 text-gray-900 antialiased min-h-screen">
+        <SiteJsonLd />
         <SessionProvider>{children}</SessionProvider>
       </body>
     </html>

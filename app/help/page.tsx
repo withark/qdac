@@ -23,7 +23,9 @@ export default function HelpPage() {
           </p>
         </header>
 
-        <h2 className="text-[17px] font-semibold text-slate-900">자주 묻는 질문</h2>
+        <h2 id="faq" className="text-[17px] font-semibold text-slate-900 scroll-mt-24">
+          자주 묻는 질문
+        </h2>
 
         <HelpFaqAccordion />
 

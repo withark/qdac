@@ -7,7 +7,8 @@
     "prebuild": "node scripts/check-auth-env.mjs",
     "build": "next build",
     "start": "next start",
-    "verify:real-model-quality": "tsx scripts/verify-real-model-quality.ts"
+    "verify:real-model-quality": "tsx scripts/verify-real-model-quality.ts",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",
@@ -32,6 +33,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.49.1",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",

@@ -45,6 +45,7 @@ export function PublicSiteHeader({ loginHref = '/auth', loginLabel = '로그인'
   const [mobileOpen, setMobileOpen] = useState(false)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const firstMobileLinkRef = useRef<HTMLAnchorElement>(null)
+  const mobilePanelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setMobileOpen(false)
@@ -66,14 +67,35 @@ export function PublicSiteHeader({ loginHref = '/auth', loginLabel = '로그인'
         e.preventDefault()
         setMobileOpen(false)
         menuButtonRef.current?.focus()
+        return
+      }
+      if (e.key !== 'Tab') return
+      const panel = mobilePanelRef.current
+      if (!panel) return
+      const focusable = panel.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+      const list = Array.from(focusable).filter((el) => !el.hasAttribute('hidden') && el.offsetParent !== null)
+      if (list.length === 0) return
+      const first = list[0]
+      const last = list[list.length - 1]
+      const active = document.activeElement as HTMLElement | null
+      if (e.shiftKey) {
+        if (active === first) {
+          e.preventDefault()
+          last.focus()
+        }
+      } else if (active === last) {
+        e.preventDefault()
+        first.focus()
       }
     }
-    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keydown', onKeyDown, true)
     const id = window.requestAnimationFrame(() => {
       firstMobileLinkRef.current?.focus()
     })
     return () => {
-      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keydown', onKeyDown, true)
       window.cancelAnimationFrame(id)
     }
   }, [mobileOpen])
@@ -138,7 +160,11 @@ export function PublicSiteHeader({ loginHref = '/auth', loginLabel = '로그인'
             onClick={() => setMobileOpen(false)}
           />
           <div
+            ref={mobilePanelRef}
             id="public-site-nav-mobile"
+            role="dialog"
+            aria-modal="true"
+            aria-label="공개 사이트 메뉴"
             className="fixed inset-x-0 top-[58px] z-40 max-h-[min(70vh,calc(100vh-58px))] overflow-y-auto border-b border-slate-100 bg-white px-4 py-3 shadow-lg md:hidden"
           >
             <nav aria-label="공개 사이트 메뉴 모바일">
