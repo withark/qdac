@@ -12,7 +12,7 @@ const BodySchema = z.object({
 })
 
 /**
- * mock: DB에 즉시 구독 반영. live: Stripe Checkout URL 반환 후 웹훅으로 최종 반영.
+ * mock: DB에 즉시 구독 반영. live: 토스 결제 checkout URL 반환 후 confirm·웹훅으로 최종 반영.
  */
 export async function POST(req: NextRequest) {
   try {
