@@ -72,11 +72,11 @@ export function HelpFaqAccordion() {
   const itemsWithIndex = useMemo(() => FAQ_ITEMS.map((item, index) => ({ ...item, index })), [])
 
   return (
-    <section className="space-y-2" aria-label="자주 묻는 질문">
+    <section className="space-y-1.5" aria-label="자주 묻는 질문">
       {itemsWithIndex.map((item) => {
         const isOpen = openIndex === item.index
         return (
-          <article key={item.id} id={`faq-${item.id}`} className="scroll-mt-24 rounded-xl border border-slate-200 bg-white">
+          <article key={item.id} id={`faq-${item.id}`} className="scroll-mt-24 rounded-lg border border-slate-200 bg-white">
             <button
               type="button"
               onClick={() => {
@@ -88,17 +88,17 @@ export function HelpFaqAccordion() {
                   window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
                 }
               }}
-              className="flex w-full items-center justify-between gap-4 px-4 py-3.5 text-left sm:px-5"
+              className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left sm:px-[18px]"
               aria-expanded={isOpen}
               aria-controls={`faq-panel-${item.id}`}
               id={`faq-trigger-${item.id}`}
             >
-              <span className="text-sm font-semibold text-slate-900 sm:text-[15px]">{item.q}</span>
+              <span className="text-[15px] font-semibold text-slate-900 sm:text-[16px]">{item.q}</span>
               <span
-                className={`inline-flex h-6 w-6 items-center justify-center rounded-md bg-slate-50 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                className={`inline-flex h-5 w-5 items-center justify-center rounded bg-slate-50 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
                 aria-hidden="true"
               >
-                <svg viewBox="0 0 20 20" className="h-5 w-5 fill-current">
+                <svg viewBox="0 0 20 20" className="h-4 w-4 fill-current">
                   <path d="M5.2 7.6a1 1 0 0 1 1.4 0L10 11l3.4-3.4a1 1 0 1 1 1.4 1.4l-4.1 4.1a1 1 0 0 1-1.4 0L5.2 9a1 1 0 0 1 0-1.4Z" />
                 </svg>
               </span>
@@ -108,9 +108,9 @@ export function HelpFaqAccordion() {
                 id={`faq-panel-${item.id}`}
                 role="region"
                 aria-labelledby={`faq-trigger-${item.id}`}
-                className="border-t border-slate-100 px-4 pb-4 pt-3 sm:px-5"
+                className="border-t border-slate-100 px-4 pb-3.5 pt-2.5 sm:px-[18px]"
               >
-                <p className="text-sm leading-relaxed text-slate-600">{item.a}</p>
+                <p className="text-[14px] leading-relaxed text-slate-600 sm:text-[15px]">{item.a}</p>
               </div>
             ) : null}
           </article>

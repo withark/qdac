@@ -128,16 +128,16 @@ export async function MainPageContent() {
 
   return (
     <PublicPageShell loginHref={loginHref} loginLabel={loginLabel}>
-      <section className="mx-auto -mt-2 w-full max-w-none bg-gradient-to-b from-[#f2f7fc] via-[#f8fbff] to-white px-6 pb-14 pt-16 text-center sm:pb-16 sm:pt-20">
+      <section className="mx-auto -mt-2 w-full max-w-none bg-gradient-to-b from-[#f2f7fc] via-[#f8fbff] to-white px-6 pb-12 pt-14 text-center sm:pb-14 sm:pt-16">
         <div className="mx-auto max-w-[860px] text-center">
           <p className="text-[11px] font-semibold tracking-[0.1em] text-primary-600">Event Document Automation</p>
-          <h1 className="mt-5 text-[30px] font-bold leading-[1.3] tracking-tight text-slate-900 sm:text-[42px]">
+          <h1 className="mt-4 text-[28px] font-bold leading-[1.3] tracking-tight text-slate-900 sm:text-[38px]">
             행사 문서 올인원,
             <br />
             플래닉으로 더 빠르게
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-[15px]">
-            기획서부터 결과 보고서까지, v0 스타일의 랜딩 구성을 현재 서비스 흐름에 맞춰 적용했습니다.
+            행사 기획서, 협찬 제안서, 결과 보고서까지 플래닉에서 빠르게 만들고 바로 활용하세요.
           </p>
           <p className="mt-2 text-sm font-medium text-slate-600">가입 후 무료로 시작 가능합니다.</p>
 
@@ -157,9 +157,9 @@ export async function MainPageContent() {
             </Link>
           </div>
 
-          <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
             {['행사 기획서', '협찬 제안서', '결과 보고서'].map((item) => (
-              <div key={item} className="rounded-2xl border border-slate-200 bg-white/90 p-5">
+              <div key={item} className="rounded-xl border border-slate-200 bg-white/90 p-4">
                 <p className="text-sm font-semibold text-slate-900">{item}</p>
               </div>
             ))}
@@ -169,15 +169,15 @@ export async function MainPageContent() {
 
       <HomeStepsAccordion />
 
-      <section className="mx-auto w-full max-w-none px-6 py-14 sm:py-16">
+      <section className="mx-auto w-full max-w-none px-6 py-12 sm:py-14">
         <div className="mx-auto max-w-5xl">
           <div className="text-center">
             <p className="text-xs font-semibold tracking-wide text-primary-600">Core Features</p>
-            <h2 className="mt-3 text-2xl font-bold text-slate-900 sm:text-3xl">업무 효율을 높이는 핵심 기능</h2>
+            <h2 className="mt-2.5 text-[22px] font-bold text-slate-900 sm:text-[30px]">업무 효율을 높이는 핵심 기능</h2>
           </div>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-6 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
             {featureCards.map((card) => (
-              <article key={card.title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <article key={card.title} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h3 className="text-base font-semibold text-slate-900">{card.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-slate-600">{card.description}</p>
               </article>
@@ -186,15 +186,15 @@ export async function MainPageContent() {
         </div>
       </section>
 
-      <section className="mx-auto w-full max-w-none bg-slate-50/70 px-6 py-14 sm:py-16">
+      <section className="mx-auto w-full max-w-none bg-slate-50/70 px-6 py-12 sm:py-14">
         <div className="mx-auto max-w-5xl">
           <div className="text-center">
             <p className="text-xs font-semibold tracking-wide text-primary-600">Document Templates</p>
-            <h2 className="mt-3 text-2xl font-bold text-slate-900 sm:text-3xl">행사 라이프사이클 전체를 커버</h2>
+            <h2 className="mt-2.5 text-[22px] font-bold text-slate-900 sm:text-[30px]">행사 라이프사이클 전체를 커버</h2>
           </div>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-6 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
             {templateCards.map((name) => (
-              <article key={name} className="rounded-2xl border border-slate-200 bg-white p-6">
+              <article key={name} className="rounded-xl border border-slate-200 bg-white p-5">
                 <h3 className="text-base font-semibold text-slate-900">{name}</h3>
                 <p className="mt-2 text-sm text-slate-600">실무에서 바로 사용할 수 있는 구조로 빠르게 생성합니다.</p>
               </article>
@@ -203,19 +203,19 @@ export async function MainPageContent() {
         </div>
       </section>
 
-      <section className="mx-auto w-full max-w-none px-6 py-14 sm:py-16">
+      <section className="mx-auto w-full max-w-none px-6 py-12 sm:py-14">
         <div className="mx-auto max-w-5xl">
           <div className="text-center">
             <p className="text-xs font-semibold tracking-wide text-primary-600">Pricing</p>
-            <h2 className="mt-3 text-2xl font-bold text-slate-900 sm:text-3xl">규모에 맞는 플랜 선택</h2>
+            <h2 className="mt-2.5 text-[22px] font-bold text-slate-900 sm:text-[30px]">규모에 맞는 플랜 선택</h2>
           </div>
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
+          <div className="mt-6 grid gap-3.5 md:grid-cols-3">
             {pricingCards.map((card) => (
               <article
                 key={card.plan}
-                className={`rounded-2xl border p-6 ${
+                className={`rounded-xl border p-5 ${
                   card.highlight
-                    ? 'border-primary-500 bg-primary-50/40 shadow-lg shadow-primary-500/10 ring-2 ring-primary-500/10'
+                    ? 'border-primary-500 bg-primary-50/40 shadow-sm shadow-primary-500/10 ring-1 ring-primary-500/10'
                     : 'border-slate-200 bg-white'
                 }`}
               >
@@ -236,25 +236,25 @@ export async function MainPageContent() {
         </div>
       </section>
 
-      <section className="mx-auto w-full max-w-none px-6 py-14 sm:py-16">
+      <section className="mx-auto w-full max-w-none px-6 py-12 sm:py-14">
         <div className="mx-auto max-w-7xl">
-          <div className="text-center mb-14">
+          <div className="mb-10 text-center">
             <p className="text-xs font-semibold tracking-wide text-primary-600">Testimonials</p>
-            <h2 className="mt-3 text-2xl font-bold text-slate-900 sm:text-3xl">현장의 목소리</h2>
+            <h2 className="mt-2.5 text-[22px] font-bold text-slate-900 sm:text-[30px]">현장의 목소리</h2>
             <p className="mt-3 text-sm text-slate-600">다양한 분야의 기획 담당자들이 경험한 변화를 담았습니다.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {reviews.map((review) => (
-              <article key={review.name} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="flex items-center gap-1 mb-4">
+              <article key={review.name} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="mb-3 flex items-center gap-1">
                   {Array.from({ length: review.rating }).map((_, i) => (
                     <StarIcon key={i} className="w-4 h-4 text-primary" />
                   ))}
                 </div>
                 <p className="text-sm leading-relaxed text-slate-700">"{review.content}"</p>
-                <div className="mt-6 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <div className="mt-5 flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
                     <span className="text-sm font-semibold text-primary">{review.name[0]}</span>
                   </div>
                   <div>
@@ -268,20 +268,20 @@ export async function MainPageContent() {
         </div>
       </section>
 
-      <section id="faq" className="mx-auto w-full max-w-none bg-slate-50/70 px-6 py-14 sm:py-16">
+      <section id="faq" className="mx-auto w-full max-w-none bg-slate-50/70 px-6 py-12 sm:py-14">
         <div className="mx-auto max-w-5xl">
-          <div className="text-center mb-10">
+          <div className="mb-8 text-center">
             <p className="text-xs font-semibold tracking-wide text-primary-600">FAQ</p>
-            <h2 className="mt-3 text-2xl font-bold text-slate-900 sm:text-3xl">자주 묻는 질문</h2>
+            <h2 className="mt-2.5 text-[30px] font-bold leading-tight text-slate-900 sm:text-[34px]">자주 묻는 질문</h2>
             <p className="mt-3 text-sm text-slate-600">서비스 이용에 관해 궁금한 점을 확인하세요.</p>
           </div>
           <HelpFaqAccordion />
         </div>
       </section>
 
-      <section className="mx-auto w-full max-w-none px-6 py-14 sm:py-16">
+      <section className="mx-auto w-full max-w-none px-6 py-12 sm:py-14">
         <div className="mx-auto max-w-4xl text-center">
-          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">문서 작업에 들이는 시간, 줄여보세요</h2>
+          <h2 className="text-[22px] font-bold text-slate-900 sm:text-[30px]">문서 작업에 들이는 시간, 줄여보세요</h2>
           <p className="mt-4 text-sm sm:text-[15px] text-slate-600">
             무료 체험으로 Planic의 효율성을 직접 경험해보세요. 가입 후 3회 무료 문서 생성을 제공합니다.
           </p>
