@@ -77,6 +77,8 @@ function PlansContent() {
 
   const priceUnit = () => (cycle === 'annual' ? '/년' : '/월')
 
+  const periodText = () => (cycle === 'annual' ? '12개월(365일)' : '1개월(30일)')
+
   async function subscribe(planType: PlanType) {
     if (planType === 'FREE') return
     setLoading(true)
@@ -263,6 +265,10 @@ function PlansContent() {
                   </p>
                 )}
 
+                {c.plan !== 'FREE' && (
+                  <p className="mt-2 text-xs text-slate-500">이용기간: {periodText()}</p>
+                )}
+
                 <ul className="mt-5 space-y-2 text-sm text-slate-700">
                   <li className="flex items-center justify-between">
                     <span className="text-slate-600">월 견적 생성</span>
@@ -380,6 +386,13 @@ function PlansContent() {
               </div>
             )
           })}
+        </div>
+
+        <div className="mx-auto mt-4 flex max-w-5xl items-center justify-between text-xs text-slate-500">
+          <p>* 위 상품의 최대 이용기간은 1년입니다.</p>
+          <Link href="/refund" className="inline-flex items-center gap-1 font-semibold text-primary-700 hover:underline">
+            환불 규정 안내 <span aria-hidden="true">›</span>
+          </Link>
         </div>
 
       </section>
