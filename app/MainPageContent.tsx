@@ -306,7 +306,7 @@ export async function MainPageContent() {
               무료로 시작하기
             </StartNowLink>
             <Link
-              href="mailto:contact@planic.cloud"
+              href="mailto:sisimtree2017@naver.com"
               className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-8 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 min-w-[220px]"
             >
               문의하기
