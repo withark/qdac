@@ -5,9 +5,24 @@
 :root {
   --color-primary: 79 70 229;
   --color-primary-hover: 67 56 202;
+  --app-bg: 248 250 252;
+  --app-fg: 17 24 39;
+  --app-surface: 255 255 255;
+}
+
+html.theme-dark {
+  color-scheme: dark;
+  --app-bg: 15 23 42;
+  --app-fg: 226 232 240;
+  --app-surface: 30 41 59;
 }
 
 * { box-sizing: border-box; }
+
+body {
+  background-color: rgb(var(--app-bg));
+  color: rgb(var(--app-fg));
+}
 
 /* 키보드 포커스 가시성 — 링크·버튼 위주 (폼 input은 각 컴포넌트 스타일 유지) */
 a:focus-visible,

@@ -3,6 +3,7 @@ import './globals.css'
 import { pretendard } from './fonts'
 import { SessionProvider } from '@/components/auth/SessionProvider'
 import { SiteJsonLd } from '@/components/seo/SiteJsonLd'
+import { ThemeInitializer } from '@/components/theme/ThemeInitializer'
 import { SITE_DESCRIPTION, SITE_NAME } from '@/lib/site-metadata'
 
 const raw = process.env.NEXTAUTH_URL?.trim() ?? ''
@@ -58,6 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ko" className={`scroll-smooth ${pretendard.variable}`}>
       <body className={`${pretendard.className} bg-slate-50 text-gray-900 antialiased min-h-screen`}>
         <SiteJsonLd />
+        <ThemeInitializer />
         <SessionProvider>{children}</SessionProvider>
       </body>
     </html>

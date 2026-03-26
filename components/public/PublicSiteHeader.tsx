@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { EvQuoteLogo } from '@/components/EvQuoteLogo'
+import { ThemeModeButton } from '@/components/public/ThemeModeButton'
 
 type PublicSiteHeaderProps = {
   loginHref?: string
@@ -122,6 +123,7 @@ export function PublicSiteHeader({ loginHref = '/auth', loginLabel = '로그인'
         </nav>
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
+          <ThemeModeButton />
           <Link
             href={loginHref}
             className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 sm:text-sm"
