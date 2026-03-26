@@ -30,6 +30,7 @@ export function SiteFooter({ compact = false }: SiteFooterProps) {
               <Link href="/help" className="transition-colors hover:text-primary-600">도움말</Link>
               <Link href="/plans" className="transition-colors hover:text-primary-600">요금제</Link>
               <Link href="/terms" className="transition-colors hover:text-primary-600">이용약관</Link>
+              <Link href="/refund" className="transition-colors hover:text-primary-600">환불정책</Link>
               <Link href="/privacy" className="transition-colors hover:text-primary-600">개인정보처리방침</Link>
             </div>
           </nav>

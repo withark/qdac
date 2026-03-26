@@ -8,6 +8,7 @@ const PUBLIC_PATHS: { path: string; changeFrequency: MetadataRoute.Sitemap[0]['c
   { path: '/help', changeFrequency: 'weekly', priority: 0.85 },
   { path: '/plans', changeFrequency: 'weekly', priority: 0.9 },
   { path: '/terms', changeFrequency: 'yearly', priority: 0.4 },
+  { path: '/refund', changeFrequency: 'yearly', priority: 0.4 },
   { path: '/privacy', changeFrequency: 'yearly', priority: 0.4 },
 ]
 
