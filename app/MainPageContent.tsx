@@ -23,7 +23,14 @@ const featureCards = [
   },
 ]
 
-const templateCards = ['행사 기획서', '협찬 제안서', '결과 보고서', '운영 매뉴얼', '타임테이블', '초청/안내문']
+const templateCards = [
+  { id: 'template-plan', label: '행사 기획서' },
+  { id: 'template-sponsor', label: '협찬 제안서' },
+  { id: 'template-report', label: '결과 보고서' },
+  { id: 'template-manual', label: '운영 매뉴얼' },
+  { id: 'template-timetable', label: '타임테이블' },
+  { id: 'template-invite', label: '초청/안내문' },
+]
 
 function fmtKRW(n: number) {
   return n.toLocaleString('ko-KR')
@@ -158,10 +165,14 @@ export async function MainPageContent() {
           </div>
 
           <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {['행사 기획서', '협찬 제안서', '결과 보고서'].map((item) => (
-              <div key={item} className="rounded-xl border border-slate-200 bg-white/90 p-4">
-                <p className="text-sm font-semibold text-slate-900">{item}</p>
-              </div>
+            {templateCards.slice(0, 3).map((item) => (
+              <Link
+                key={item.id}
+                href={`#${item.id}`}
+                className="rounded-xl border border-slate-200 bg-white/90 p-4 text-center transition-colors hover:bg-white"
+              >
+                <p className="text-sm font-semibold text-slate-900">{item.label}</p>
+              </Link>
             ))}
           </div>
         </div>
@@ -186,16 +197,20 @@ export async function MainPageContent() {
         </div>
       </section>
 
-      <section className="mx-auto w-full max-w-none bg-slate-50/70 px-6 py-12 sm:py-14">
+      <section id="templates" className="mx-auto w-full max-w-none bg-slate-50/70 px-6 py-12 sm:py-14">
         <div className="mx-auto max-w-5xl">
           <div className="text-center">
             <p className="text-xs font-semibold tracking-wide text-primary-600">Document Templates</p>
             <h2 className="mt-2.5 text-[22px] font-bold text-slate-900 sm:text-[30px]">행사 라이프사이클 전체를 커버</h2>
           </div>
           <div className="mt-6 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
-            {templateCards.map((name) => (
-              <article key={name} className="rounded-xl border border-slate-200 bg-white p-5">
-                <h3 className="text-base font-semibold text-slate-900">{name}</h3>
+            {templateCards.map((template) => (
+              <article
+                id={template.id}
+                key={template.id}
+                className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-5 transition-colors duration-300 target:border-primary-300 target:bg-primary-50/40 target:ring-1 target:ring-primary-200"
+              >
+                <h3 className="text-base font-semibold text-slate-900">{template.label}</h3>
                 <p className="mt-2 text-sm text-slate-600">실무에서 바로 사용할 수 있는 구조로 빠르게 생성합니다.</p>
               </article>
             ))}
