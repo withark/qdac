@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth/next'
 import { AuthLoginCard } from '@/components/auth/AuthLoginCard'
 import { isDevAuthEnabled } from '@/lib/auth-dev'
+import { isEmailPasswordAuthEnabled } from '@/lib/auth-email-password'
 import { sanitizeCallbackUrl } from '@/lib/auth-callback'
 import { authOptions } from '@/lib/auth'
 
@@ -28,6 +29,7 @@ export default async function AuthPage({
   const reason = typeof searchParams?.reason === 'string' ? searchParams.reason : ''
   const isSignupInduction = reason === 'signup_required'
   const devEnabled = isDevAuthEnabled()
+  const emailPasswordAuthEnabled = isEmailPasswordAuthEnabled()
 
   if (session) {
     redirect(callbackUrl)
@@ -48,6 +50,7 @@ export default async function AuthPage({
           error={searchParams?.error}
           errorDescription={searchParams?.errorDescription}
           devEnabled={devEnabled}
+          emailPasswordAuthEnabled={emailPasswordAuthEnabled}
           hint={
             isSignupInduction
               ? '바로 시작하기 — 가입·로그인 후 견적 만들기 화면으로 돌아가요.'

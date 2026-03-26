@@ -7,6 +7,7 @@ export function isDevAuthEnabled(): boolean {
 
 export function devAuthProvider(): NextAuthOptions['providers'][number] {
   return CredentialsProvider({
+    id: 'dev-login',
     name: 'Dev Login',
     credentials: {
       email: { label: 'Email', type: 'email' },

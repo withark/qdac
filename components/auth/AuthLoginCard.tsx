@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { EvQuoteLogo } from '@/components/EvQuoteLogo'
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
+import { EmailPasswordAuthForm } from '@/components/auth/EmailPasswordAuthForm'
 import { AuthErrorAlert } from '@/components/auth/AuthErrorAlert'
 import type { AuthIntent } from '@/components/auth/GoogleSignInButton'
 
@@ -38,6 +39,7 @@ type Props = {
   error?: string
   errorDescription?: string
   devEnabled: boolean
+  emailPasswordAuthEnabled: boolean
   /** signup_required 시 짧은 안내 (카드 위) */
   hint?: string
   /** login_required 시 한 줄 */
@@ -50,6 +52,7 @@ export function AuthLoginCard({
   error,
   errorDescription,
   devEnabled,
+  emailPasswordAuthEnabled,
   hint,
   loginRequiredNote,
 }: Props) {
@@ -58,8 +61,12 @@ export function AuthLoginCard({
   const title = tab === 'signup' ? '회원가입' : '로그인'
   const subtitle =
     tab === 'signup'
-      ? 'Google 계정으로 가입 후 견적·문서 작업을 바로 이어갈 수 있어요.'
-      : 'Google 계정으로 로그인하면 이전 작업을 이어갈 수 있어요.'
+      ? emailPasswordAuthEnabled
+        ? '이메일·비밀번호 또는 Google로 가입할 수 있어요.'
+        : 'Google 계정으로 가입 후 견적·문서 작업을 바로 이어갈 수 있어요.'
+      : emailPasswordAuthEnabled
+        ? '이메일·비밀번호 또는 Google로 로그인할 수 있어요.'
+        : 'Google 계정으로 로그인하면 이전 작업을 이어갈 수 있어요.'
 
   return (
     <div className="w-full max-w-[400px] mx-auto flex flex-col items-center">
@@ -107,6 +114,20 @@ export function AuthLoginCard({
 
         <div className="p-6 sm:p-7 space-y-5">
           <AuthErrorAlert error={error} errorDescription={errorDescription} />
+
+          {emailPasswordAuthEnabled ? (
+            <>
+              <EmailPasswordAuthForm tab={tab} callbackUrl={callbackUrl} />
+              <div className="relative py-1">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-slate-100" />
+                </div>
+                <div className="relative flex justify-center text-[11px] uppercase tracking-wide">
+                  <span className="bg-white px-2 text-slate-400">또는</span>
+                </div>
+              </div>
+            </>
+          ) : null}
 
           <GoogleSignInButton
             intent={tab}

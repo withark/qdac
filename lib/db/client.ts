@@ -43,6 +43,7 @@ export async function initDb(): Promise<void> {
     sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider text NOT NULL DEFAULT 'google'`,
     sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin boolean NOT NULL DEFAULT false`,
     sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true`,
+    sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash text`,
   ]) {
     try {
       await q
@@ -333,4 +334,9 @@ export async function initDb(): Promise<void> {
   await sql`CREATE INDEX IF NOT EXISTS idx_reference_candidates_created ON reference_candidates (created_at DESC)`
 
   initDone = true
+
+  if ((process.env.ENABLE_EMAIL_PASSWORD_AUTH || '').trim() === '1') {
+    const { ensureBillingTestUser } = await import('@/lib/db/users-db')
+    await ensureBillingTestUser()
+  }
 }

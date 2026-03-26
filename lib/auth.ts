@@ -4,6 +4,7 @@ import { hasDatabase } from '@/lib/db/client'
 import { upsertUser } from '@/lib/db/users-db'
 import { ensureFreeSubscription } from '@/lib/db/subscriptions-db'
 import { devAuthProvider, isDevAuthEnabled } from '@/lib/auth-dev'
+import { emailPasswordCredentialsProvider, isEmailPasswordAuthEnabled } from '@/lib/auth-email-password'
 import { resolveNextAuthSecret } from '@/lib/nextauth-secret'
 import { planicProductionSharedCookie, PLANIC_SESSION_COOKIE_NAME } from '@/lib/planic-auth-env'
 
@@ -22,6 +23,7 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
     }),
     ...(isDevAuthEnabled() ? [devAuthProvider()] : []),
+    ...(isEmailPasswordAuthEnabled() ? [emailPasswordCredentialsProvider()] : []),
   ],
   pages: {
     signIn: '/auth',
