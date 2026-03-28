@@ -30,9 +30,13 @@ export interface GenerateInput {
   eventType: string
   budget: string
   requirements: string
+  /** 프로그램 종목 목록(선택) — 프롬프트 물품 추론 힌트용 */
+  programs?: string[]
   prices: PriceCategory[]
   settings: CompanySettings
   references: ReferenceDoc[]
+  /** 단일 과업지시서(선택) — rawText 우선. 없으면 taskOrderRefs 사용 */
+  taskOrderDoc?: TaskOrderDoc
   taskOrderRefs?: TaskOrderDoc[]
   /** 시나리오 참고(업로드/선택된 샘플) */
   scenarioRefs?: ScenarioRefDoc[]
