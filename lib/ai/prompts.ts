@@ -1,10 +1,6 @@
-// lib/ai/prompts.ts — 개선 버전
-// 기존 buildGeneratePrompt 를 이 파일로 교체하세요.
-// 변경 핵심:
-//   1) 행사 유형 감지 → 유형별 특화 지시문 주입
-//   2) 견적서 항목 예시를 유형에 맞게 제공 (AI가 엉뚱한 카테고리 생성 방지)
-//   3) 타임테이블 연동 강화 (프로그램 종목 → 필요 물품/인력 자동 추론 지시)
-//   4) 빈칸 fallback 기준 강화 (AI가 '-' 또는 단순 placeholder 출력 시 거부)
+// lib/ai/prompts.ts
+// 6개 문서(estimate·program·timetable·planning·scenario·cuesheet) ×
+// 모든 행사 유형(sports·corporate·festival·wedding·conference·launch·school·general)
 
 import type { GenerateInput } from './types'
 
@@ -13,330 +9,480 @@ import type { GenerateInput } from './types'
 // ─────────────────────────────────────────────────────────────
 
 type EventCategory =
-  | 'sports' // 체육대회, 운동회, 스포츠
-  | 'corporate' // 워크숍, 기업행사, 세미나, 포럼
-  | 'festival' // 축제, 문화행사, 공연
-  | 'school' // 학교행사 (체육대회 제외)
-  | 'wedding' // 웨딩, 결혼
-  | 'conference' // 컨퍼런스, 컨벤션
-  | 'launch' // 런칭, 쇼케이스
-  | 'general' // 기타
+  | 'sports'      // 체육대회, 운동회
+  | 'corporate'   // 워크숍, 기업행사, 세미나, 포럼
+  | 'festival'    // 축제, 문화행사, 공연
+  | 'school'      // 학교행사 (입학·졸업·학예회 등)
+  | 'wedding'     // 웨딩, 결혼
+  | 'conference'  // 컨퍼런스, 컨벤션
+  | 'launch'      // 런칭, 쇼케이스
+  | 'general'     // 기타
 
 function detectEventCategory(eventType: string, eventName: string): EventCategory {
   const text = `${eventType} ${eventName}`.toLowerCase()
-  if (/(체육대회|운동회|스포츠|체육|달리기|이어달리기|줄다리기|운동장)/.test(text)) return 'sports'
+  if (/(체육대회|운동회|스포츠|달리기|이어달리기|줄다리기|운동장)/.test(text)) return 'sports'
   if (/(웨딩|결혼|혼례|브라이덜)/.test(text)) return 'wedding'
   if (/(컨퍼런스|컨벤션|convention|conference)/.test(text)) return 'conference'
   if (/(런칭|쇼케이스|launch|showcase)/.test(text)) return 'launch'
   if (/(축제|페스티벌|festival|문화|공연|콘서트)/.test(text)) return 'festival'
   if (/(워크숍|workshop|포럼|forum|세미나|seminar|기업|임직원|사내)/.test(text)) return 'corporate'
-  if (/(학교|중학|고등|초등|대학|졸업|입학|학생)/.test(text)) return 'school'
+  if (/(학교|중학|고등|초등|대학|졸업|입학|학생|학예회)/.test(text)) return 'school'
   return 'general'
 }
 
 // ─────────────────────────────────────────────────────────────
-//  유형별 카테고리 + 항목 예시 (AI 가이드용)
+//  행사 유형별 견적 카테고리 가이드
 // ─────────────────────────────────────────────────────────────
 
 function getCategoryGuide(category: EventCategory, headcount: number): string {
   const hc = headcount || 100
 
-  if (category === 'sports') {
-    return `
+  const guides: Record<EventCategory, string> = {
+    sports: `
 [행사 유형: 체육대회/운동회]
-아래 카테고리 구조를 기본으로 사용하세요. 실제 행사 규모와 종목에 맞게 항목을 추가/조정하세요.
-
-카테고리 예시:
 1. 운영 인력
-   - 행사 진행 MC: 1명×(진행시간)시간
-   - 현장 진행요원/심판: (종목 수 × 1~2명)
-   - 촬영 기사(사진/영상): 1~2명
+   - 행사 진행 MC: 1명
+   - 현장 진행요원/심판: ${Math.max(4, Math.round(hc / 50))}명
+   - 촬영 기사(사진/영상): ${hc > 300 ? 2 : 1}명
    - 의무/안전 요원: ${hc > 200 ? 2 : 1}명
-
 2. 음향/방송 장비
-   - PA 스피커 시스템(야외용): 좌우 1세트
-   - 무선 마이크(핸드/헤드셋): 2~4개
-   - 앰프/믹서: 1식
-   - 배경음악 재생 장치: 1식
-   - 현수막/배너(행사명): ${Math.ceil(hc / 100)}개
-
-3. 종목 진행 물품
-   - 종목별 필요 도구를 requirements와 프로그램 항목에서 추론하여 항목화하세요.
-   - 예: 줄다리기 줄, 훌라우프, 볼풀공, 럭비공, 달고나 도구, 에어봉, 비닐봉투 등
-   - 비전탑 세우기: 블록/세트 1식
-   - 도전 99초 세트: 종목당 도구 1~2세트
-
+   - 야외 PA 스피커 시스템: 좌우 1세트
+   - 무선 마이크(핸드/헤드셋): 3개
+   - 앰프/믹서: 1식 / 현수막: ${Math.ceil(hc / 150)}개
+3. 종목 진행 물품 (requirements·프로그램에서 종목을 추론해 항목화할 것)
 4. 시설/설치
-   - 텐트/파라솔(본부석 및 관람석): ${Math.ceil(hc / 50)}동
-   - 의자/테이블(선수 대기): 1식
-   - 결승선 테이프/라인 마킹: 1식
-   - 시상대: 1식
-
+   - 본부석 텐트: ${Math.ceil(hc / 100)}동 / 의자·테이블: 1식 / 라인마킹: 1식
 5. 시상/기념품
-   - 트로피/메달(1등·2등·3등): 각 ${Math.ceil(hc / 30)}개
-   - 협동상·응원상 상품: 각 1식
-   - 참가 기념품(선택): ${hc}개
-
-6. 식음료 (해당 시)
-   - 음료/간식(물, 이온음료 등): ${hc}인분
-   - 점심 도시락 또는 식사비(점심 포함 시): ${hc}인분
-
+   - 트로피/메달: ${Math.ceil(hc / 30)}개 / 협동상·응원상: 각 1식
+6. 식음료 (점심 포함 시: ${hc}인분)
 7. 기타/운영
-   - 구급용품/응급처치 키트: 1식
-   - 쓰레기봉투/정리용품: 1식
-   - 인쇄물(프로그램표/번호표): ${hc}매
-`
-  }
+   - 구급함: 2개 / 인쇄물(프로그램표·번호표): ${hc}매 / 운반비: 1식`,
 
-  if (category === 'corporate') {
-    return `
+    corporate: `
 [행사 유형: 기업행사/워크숍/세미나]
-카테고리 예시:
-1. 운영 인력 (PM, 진행요원, 등록 스태프)
-2. 무대/장비 (음향, 조명, 영상, 마이크)
+1. 운영 인력 (PM, 진행요원, 등록 스태프, MC)
+2. 무대/장비 (음향·조명·영상·마이크·빔프로젝터)
 3. 시설/공간 (대관료, 좌석 세팅, 리허설)
-4. 제작/홍보물 (현수막, 프로그램북, 명찰)
-5. 식음료 (다과, 중식, 음료 — 해당 시)
-6. 기타 (촬영, 기념품, 운반비)
-`
-  }
+4. 제작/홍보물 (현수막, 프로그램북, 명찰, 배너)
+5. 식음료 (다과·중식·음료: ${hc}인분)
+6. 기타 (촬영, 기념품, 운반비)`,
 
-  if (category === 'festival') {
-    return `
+    festival: `
 [행사 유형: 축제/문화행사/공연]
-카테고리 예시:
-1. 무대/장비 (무대 설치, 음향, 조명, LED 스크린)
-2. 운영 인력 (MC, 스태프, 안전요원, 촬영)
-3. 시설/부스 (텐트, 부스 설치, 테이블)
-4. 홍보/제작 (포스터, 현수막, SNS 콘텐츠)
-5. 식음료/푸드트럭 (해당 시)
-6. 기타 (보험, 청소, 폐기물 처리)
-`
-  }
+1. 무대/장비 (무대 설치·철수, 음향, 조명, LED 스크린, 발전기)
+2. 운영 인력 (총괄 PM, MC, 스태프, 안전요원, 촬영팀)
+3. 시설/부스 (텐트, 부스 설치·철수, 테이블·의자)
+4. 홍보/제작 (포스터, 현수막, 배너, SNS 콘텐츠)
+5. 식음료/푸드트럭 (${hc}인분)
+6. 기타 (행사보험, 청소·폐기물 처리)`,
 
-  // 기본 (general / school / conference / launch / wedding)
-  return `
+    wedding: `
+[행사 유형: 웨딩/결혼]
+1. 운영 인력 (웨딩MC, 코디네이터, 스태프)
+2. 음향/영상 (PA 시스템, 마이크, 촬영팀, 영상편집)
+3. 플라워/데코 (부케, 테이블 장식, 포토존)
+4. 식음료/케이터링 (${hc}인분)
+5. 인쇄/제작 (청첩장, 포토북, 방명록)
+6. 기타 (드레스·한복, 헤어·메이크업, 이동차량)`,
+
+    conference: `
+[행사 유형: 컨퍼런스/컨벤션]
+1. 운영 인력 (총괄 PM, 등록 스태프, 진행요원, 동시통역사)
+2. 무대/AV 장비 (무대, 음향, 조명, 대형 스크린, 마이크 세트)
+3. 시설/공간 (대관료, 세션룸 세팅, 등록 데스크)
+4. 제작/홍보물 (프로그램북, 명찰, 배너, 현수막)
+5. 디지털/기술 (라이브 스트리밍, WiFi)
+6. 식음료 (다과·중식·만찬: ${hc}인분)
+7. 기타 (촬영, 기념품, 통역 장비)`,
+
+    launch: `
+[행사 유형: 런칭/쇼케이스]
+1. 무대/연출 (무대 설치, 특수조명, LED 스크린, 특수효과)
+2. 음향/영상 (PA 시스템, 마이크, 영상 제작, 라이브 스트리밍)
+3. 운영 인력 (총괄 PM, MC, 스태프, 촬영팀)
+4. 제작/홍보물 (초청장, 현수막, 포토존, 브로슈어)
+5. 식음료/케이터링 (${hc}인분)
+6. 기타 (포토콜, 보안, 주차, 기념품)`,
+
+    school: `
+[행사 유형: 학교행사]
+1. 운영 인력 (사회자/MC, 진행요원, 촬영)
+2. 음향/장비 (PA 시스템, 마이크, 영상 장비)
+3. 무대/시설 (무대 세팅, 현수막, 의자·테이블)
+4. 제작/인쇄물 (프로그램표, 현수막, 기념품)
+5. 식음료 (${hc}인분)
+6. 기타 (촬영, 운반비)`,
+
+    general: `
 [행사 유형: 일반]
-카테고리 예시:
-1. 운영 인력 (PM, 진행요원, MC)
+1. 운영 인력 (PM, MC, 진행요원)
 2. 무대/장비 (음향, 조명, 마이크)
 3. 시설/공간 (대관, 세팅)
 4. 제작/홍보물 (현수막, 인쇄물)
-5. 식음료 (해당 시)
-6. 기타
-`
+5. 식음료 (${hc}인분)
+6. 기타 (촬영, 운반비)`,
+  }
+
+  return guides[category] ?? guides.general
 }
 
 // ─────────────────────────────────────────────────────────────
-//  프로그램 항목 → 필요 물품 추론 지시문
+//  행사 유형별 진행 흐름 (program·timetable·scenario·cuesheet 공통)
+// ─────────────────────────────────────────────────────────────
+
+function getProgramFlowGuide(category: EventCategory, input: GenerateInput): string {
+  const start = input.eventStartHHmm || ''
+  const end = input.eventEndHHmm || ''
+  const timeRange = start && end ? `${start}~${end}` : start || ''
+
+  const flows: Record<EventCategory, string> = {
+    sports: `
+[체육대회 진행 흐름 — timeline/programRows/cueRows에 반영]
+${timeRange ? `전체 시간: ${timeRange}` : ''}
+준비(사전 셋팅) → 개회식(교장/대표 개회사·학생선서) → 오프닝(몸풀기 체조·아이스브레이킹·응원연습·팀구호) → 1부 종목 진행 → 점심 휴식 → 2부 종목 진행 → 시상식(1등·협동상·응원상) → 단체사진 → 마무리
+- requirements에 언급된 종목은 반드시 timeline에 개별 행으로 포함
+- 각 구간: time(HH:mm), content(구체적 종목명), detail(운영 포인트), manager(담당 역할) 필수`,
+
+    corporate: `
+[기업행사 진행 흐름]
+${timeRange ? `전체 시간: ${timeRange}` : ''}
+등록·접수 → 개회(대표 인사) → 오프닝 → 메인 세션(발표·강의·토론) → 휴식/네트워킹 → 마무리·클로징
+- 세션 전환마다 time, 담당자, 장비 큐 명시`,
+
+    festival: `
+[축제/공연 진행 흐름]
+${timeRange ? `전체 시간: ${timeRange}` : ''}
+사전 셋팅·리허설 → 게이트 오픈 → 오프닝 공연 → 메인 프로그램(공연·부스·이벤트) → 피날레 → 폐막·정리
+- 공연별 time, 아티스트/MC 담당, 무대 전환 큐 포함`,
+
+    wedding: `
+[웨딩 진행 흐름]
+${timeRange ? `전체 시간: ${timeRange}` : ''}
+하객 입장·등록 → 신랑·신부 입장 → 주례/성혼선언 → 축가·축사 → 폐백 → 피로연·식사 → 마무리
+- MC 멘트 큐, 음악 큐, 조명 큐 포함`,
+
+    conference: `
+[컨퍼런스 진행 흐름]
+${timeRange ? `전체 시간: ${timeRange}` : ''}
+등록·접수 → 개회식(환영사·기조연설) → 세션 1 → 휴식 → 세션 2 → 네트워킹 런치 → 오후 세션 → 패널토론 → 클로징
+- 세션별 발표자, 시간, 통역 여부 명시`,
+
+    launch: `
+[런칭/쇼케이스 진행 흐름]
+${timeRange ? `전체 시간: ${timeRange}` : ''}
+레드카펫·포토콜 → VIP 입장 → 개회(CEO 인사) → 제품/브랜드 발표 → 시연·쇼케이스 → 미디어 Q&A → 리셉션
+- 포토콜, 영상 큐, 특수효과 타이밍 포함`,
+
+    school: `
+[학교행사 진행 흐름]
+${timeRange ? `전체 시간: ${timeRange}` : ''}
+입장 → 개회(교장 선생님 말씀) → 국민의례 → 메인 프로그램 → 시상/수여 → 클로징
+- 학생 대표 발언, 담임 역할 포함`,
+
+    general: `
+[일반 행사 진행 흐름]
+${timeRange ? `전체 시간: ${timeRange}` : ''}
+준비·셋팅 → 등록·입장 → 개회 → 메인 프로그램 → 휴식 → 마무리·클로징
+- 각 구간 time, content, 담당자 명시`,
+  }
+
+  return flows[category] ?? flows.general
+}
+
+// ─────────────────────────────────────────────────────────────
+//  종목 → 필요 물품 힌트 (체육대회용)
 // ─────────────────────────────────────────────────────────────
 
 function getProgramItemsHint(requirements: string, programs?: string[]): string {
   const allText = [requirements || '', ...(programs || [])].join(' ')
   if (!allText.trim()) return ''
 
-  const hints: string[] = []
-
   const itemMap: [RegExp, string][] = [
-    [/줄다리기/, '줄다리기 줄(두꺼운 로프 20m 이상): 1~2개'],
-    [/훌라우프|훌라/, '훌라우프(성인용): 10~20개'],
-    [/볼풀공|볼풀/, '볼풀공(컬러): 100~200개, 볼풀 네트/바구니: 1세트'],
-    [/럭비공|럭비/, '럭비공: 5~10개'],
-    [/에어봉|장대봉/, '에어봉(1.5m): 10~20개'],
-    [/달고나/, '달고나 세트(틀/설탕/버너): 1식'],
-    [/공기놀이|공기/, '공기돌 세트: 10~20세트'],
-    [/비닐봉투|풍선/, '대형 비닐봉투(90L 이상): 50~100개, 풍선: 200~300개'],
-    [/비전탑|탑쌓기/, '비전탑 블록/세트: 1식'],
-    [/용천|바구니/, '용천(바구니/대야): 10~20개'],
-    [/단체줄넘기|줄넘기/, '단체 줄넘기(긴 줄): 3~5개'],
-    [/제기차기|제기/, '제기: 20~30개'],
-    [/2인3각/, '2인3각 묶음 끈/밴드: 20~30세트'],
-    [/파도타기|큰공/, '대형 공(지름 80cm 이상): 2~3개'],
+    [/줄다리기/, '줄다리기 줄(로프 20m+): 2개'],
+    [/훌라우프|훌라/, '훌라우프(성인용): 20개'],
+    [/볼풀공|볼풀/, '볼풀공(컬러): 200개 + 네트/바구니: 1세트'],
+    [/럭비공|럭비/, '럭비공: 8개'],
+    [/에어봉|장대봉/, '에어봉(1.5m): 15개'],
+    [/달고나/, '달고나 세트(틀·설탕·버너): 1식'],
+    [/공기놀이|공기/, '공기돌 세트: 20세트'],
+    [/비닐봉투|풍선/, '대형 비닐봉투(90L+): 100개, 풍선: 300개'],
+    [/비전탑|탑쌓기/, '비전탑 블록/구조물 세트: 1식'],
+    [/용천|바구니/, '용천(바구니/대야): 20개'],
+    [/단체줄넘기|줄넘기/, '단체 줄넘기(긴 줄): 5개'],
+    [/제기차기|제기/, '제기: 30개'],
+    [/2인3각/, '2인3각 묶음 밴드: 30세트'],
+    [/파도타기|큰공/, '대형 공(지름 80cm+): 2개'],
   ]
 
-  for (const [pattern, hint] of itemMap) {
-    if (pattern.test(allText)) hints.push(`  - ${hint}`)
-  }
-
-  if (hints.length === 0) return ''
-
-  return `
-[프로그램 종목에서 추론된 필요 물품 — 반드시 견적 항목에 포함하세요]
-${hints.join('\n')}
-`
+  const hints = itemMap.filter(([p]) => p.test(allText)).map(([, h]) => `  - ${h}`)
+  if (!hints.length) return ''
+  return `\n[종목 감지 → 반드시 견적 항목에 포함]\n${hints.join('\n')}\n`
 }
 
 // ─────────────────────────────────────────────────────────────
-//  참고 견적서 스타일 컨텍스트
+//  문서별 출력 스키마
+// ─────────────────────────────────────────────────────────────
+
+function getOutputSchema(target: GenerateInput['documentTarget'], category: EventCategory): string {
+  if (target === 'estimate') {
+    return `
+[출력 규칙 — 견적서]
+- markdown·설명 없이 완전한 단일 JSON 객체만 출력. { 로 시작 } 로 끝.
+- quoteItems: 카테고리 3개 이상, 각 items 2개 이상.
+- unitPrice·qty는 절대 0 불가. spec에 산출 근거 필수 (예: "MC 1명×6시간").
+- notes: 포함범위·제외조건·결제조건 구체적으로.
+- program.timeline: 최소 5행, time은 HH:mm.
+- program.programRows: 최소 4행.
+
+{
+  "eventName":"","clientName":"","clientManager":"","clientTel":"",
+  "quoteDate":"","eventDate":"","eventDuration":"","venue":"","headcount":"","eventType":"",
+  "quoteItems":[{
+    "category":"카테고리명",
+    "items":[{"name":"항목명","spec":"산출근거 포함","qty":1,"unit":"식","unitPrice":100000,"total":100000,"note":"","kind":"인건비|필수|선택1|선택2"}]
+  }],
+  "expenseRate":0,"profitRate":0,"cutAmount":0,
+  "notes":"포함범위/제외/결제조건 상세 기술",
+  "paymentTerms":"","validDays":7,
+  "program":{
+    "concept":"행사 컨셉 2문장 이상",
+    "programRows":[{"kind":"","content":"","tone":"","image":"","time":"HH:mm","audience":"","notes":""}],
+    "timeline":[{"time":"HH:mm","content":"구체적 진행 내용","detail":"운영 포인트","manager":"담당 역할"}],
+    "staffing":[{"role":"","count":1,"note":""}],
+    "tips":["운영 팁"],
+    "cueRows":[],"cueSummary":""
+  }
+}`
+  }
+
+  if (target === 'program') {
+    return `
+[출력 규칙 — 프로그램 제안서]
+- JSON만 출력.
+- program.concept: 행사 전체 컨셉·운영 방향 3문장 이상.
+- program.programRows: 최소 5행. kind·content·tone·time·audience·notes 모두 채울 것.
+  ${category === 'sports' ? '종목별 행(비전탑·용천나르기·도전99초 등) 각각 개별 행으로 포함.' : ''}
+- program.timeline: 최소 6행. time(HH:mm)·content·detail·manager 필수.
+- program.staffing: 최소 3개 역할, 구체적 업무 명시.
+- program.tips: 5개 이상.
+
+{
+  "eventName":"","clientName":"","quoteDate":"","eventDate":"","eventDuration":"","venue":"","headcount":"","eventType":"",
+  "quoteItems":[],"expenseRate":0,"profitRate":0,"cutAmount":0,"notes":"","paymentTerms":"","validDays":7,
+  "program":{
+    "concept":"행사 컨셉 3문장 이상",
+    "programRows":[{"kind":"종류","content":"구체적 내용","tone":"분위기","image":"","time":"HH:mm","audience":"대상","notes":"운영포인트"}],
+    "timeline":[{"time":"HH:mm","content":"진행 내용","detail":"세부 운영","manager":"담당"}],
+    "staffing":[{"role":"역할","count":1,"note":"담당 업무"}],
+    "tips":["운영 팁 5개 이상"],
+    "cueRows":[],"cueSummary":""
+  }
+}`
+  }
+
+  if (target === 'timetable') {
+    return `
+[출력 규칙 — 타임테이블]
+- JSON만 출력.
+- program.timeline: 최소 8행. time은 반드시 HH:mm 실제 시간.
+- content: 구체적 진행 내용 (예: "명랑운동회 1부 — 비전탑 세우기·용천 나르기·도전99초").
+- detail: 운영 세부 포인트 (준비물·주의사항·큐).
+- manager: 담당자/역할 (예: "MC", "진행요원", "심판단").
+- ${category === 'sports' ? '1부/2부 시작 행, 점심시간 행 포함.' : ''}
+- program.programRows도 timeline과 연동해 동일 수로 작성.
+
+{
+  "eventName":"","clientName":"","quoteDate":"","eventDate":"","eventDuration":"","venue":"","headcount":"","eventType":"",
+  "quoteItems":[],"expenseRate":0,"profitRate":0,"cutAmount":0,"notes":"","paymentTerms":"","validDays":7,
+  "program":{
+    "concept":"",
+    "programRows":[{"kind":"","content":"","tone":"","image":"","time":"HH:mm","audience":"","notes":""}],
+    "timeline":[{"time":"HH:mm","content":"구체적 진행 내용","detail":"세부 운영 포인트","manager":"담당 역할"}],
+    "staffing":[],"tips":[],
+    "cueRows":[],"cueSummary":""
+  }
+}`
+  }
+
+  if (target === 'planning') {
+    return `
+[출력 규칙 — 기획안]
+- JSON만 출력.
+- planning 객체 모든 필드 3문장 이상. 빈 문자열 절대 불가.
+- overview: 행사 목적·기대효과·핵심 운영 방향 5문장 이상.
+- scope: 사전/현장/사후 업무 범위 구체적으로.
+- approach: 운영 철학·방법론 (관객 흐름·전환·리스크 대응 포함).
+- operationPlan: 시간축 기반 운영 계획 (구간별 what·who·how).
+- deliverablesPlan: 산출물 목록 + 제출 시점.
+- staffingConditions: 역할별 인원 + 조건.
+- risksAndCautions: 리스크 5가지 이상 + 대응 방안.
+- checklist: 8개 이상.
+${category === 'sports' ? '- 체육대회: 종목 준비물 체크·안전 관리·날씨 대응 포함.' : ''}
+
+{
+  "eventName":"","clientName":"","quoteDate":"","eventDate":"","eventDuration":"","venue":"","headcount":"","eventType":"",
+  "quoteItems":[],"expenseRate":0,"profitRate":0,"cutAmount":0,"notes":"","paymentTerms":"","validDays":7,
+  "program":{"concept":"","programRows":[],"timeline":[],"staffing":[],"tips":[],"cueRows":[],"cueSummary":""},
+  "planning":{
+    "overview":"행사 목적·기대효과 5문장 이상",
+    "scope":"사전·현장·사후 범위 구체적으로",
+    "approach":"운영 방법론 3문장 이상",
+    "operationPlan":"구간별 운영 계획 (시간축 포함)",
+    "deliverablesPlan":"산출물 목록 + 제출 시점",
+    "staffingConditions":"역할별 인원·조건",
+    "risksAndCautions":"리스크 5가지 이상 + 대응",
+    "checklist":["체크리스트 8개 이상"]
+  }
+}`
+  }
+
+  if (target === 'scenario') {
+    return `
+[출력 규칙 — 시나리오]
+- JSON만 출력.
+- scenario 모든 필드 충실히 작성. 빈 문자열 절대 불가.
+- summaryTop: 행사 전체 연출 방향 한 줄 요약.
+- opening: 오프닝 연출·멘트 흐름 (MC 멘트·음악 큐·장비 큐 포함).
+- development: 메인 진행 흐름 — 구간별 연출 포인트·전환 큐.
+- mainPoints: 주요 연출 포인트 8개 이상 (시간·담당·큐 포함).
+- closing: 클로징 연출·멘트 흐름.
+- directionNotes: 현장 연출 지시사항 (T-5분 체크·돌발 대응·장비 큐 타이밍).
+${category === 'sports' ? '- 체육대회: 종목 소개 멘트·시상식 연출·응원전 MC 멘트 포함.' : ''}
+
+{
+  "eventName":"","clientName":"","quoteDate":"","eventDate":"","eventDuration":"","venue":"","headcount":"","eventType":"",
+  "quoteItems":[],"expenseRate":0,"profitRate":0,"cutAmount":0,"notes":"","paymentTerms":"","validDays":7,
+  "program":{"concept":"","programRows":[],"timeline":[],"staffing":[],"tips":[],"cueRows":[],"cueSummary":""},
+  "scenario":{
+    "summaryTop":"행사 연출 방향 한 줄",
+    "opening":"오프닝 연출 + MC멘트 + 음악/장비 큐",
+    "development":"메인 진행 흐름 + 구간별 전환 큐",
+    "mainPoints":["연출 포인트 8개 이상 — 시간·담당·큐 포함"],
+    "closing":"클로징 연출 + 멘트",
+    "directionNotes":"현장 연출 지시 (T-5분 체크·돌발 대응·장비 큐)"
+  }
+}`
+  }
+
+  if (target === 'cuesheet') {
+    return `
+[출력 규칙 — 큐시트]
+- JSON만 출력.
+- program.cueSummary: 행사 전체 운영 요약 2~3문장.
+- program.cueRows: 최소 10행. 모든 필드 반드시 채울 것.
+  - time: HH:mm 실제 시간
+  - order: 순서 번호
+  - content: 구체적 진행 내용
+  - staff: 담당 역할 (MC·음향담당·진행요원 등)
+  - prep: 사전 준비 사항 (장비 큐·대기 위치)
+  - script: 진행 멘트 또는 큐 (1~2문장)
+  - special: 돌발 대응·특이사항
+- program.timeline도 cueRows와 연동해 동일 수 작성.
+${category === 'sports' ? '- 체육대회: 종목별 행, 심판 큐, 시상식 큐, 단체사진 큐 포함.' : ''}
+
+{
+  "eventName":"","clientName":"","quoteDate":"","eventDate":"","eventDuration":"","venue":"","headcount":"","eventType":"",
+  "quoteItems":[],"expenseRate":0,"profitRate":0,"cutAmount":0,"notes":"","paymentTerms":"","validDays":7,
+  "program":{
+    "concept":"",
+    "programRows":[],
+    "timeline":[{"time":"HH:mm","content":"","detail":"","manager":""}],
+    "staffing":[],"tips":[],
+    "cueRows":[{
+      "time":"HH:mm","order":"1","content":"구체적 진행 내용",
+      "staff":"담당 역할","prep":"사전 준비 사항",
+      "script":"진행 멘트 또는 큐","special":"돌발 대응"
+    }],
+    "cueSummary":"행사 전체 운영 요약"
+  }
+}`
+  }
+
+  return ''
+}
+
+// ─────────────────────────────────────────────────────────────
+//  공통 컨텍스트 빌더
 // ─────────────────────────────────────────────────────────────
 
 function buildReferenceContext(input: GenerateInput): string {
   const refs = (input.references || []).filter(r => r?.summary?.trim())
-  if (refs.length === 0) return ''
-
-  const lines = refs
-    .slice(0, 3)
-    .map((r, i) => {
-      let summary = r.summary || ''
-      // JSON이면 파싱해서 핵심만 추출
-      try {
-        const parsed = JSON.parse(summary)
-        const parts: string[] = []
-        if (parsed.namingRules) parts.push(`항목명 규칙: ${parsed.namingRules}`)
-        if (parsed.categoryOrder?.length) parts.push(`카테고리 순서: ${parsed.categoryOrder.join(' > ')}`)
-        if (parsed.unitPricingStyle) parts.push(`단가 스타일: ${parsed.unitPricingStyle}`)
-        if (parsed.toneStyle) parts.push(`문체: ${parsed.toneStyle}`)
-        if (parsed.oneLineSummary) parts.push(`요약: ${parsed.oneLineSummary}`)
-        summary = parts.join('\n')
-      } catch {
-        /* JSON 아니면 그냥 사용 */
-      }
-      return `[참고 견적서 ${i + 1}]\n${summary.slice(0, 600)}`
-    })
-    .join('\n\n')
-
-  return `
-=== 사용자 학습 스타일 (참고 견적서 기반) ===
-아래 스타일을 최대한 반영하세요. 단, 행사 유형에 맞지 않는 항목은 유형에 맞게 조정하세요.
-
-${lines}
-`
+  if (!refs.length) return ''
+  const lines = refs.slice(0, 3).map((r, i) => {
+    let summary = r.summary || ''
+    try {
+      const parsed = JSON.parse(summary)
+      const parts: string[] = []
+      if (parsed.namingRules) parts.push(`항목명 규칙: ${parsed.namingRules}`)
+      if (parsed.categoryOrder?.length) parts.push(`카테고리 순서: ${parsed.categoryOrder.join(' > ')}`)
+      if (parsed.unitPricingStyle) parts.push(`단가 스타일: ${parsed.unitPricingStyle}`)
+      if (parsed.toneStyle) parts.push(`문체: ${parsed.toneStyle}`)
+      if (parsed.oneLineSummary) parts.push(`요약: ${parsed.oneLineSummary}`)
+      summary = parts.join('\n')
+    } catch { /* 그대로 */ }
+    return `[참고 ${i + 1}]\n${summary.slice(0, 600)}`
+  }).join('\n\n')
+  return `\n=== 사용자 스타일 학습 (참고 문서 기반) ===\n아래 스타일을 반영하되 행사 유형에 맞게 조정하세요.\n\n${lines}\n`
 }
-
-// ─────────────────────────────────────────────────────────────
-//  과업지시서 컨텍스트
-// ─────────────────────────────────────────────────────────────
 
 function buildTaskOrderContext(input: GenerateInput): string {
-  const text =
-    input.taskOrderDoc?.rawText?.trim() ||
-    (input.taskOrderRefs || [])
-      .map(r => r.rawText?.trim())
-      .filter(Boolean)
-      .join('\n\n')
+  const text = input.taskOrderDoc?.rawText?.trim() ||
+    (input.taskOrderRefs || []).map(r => r.rawText?.trim()).filter(Boolean).join('\n\n')
   if (!text) return ''
-  return `
-=== 과업지시서 / 기획안 참고 ===
-아래 내용을 반드시 견적 항목에 반영하세요.
-
-${text.slice(0, 3000)}
-`
+  return `\n=== 과업지시서 / 기획안 참고 (반드시 반영) ===\n${text.slice(0, 3000)}\n`
 }
 
-// ─────────────────────────────────────────────────────────────
-//  타임테이블 컨텍스트
-// ─────────────────────────────────────────────────────────────
+function buildScenarioRefContext(input: GenerateInput): string {
+  const refs = (input.scenarioRefs || []).filter(r => r?.rawText?.trim())
+  if (!refs.length) return ''
+  const lines = refs.slice(0, 2).map((r, i) =>
+    `[시나리오 참고 ${i + 1}: ${r.filename}]\n${r.rawText.slice(0, 2000)}`
+  ).join('\n\n')
+  return `\n=== 시나리오 참고 문서 (스타일·흐름 반영) ===\n${lines}\n`
+}
+
+function buildCuesheetSampleContext(input: GenerateInput): string {
+  if (!input.cuesheetSampleContext?.trim()) return ''
+  return `\n=== 큐시트 샘플 (형식·항목 참고) ===\n${input.cuesheetSampleContext.slice(0, 3000)}\n`
+}
+
+function buildPriceContext(input: GenerateInput): string {
+  if (!input.prices?.length) return ''
+  const lines = input.prices
+    .flatMap(cat => (cat.items || []).slice(0, 8).map(
+      it => `  ${cat.name} | ${it.name}(${it.spec || ''}) | ${it.unit} | ${it.price?.toLocaleString('ko-KR') || 0}원`
+    ))
+    .slice(0, 40)
+  if (!lines.length) return ''
+  return `\n=== 사용자 단가표 (우선 반영) ===\n${lines.join('\n')}\n`
+}
 
 function buildTimelineContext(input: GenerateInput): string {
   const start = input.eventStartHHmm?.trim()
   const end = input.eventEndHHmm?.trim()
   const duration = input.eventDuration?.trim()
-
   if (!start && !end && !duration) return ''
-
-  const parts: string[] = ['[행사 시간 정보]']
+  const parts: string[] = []
   if (start && end) parts.push(`행사 시간: ${start} ~ ${end}`)
-  else if (start) parts.push(`시작 시간: ${start}`)
-  if (duration) parts.push(`총 소요 시간: ${duration}`)
-
-  return parts.join('\n')
+  else if (start) parts.push(`시작: ${start}`)
+  if (duration) parts.push(`소요: ${duration}`)
+  return parts.join(' / ')
 }
 
-// ─────────────────────────────────────────────────────────────
-//  JSON 스키마 지시문 (documentTarget별)
-// ─────────────────────────────────────────────────────────────
-
-function getOutputSchema(target: GenerateInput['documentTarget']): string {
-  if (target === 'estimate') {
-    return `
-[출력 규칙 — 반드시 준수]
-- markdown, 설명, 주석 없이 완전한 단일 JSON 객체만 출력하세요. { 로 시작해 } 로 끝나야 합니다.
-- quoteItems 배열은 반드시 1개 이상의 카테고리를 포함해야 합니다.
-- 각 카테고리의 items 배열도 반드시 1개 이상의 항목을 포함해야 합니다.
-- 항목명, spec, unit 은 절대 비워두거나 '-' 만 쓰지 마세요.
-- unitPrice 와 qty 는 0 이 되어선 안 됩니다. 추정값이라도 현실적인 숫자를 넣으세요.
-- notes 필드에는 포함/제외 범위, 결제 조건, 특이사항을 구체적으로 작성하세요.
-- program.programRows 는 최소 3행 이상, program.timeline 은 최소 4행 이상 포함하세요.
-
-출력 JSON 구조:
-{
-  "eventName": "string",
-  "clientName": "string",
-  "clientManager": "string",
-  "clientTel": "string",
-  "quoteDate": "string",
-  "eventDate": "string",
-  "eventDuration": "string",
-  "venue": "string",
-  "headcount": "string",
-  "eventType": "string",
-  "quoteItems": [
-    {
-      "category": "string",
-      "items": [
-        {
-          "name": "string",
-          "spec": "string (산출 근거 명시: 예 '1명×6시간', '300인 기준')",
-          "qty": number,
-          "unit": "string",
-          "unitPrice": number,
-          "total": number,
-          "note": "string",
-          "kind": "인건비 | 필수 | 선택1 | 선택2"
-        }
-      ]
+function buildExistingDocContext(input: GenerateInput): string {
+  if (!input.existingDoc) return ''
+  try {
+    const doc = input.existingDoc as any
+    const parts: string[] = ['=== 기존 문서 (이어서 작성) ===']
+    if (doc.program?.timeline?.length) {
+      parts.push(`기존 타임라인 ${doc.program.timeline.length}행 — 시간 연속성 유지`)
     }
-  ],
-  "expenseRate": number,
-  "profitRate": number,
-  "cutAmount": number,
-  "notes": "string (포함 범위 / 제외 조건 / 결제 조건 / 유효기간 등 구체적으로)",
-  "paymentTerms": "string",
-  "validDays": number,
-  "program": {
-    "concept": "string",
-    "programRows": [
-      {
-        "kind": "string",
-        "content": "string",
-        "tone": "string",
-        "image": "",
-        "time": "string",
-        "audience": "string",
-        "notes": "string"
-      }
-    ],
-    "timeline": [
-      {
-        "time": "string",
-        "content": "string",
-        "detail": "string",
-        "manager": "string"
-      }
-    ],
-    "staffing": [
-      { "role": "string", "count": number, "note": "string" }
-    ],
-    "tips": ["string"],
-    "cueRows": [],
-    "cueSummary": ""
-  }
-}
-`
-  }
-
-  if (target === 'timetable') {
-    return `
-[출력 규칙 — timetable]
-- JSON만 출력하세요.
-- program.timeline 은 최소 6행 이상 포함하세요.
-- time 필드는 HH:mm 형식으로 구체적으로 작성하세요.
-- content 는 구체적인 진행 내용을 작성하세요 (예: '명랑운동회 1부 - 비전탑 세우기, 용천 나르기').
-- manager 는 담당자/담당 역할을 명시하세요.
-`
-  }
-
-  return ''
+    if (doc.quoteItems?.length) {
+      parts.push(`기존 견적 카테고리: ${doc.quoteItems.map((c: any) => c.category).join(', ')}`)
+    }
+    if (doc.eventName) parts.push(`기존 행사명: ${doc.eventName}`)
+    return parts.join('\n')
+  } catch { return '' }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -348,7 +494,12 @@ export function buildGeneratePrompt(input: GenerateInput): string {
   const headcount = parseInt((input.headcount || '').replace(/[^\d]/g, '') || '0', 10)
   const category = detectEventCategory(input.eventType || '', input.eventName || '')
 
-  // ── 기본 행사 정보 ──
+  const docLabel: Record<string, string> = {
+    estimate: '견적서', program: '프로그램 제안서', timetable: '타임테이블',
+    planning: '기획안', scenario: '시나리오', cuesheet: '큐시트',
+  }
+  const label = docLabel[target] ?? '문서'
+
   const basicInfo = [
     `행사명: ${input.eventName || ''}`,
     `행사 유형: ${input.eventType || ''}`,
@@ -360,73 +511,60 @@ export function buildGeneratePrompt(input: GenerateInput): string {
     buildTimelineContext(input),
     `예산: ${input.budget || '협의'}`,
     input.requirements ? `요청사항: ${input.requirements}` : '',
-  ]
-    .filter(Boolean)
-    .join('\n')
+  ].filter(Boolean).join('\n')
 
-  // ── 유형별 카테고리 가이드 ──
-  const categoryGuide = getCategoryGuide(category, headcount)
-
-  // ── 프로그램 종목 힌트 ──
-  const programHint = getProgramItemsHint(input.requirements || '', input.programs)
-
-  // ── 참고 문서 컨텍스트 ──
-  const referenceCtx = buildReferenceContext(input)
-  const taskOrderCtx = buildTaskOrderContext(input)
-
-  // ── 출력 스키마 ──
-  const outputSchema = getOutputSchema(target)
-
-  // ── 단가표 컨텍스트 (있을 때만) ──
-  let priceCtx = ''
-  if (input.prices && input.prices.length > 0) {
-    const priceLines = input.prices
-      .flatMap(cat =>
-        (cat.items || []).slice(0, 8).map(
-          it =>
-            `  ${cat.name} | ${it.name} (${it.spec || ''}) | ${it.unit} | ${it.price?.toLocaleString('ko-KR') || '0'}원`,
-        ),
-      )
-      .slice(0, 40)
-    if (priceLines.length > 0) {
-      priceCtx = `
-=== 사용자 단가표 (우선 반영) ===
-아래 단가를 우선 사용하세요. 단가표에 없는 항목은 시장 시세로 추정하세요.
-${priceLines.join('\n')}
-`
-    }
-  }
-
-  // ── 설정값 ──
   const settingsCtx = input.settings
-    ? `\n[설정값]\n경비율: ${input.settings.expenseRate ?? 0}%, 이익률: ${input.settings.profitRate ?? 0}%, 견적 유효일: ${input.settings.validDays ?? 7}일, 결제 조건: ${input.settings.paymentTerms || '계약 시 협의'}`
+    ? `[설정] 경비율: ${input.settings.expenseRate ?? 0}%, 이익률: ${input.settings.profitRate ?? 0}%, 유효일: ${input.settings.validDays ?? 7}일, 결제: ${input.settings.paymentTerms || '협의'}`
     : ''
 
-  // ── 최종 프롬프트 조합 ──
-  return `당신은 대한민국 행사·이벤트 업계 전문 견적서 작성 AI입니다.
-아래 행사 정보를 바탕으로 ${target === 'estimate' ? '견적서' : target === 'timetable' ? '타임테이블' : '문서'}를 생성하세요.
+  const categoryGuide = getCategoryGuide(category, headcount)
+  const programFlowGuide = getProgramFlowGuide(category, input)
+  const programItemsHint = (['estimate', 'program', 'timetable'] as const).includes(target as any)
+    ? getProgramItemsHint(input.requirements || '', input.programs)
+    : ''
+
+  const priceCtx = target === 'estimate' ? buildPriceContext(input) : ''
+  const referenceCtx = buildReferenceContext(input)
+  const taskOrderCtx = buildTaskOrderContext(input)
+  const scenarioRefCtx = target === 'scenario' ? buildScenarioRefContext(input) : ''
+  const cuesheetCtx = target === 'cuesheet' ? buildCuesheetSampleContext(input) : ''
+  const existingDocCtx = target !== 'estimate' ? buildExistingDocContext(input) : ''
+  const outputSchema = getOutputSchema(target, category)
+
+  const principles = [
+    '1. 모든 필드를 구체적으로 작성. 빈 문자열·"-"·"해당없음" 절대 불가.',
+    '2. 현실적인 대한민국 시세 기반 수치 사용. 0원·1원 불가.',
+    '3. 행사 유형에 맞지 않는 항목 절대 금지.',
+    '4. time 필드는 반드시 HH:mm 실제 시간.',
+    target === 'estimate'
+      ? '5. spec에 산출 근거 필수 (예: "MC 1명×6시간", "300인 기준").'
+      : '5. content는 구체적 진행 내용 (예: "명랑운동회 1부 — 비전탑 세우기·도전99초").',
+    '6. requirements에 언급된 내용 반드시 반영.',
+    '7. 항목/행은 최소 기준 이상으로 작성. 누락보다 과잉이 낫습니다.',
+  ].join('\n')
+
+  return `당신은 대한민국 행사·이벤트 업계 전문 ${label} 작성 AI입니다.
+아래 행사 정보를 바탕으로 ${label}를 생성하세요.
 
 === 행사 기본 정보 ===
 ${basicInfo}
 ${settingsCtx}
 
-=== 카테고리 및 항목 가이드 ===
+=== 행사 유형별 가이드 ===
 ${categoryGuide}
-${programHint}
+${programFlowGuide}
+${programItemsHint}
 ${priceCtx}
 ${referenceCtx}
 ${taskOrderCtx}
+${scenarioRefCtx}
+${cuesheetCtx}
+${existingDocCtx}
 
 === 작성 원칙 ===
-1. 항목 완결성: 행사 진행에 필요한 항목을 빠짐없이 포함하세요. 누락보다 과잉이 낫습니다.
-2. 현실적 단가: 대한민국 현재 시세 기준으로 추정하세요. 0원이나 1원은 절대 안 됩니다.
-3. spec 필드에 산출 근거를 반드시 명시하세요. 예: "MC 1명×6시간", "300인 기준", "야외 PA 좌우 1세트"
-4. 행사 유형에 맞지 않는 항목은 넣지 마세요. 예: 체육대회에 '콘퍼런스 동시통역 장비' X
-5. notes 는 포함 범위, 제외 항목, 결제 조건을 구체적으로 작성하세요.
-6. program.timeline 은 실제 진행 순서와 시간을 행사 정보에 맞게 작성하세요.
-7. 예산이 명시된 경우 예산 범위 내에서 항목을 조정하세요.
+${principles}
 
 ${outputSchema}
 
-위 지시에 따라 JSON을 생성하세요.`.trim()
+위 지시에 따라 JSON만 출력하세요.`.trim()
 }
