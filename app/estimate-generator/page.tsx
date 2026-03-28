@@ -78,7 +78,6 @@ export default function EstimateGeneratorPage() {
   const [globalStyleMode, setGlobalStyleMode] = useState<StyleMode>('userStyle')
 
   const [topic, setTopic] = useState('')
-  const [goal, setGoal] = useState('')
   const [headcount, setHeadcount] = useState('')
   const [venue, setVenue] = useState('')
   const [notes, setNotes] = useState('')
@@ -209,9 +208,8 @@ export default function EstimateGeneratorPage() {
     }
 
     const safeTopic = topic.trim()
-    const safeGoal = goal.trim()
     const safeNotes = notes.trim()
-    const promptRequirements = [safeGoal, safeNotes ? `추가 메모: ${safeNotes}` : ''].filter(Boolean).join('\n')
+    const promptRequirements = safeNotes ? `추가 메모: ${safeNotes}` : ''
     return {
       ...base,
       eventName: safeTopic || '행사',
@@ -230,7 +228,6 @@ export default function EstimateGeneratorPage() {
     selectedTaskOrderParsed,
     sourceMode,
     topic,
-    goal,
     headcount,
     venue,
     notes,
@@ -299,8 +296,8 @@ export default function EstimateGeneratorPage() {
       : sourceMode === 'fromTaskOrder'
         ? !selectedTaskOrderId || !selectedTaskOrder
         : sourceMode === 'fromReferenceStyle'
-          ? !activeReference || !topic.trim() || !goal.trim()
-          : !topic.trim() || !goal.trim()
+          ? !activeReference || !topic.trim()
+          : !topic.trim()
 
   const validationMessage = useMemo(() => {
     if (!generateDisabled) return null
@@ -309,7 +306,6 @@ export default function EstimateGeneratorPage() {
         return '참고 자료에서 견적서를 올리고 「견적 생성에 반영」으로 활성화해 주세요.'
       }
       if (!topic.trim()) return '이벤트 주제를 입력해 주세요.'
-      if (!goal.trim()) return '목표를 입력해 주세요.'
       return null
     }
     if (sourceMode === 'fromTaskOrder') {
@@ -324,7 +320,6 @@ export default function EstimateGeneratorPage() {
     generateDisabled,
     sourceMode,
     topic,
-    goal,
     activeReference,
     selectedTaskOrderId,
     selectedTaskOrder,
@@ -353,13 +348,6 @@ export default function EstimateGeneratorPage() {
         value={topic}
         onChange={(e) => setTopic(e.target.value)}
         placeholder="예) 기업 워크숍 / 신제품 론칭"
-      />
-      <Textarea
-        label="목표"
-        value={goal}
-        onChange={(e) => setGoal(e.target.value)}
-        placeholder="예) 참가자들이 핵심 메시지를 이해하고 행동까지 이어지게"
-        rows={3}
       />
       <div className="grid grid-cols-2 gap-3">
         <Input
@@ -429,7 +417,6 @@ export default function EstimateGeneratorPage() {
               const next = id as SourceMode
               setSourceMode(next)
               setTopic('')
-              setGoal('')
               setHeadcount('')
               setVenue('')
               setNotes('')
@@ -561,7 +548,7 @@ export default function EstimateGeneratorPage() {
               <div className="text-sm font-semibold text-gray-900">입력 후 생성하세요</div>
               <div className="text-xs text-gray-500 mt-2">
                 {sourceMode === 'fromTopic' || sourceMode === 'fromReferenceStyle'
-                  ? '주제와 목표만 있으면 됩니다'
+                  ? '이벤트 주제만 입력하면 됩니다'
                   : '소스 선택과 필수 입력이 필요합니다'}
               </div>
             </section>
