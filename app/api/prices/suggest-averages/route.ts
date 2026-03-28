@@ -7,6 +7,8 @@ import { logError } from '@/lib/utils/logger'
 import { getUserIdFromSession } from '@/lib/auth-server'
 import { ensureFreeSubscription } from '@/lib/db/subscriptions-db'
 
+export const maxDuration = 300
+
 export async function POST(req: NextRequest) {
   try {
     const userId = await getUserIdFromSession()

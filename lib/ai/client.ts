@@ -47,7 +47,13 @@ function readableLLMError(input: unknown, provider: AIProvider): Error & { code?
     return out
   }
 
-  if (err?.timedOut || lowered.includes('timeout') || lowered.includes('etimedout')) {
+  if (
+    err?.timedOut ||
+    lowered.includes('timeout') ||
+    lowered.includes('etimedout') ||
+    lowered.includes('aborted') ||
+    lowered.includes('the user aborted')
+  ) {
     out.message = 'AI 응답 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.'
     out.timedOut = true
     out.code = out.code ?? 'ETIMEDOUT'
@@ -132,49 +138,47 @@ export async function callLLM(prompt: string, opts: CallLLMOptions = {}): Promis
   const timeoutMs = opts.timeoutMs ?? 90_000
   logInfo('ai.call.start', { provider, model, maxTokens })
 
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => {
-      const err = new Error('timeout') as Error & { code?: string; timedOut?: boolean }
-      err.code = 'ETIMEDOUT'
-      err.timedOut = true
-      reject(err)
-    }, timeoutMs)
-  })
-
-  const requestPromise =
-    provider === 'openai'
-      ? (async () => {
-          const client = getOpenAIClient()
-          const res = await client.chat.completions.create({
-            model: model as string,
-            max_tokens: maxTokens,
-            messages: [{ role: 'user', content: prompt }],
-          })
-          const text = res.choices[0]?.message?.content
-          if (text == null) throw new Error('OpenAI 응답이 비어 있습니다.')
-          logInfo('ai.call.ok', { provider, model, id: res.id ?? null, openai: { id: res.id ?? null } })
-          return text
-        })()
-      : (async () => {
-          const client = getAnthropicClient()
-          const message = await client.messages.create({
-            model: model as string,
-            max_tokens: maxTokens,
-            messages: [{ role: 'user', content: prompt }],
-          })
-          logInfo('ai.call.ok', {
-            provider,
-            model,
-            id: (message as { id?: string }).id ?? null,
-            anthropic: { id: (message as { id?: string }).id ?? null },
-          })
-          return message.content[0].type === 'text' ? message.content[0].text : ''
-        })()
+  const ac = new AbortController()
+  const timeoutId = setTimeout(() => ac.abort(), timeoutMs)
+  const llmReqOpts = { signal: ac.signal, timeout: timeoutMs, maxRetries: 0 as const }
 
   try {
-    return await Promise.race([requestPromise, timeoutPromise])
+    if (provider === 'openai') {
+      const client = getOpenAIClient()
+      const res = await client.chat.completions.create(
+        {
+          model: model as string,
+          max_tokens: maxTokens,
+          messages: [{ role: 'user', content: prompt }],
+        },
+        llmReqOpts,
+      )
+      const text = res.choices[0]?.message?.content
+      if (text == null) throw new Error('OpenAI 응답이 비어 있습니다.')
+      logInfo('ai.call.ok', { provider, model, id: res.id ?? null, openai: { id: res.id ?? null } })
+      return text
+    }
+
+    const client = getAnthropicClient()
+    const message = await client.messages.create(
+      {
+        model: model as string,
+        max_tokens: maxTokens,
+        messages: [{ role: 'user', content: prompt }],
+      },
+      llmReqOpts,
+    )
+    logInfo('ai.call.ok', {
+      provider,
+      model,
+      id: (message as { id?: string }).id ?? null,
+      anthropic: { id: (message as { id?: string }).id ?? null },
+    })
+    return message.content[0].type === 'text' ? message.content[0].text : ''
   } catch (e) {
     throw readableLLMError(e, provider)
+  } finally {
+    clearTimeout(timeoutId)
   }
 }
 

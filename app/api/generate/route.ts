@@ -15,6 +15,9 @@ import {
 } from '@/lib/generation/execute-generate-pipeline'
 import { toServerUserMessage } from '@/lib/errors/server-error-message'
 
+/** Vercel 등 서버리스 기본 실행 시간보다 길면 AI 응답 전에 요청이 끊깁니다. Pro 등에서 최대 300초까지 허용. */
+export const maxDuration = 300
+
 const GenerateRequestSchema = z.object({
   eventName: z.string().min(1, '행사명을 입력해주세요.'),
   clientName: z.string().optional().default(''),

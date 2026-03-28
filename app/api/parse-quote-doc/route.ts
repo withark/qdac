@@ -10,6 +10,8 @@ import { callLLM } from '@/lib/ai/client'
 import { safeParseQuoteJson, normalizeQuoteDoc } from '@/lib/ai/parsers'
 import type { QuoteDoc } from '@/lib/types'
 
+export const maxDuration = 300
+
 const TargetSchema = z.enum(['estimate', 'planning', 'program'])
 
 function getTodayStr() {
