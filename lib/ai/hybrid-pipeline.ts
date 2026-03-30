@@ -1,4 +1,4 @@
-import { getEnv } from '@/lib/env'
+import { getEnv, readEnvBool } from '@/lib/env'
 import type { PlanType } from '@/lib/plans'
 import type { EffectiveEngineConfig } from './client'
 import { clampEngineMaxTokens } from './generate-config'
@@ -33,7 +33,9 @@ export function getHybridPipelineEngines(userPlan?: PlanType): {
   const premiumModel =
     (env.ANTHROPIC_MODEL_PREMIUM || '').trim() || refineBase
 
-  const refineModel = userPlan === 'PREMIUM' ? premiumModel : refineBase
+  const premiumMode = readEnvBool('AI_ENABLE_PREMIUM_MODE', true)
+  const refineModel =
+    premiumMode && userPlan === 'PREMIUM' ? premiumModel : refineBase
 
   return {
     draft: { provider: 'openai', model: draftModel, maxTokens: draftTokens, overlay: null },

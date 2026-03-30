@@ -1,7 +1,7 @@
 import type { GenerateInput, QuoteDoc, PriceCategory } from './types'
 import { callLLM, getEffectiveEngineConfig } from './client'
 import { buildGeneratePrompt, buildRepairPrompt } from './prompts'
-import { getEnv } from '../env'
+import { getEnv, readEnvBool } from '../env'
 import { isMockGenerationEnabled } from './mode'
 import { parseBudgetCeilingKRW } from '@/lib/budget'
 import {
@@ -1978,7 +1978,8 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
   const repairFocusHistory: RepairFocus[] = []
   const generationProfile = input.generationProfile ?? 'realtime'
   const strictQualityTarget = target !== 'estimate'
-  if (qualityIssues.length > 0) {
+  const skipRefine = readEnvBool('AI_ENABLE_REFINE_SKIP', false)
+  if (!skipRefine && qualityIssues.length > 0) {
     input.pipelineEmit?.({ stage: 'refine', label: '문서 품질 보정 중' })
     const refineStarted = Date.now()
     try {

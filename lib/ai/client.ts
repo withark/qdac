@@ -1,11 +1,12 @@
 import Anthropic from '@anthropic-ai/sdk'
 import OpenAI from 'openai'
-import { getEnv } from '../env'
+import { getEnv, readEnvBool } from '../env'
 import { hasDatabase } from '../db/client'
 import { kvGet } from '../db/kv'
 import type { EngineConfigOverlay } from '../admin-types'
 import { clampEngineMaxTokens, ENGINE_MAX_TOKENS_DEFAULT } from './generate-config'
 import { logInfo } from '../utils/logger'
+import { estimateUsdFromTokens } from './cost-estimate'
 
 export type AIProvider = 'anthropic' | 'openai'
 
@@ -176,6 +177,26 @@ export async function callLLM(prompt: string, opts: CallLLMOptions = {}): Promis
       const text = res.choices[0]?.message?.content
       if (text == null) throw new Error('OpenAI 응답이 비어 있습니다.')
       logInfo('ai.call.ok', { provider, model, id: res.id ?? null, openai: { id: res.id ?? null } })
+      const usage = res.usage
+      if (usage) {
+        const logTok = readEnvBool('AI_LOG_TOKENS', false)
+        const logCost = readEnvBool('AI_LOG_COST_ESTIMATE', false)
+        const promptTokens = usage.prompt_tokens ?? 0
+        const completionTokens = usage.completion_tokens ?? 0
+        if (logTok) {
+          logInfo('ai.usage.tokens', {
+            provider,
+            model,
+            promptTokens,
+            completionTokens,
+            totalTokens: usage.total_tokens ?? promptTokens + completionTokens,
+          })
+        }
+        if (logCost) {
+          const est = estimateUsdFromTokens(model, promptTokens, completionTokens)
+          logInfo('ai.usage.costEstimateUsd', { provider, model, ...est, note: 'approximate' })
+        }
+      }
       return text
     }
 
@@ -195,6 +216,26 @@ export async function callLLM(prompt: string, opts: CallLLMOptions = {}): Promis
       id: (message as { id?: string }).id ?? null,
       anthropic: { id: (message as { id?: string }).id ?? null },
     })
+    const usage = (message as { usage?: { input_tokens?: number; output_tokens?: number } }).usage
+    if (usage) {
+      const logTok = readEnvBool('AI_LOG_TOKENS', false)
+      const logCost = readEnvBool('AI_LOG_COST_ESTIMATE', false)
+      const inputTokens = usage.input_tokens ?? 0
+      const outputTokens = usage.output_tokens ?? 0
+      if (logTok) {
+        logInfo('ai.usage.tokens', {
+          provider,
+          model,
+          inputTokens,
+          outputTokens,
+          totalTokens: inputTokens + outputTokens,
+        })
+      }
+      if (logCost) {
+        const est = estimateUsdFromTokens(model, inputTokens, outputTokens)
+        logInfo('ai.usage.costEstimateUsd', { provider, model, ...est, note: 'approximate' })
+      }
+    }
     const text = anthropicAssistantPlainText(message)
     if (!text) throw new Error('Anthropic 응답에 본문 텍스트가 없습니다.')
     return text

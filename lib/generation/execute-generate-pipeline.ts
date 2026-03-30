@@ -21,6 +21,7 @@ import { getCuesheetFile } from '@/lib/db/cuesheet-samples-db'
 import { extractTextFromBuffer } from '@/lib/file-utils'
 import { getEffectiveEngineConfig } from '@/lib/ai/client'
 import { getHybridPipelineEngines } from '@/lib/ai/hybrid-pipeline'
+import { readEnvBool } from '@/lib/env'
 import { clampEngineMaxTokens } from '@/lib/ai/generate-config'
 import { logError, logInfo } from '@/lib/utils/logger'
 import { parseBudgetCeilingKRW } from '@/lib/budget'
@@ -280,6 +281,10 @@ export async function executeGeneratePipeline(
       hybridEngines != null
         ? { draftModel: hybridEngines.draft.model, refineModel: hybridEngines.refine.model }
         : null,
+    aiPremiumMode: readEnvBool('AI_ENABLE_PREMIUM_MODE', true),
+    aiRefineSkip: readEnvBool('AI_ENABLE_REFINE_SKIP', false),
+    aiLogTokens: readEnvBool('AI_LOG_TOKENS', false),
+    aiLogCostEstimate: readEnvBool('AI_LOG_COST_ESTIMATE', false),
 
     structureFirst: overlayForPrompt?.structureFirst,
     toneFirst: overlayForPrompt?.toneFirst,
