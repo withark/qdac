@@ -47,9 +47,93 @@ const TIMING_STAGE_KO: Record<string, string> = {
   aiCallMs: 'AI 호출',
   parseNormalizeMs: '결과 정리',
   stagedRefineMs: '추가 다듬기',
+  llmPrimaryMs: '1차 생성',
+  llmRetryMs: '재시도 생성',
+  llmRefineMs: '보정 호출',
   saveMs: '저장',
   totalMs: '전체',
   retries: '재시도',
+  timedOut: '타임아웃',
+  slowestStage: '최장 구간',
+  slowestStageMs: '최장 구간 시간',
+}
+const TIMING_VISIBLE_KEYS = [
+  'authSessionMs',
+  'contextLoadMs',
+  'promptBuildMs',
+  'aiCallMs',
+  'parseNormalizeMs',
+  'stagedRefineMs',
+  'llmPrimaryMs',
+  'llmRetryMs',
+  'llmRefineMs',
+  'retries',
+  'timedOut',
+  'slowestStage',
+  'slowestStageMs',
+  'saveMs',
+  'totalMs',
+]
+
+const REPAIR_FOCUS_KO: Record<string, string> = {
+  coherence: '정합성',
+  coverage: '요구사항 반영',
+  specificity: '구체화',
+  all: '종합',
+}
+
+function asNumber(v: unknown): number | null {
+  if (typeof v === 'number' && Number.isFinite(v)) return v
+  if (typeof v === 'string' && v.trim()) {
+    const parsed = Number(v)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return null
+}
+
+function asStringArray(v: unknown): string[] {
+  if (!Array.isArray(v)) return []
+  return v.map((it) => String(it || '').trim()).filter(Boolean)
+}
+
+function renderTimingValue(key: string, value: unknown): string {
+  if (key === 'retries') return String(value)
+  if (key === 'timedOut') return value === true ? '예' : '아니오'
+  if (key === 'slowestStage') return String(value)
+  if (typeof value === 'number') return `${value}ms`
+  return String(value)
+}
+
+function renderQualityBlock(snapshot: Record<string, unknown>) {
+  if (!isRecord(snapshot.quality)) return null
+  const quality = snapshot.quality
+  const focusHistory = asStringArray(quality.repairFocusHistory)
+  const topIssues = asStringArray(quality.topIssuesAfter)
+
+  return (
+    <div className="text-[11px] text-slate-600 space-y-0.5 mt-1">
+      <div className="font-medium text-slate-700">품질 보정</div>
+      <div>
+        이슈: {asNumber(quality.issueCountBefore) ?? '—'}→{asNumber(quality.issueCountAfter) ?? '—'}
+        {' · '}
+        점수: {asNumber(quality.scoreBefore) ?? '—'}→{asNumber(quality.scoreAfter) ?? '—'}
+      </div>
+      <div>
+        보정 시도: {asNumber(quality.repairAttempts) ?? 0}회
+        {' · '}
+        상태:{' '}
+        {quality.cleared === true ? '기준 충족' : quality.improved === true ? '개선됨' : '유지/악화'}
+      </div>
+      {focusHistory.length > 0 ? (
+        <div>
+          보정 축: {focusHistory.map((focus) => REPAIR_FOCUS_KO[focus] ?? focus).join(' → ')}
+        </div>
+      ) : null}
+      {topIssues.length > 0 ? (
+        <div className="text-[10px] text-slate-500 leading-snug">잔여 이슈: {topIssues.slice(0, 2).join(' / ')}</div>
+      ) : null}
+    </div>
+  )
 }
 
 type AiRuntimePayload = {
@@ -343,18 +427,14 @@ export default function AdminGenerationLogsPage() {
                         ) : (
                           <div className="text-[11px] text-slate-500">AI 호출: —</div>
                         )}
+                        {renderQualityBlock(r.engineSnapshot)}
                         {isRecord(r.engineSnapshot?.timings) ? (
                           <div className="text-[11px] text-slate-500 space-y-0.5 mt-1">
                             {Object.entries(r.engineSnapshot.timings as Record<string, unknown>)
-                              .filter(([k]) =>
-                                ['authSessionMs', 'contextLoadMs', 'promptBuildMs', 'aiCallMs', 'parseNormalizeMs', 'saveMs', 'totalMs'].includes(
-                                  k,
-                                ),
-                              )
+                              .filter(([k]) => TIMING_VISIBLE_KEYS.includes(k))
                               .map(([k, v]) => (
                                 <div key={k}>
-                                  {TIMING_STAGE_KO[k] ?? k}:{' '}
-                                  {typeof v === 'number' ? `${v}ms` : String(v)}
+                                  {TIMING_STAGE_KO[k] ?? k}: {renderTimingValue(k, v)}
                                 </div>
                               ))}
                           </div>

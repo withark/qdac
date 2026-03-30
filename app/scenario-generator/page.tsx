@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
-import SimpleGeneratorWizard from '@/components/generators/SimpleGeneratorWizard'
+import SimpleGeneratorWizard, { type WizardHighlight } from '@/components/generators/SimpleGeneratorWizard'
 import { Input, Textarea, Toast } from '@/components/ui'
 import type { CompanySettings, PriceCategory, QuoteDoc } from '@/lib/types'
 import { apiFetch, apiGenerateStream } from '@/lib/api/client'
@@ -11,6 +11,7 @@ import { toUserMessage } from '@/lib/errors/toUserMessage'
 import { exportToExcel } from '@/lib/exportExcel'
 import { exportToPdf } from '@/lib/exportPdf'
 import type { PlanType } from '@/lib/plans'
+import { buildTopicSeedDoc } from '@/lib/topic-seed-doc'
 
 type MeLite = {
   subscription: { planType: PlanType }
@@ -28,70 +29,6 @@ type GeneratedDocListRow = {
 }
 
 type SourceMode = 'fromPlanning' | 'fromProgram' | 'fromTopic'
-
-function todayStr() {
-  return new Date().toISOString().slice(0, 10)
-}
-
-function makeDummyScenarioDoc({
-  topic,
-  headcount,
-  venue,
-}: {
-  topic: string
-  headcount: string
-  venue: string
-}): QuoteDoc {
-  const quoteDate = todayStr()
-  return {
-    eventName: topic,
-    clientName: '',
-    clientManager: '',
-    clientTel: '',
-    quoteDate,
-    eventDate: '',
-    eventDuration: '',
-    venue: venue.trim(),
-    headcount: headcount.trim(),
-    eventType: '기타',
-    quoteItems: [
-      {
-        category: '기타',
-        items: [
-          {
-            name: '기본 컨텍스트',
-            spec: '',
-            qty: 1,
-            unit: '식',
-            unitPrice: 0,
-            total: 0,
-            note: '',
-            kind: '필수',
-          },
-        ],
-      },
-    ],
-    expenseRate: 0,
-    profitRate: 0,
-    cutAmount: 0,
-    notes: '',
-    paymentTerms: '',
-    validDays: 7,
-    program: {
-      concept: '',
-      programRows: [],
-      timeline: [],
-      staffing: [],
-      tips: [],
-      cueRows: [],
-      cueSummary: '',
-    },
-    scenario: undefined,
-    planning: undefined,
-    quoteTemplate: 'default',
-    // Note: scenario generation uses `existingDoc` context; QuoteResult에서 편집은 생성 이후에만 의미가 있습니다.
-  } as QuoteDoc
-}
 
 export default function ScenarioGeneratorPage() {
   const [toast, setToast] = useState<string | null>(null)
@@ -123,6 +60,14 @@ export default function ScenarioGeneratorPage() {
   const [generationProgressLabel, setGenerationProgressLabel] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const generatingTabs = useMemo(() => ({ scenario: generating }), [generating])
+  const wizardHighlights: WizardHighlight[] = useMemo(
+    () => [
+      { label: '필수 입력', value: '주제, 목표' },
+      { label: '권장 입력', value: '인원, 장소, 연출 메모' },
+      { label: '결과물', value: '시나리오 + 엑셀/PDF' },
+    ],
+    [],
+  )
 
   useEffect(() => {
     apiFetch<MeLite>('/api/me').then(setMe).catch(() => {})
@@ -183,7 +128,7 @@ export default function ScenarioGeneratorPage() {
   const handleGenerateScenario = useCallback(async () => {
     const docForGenerate =
       sourceMode === 'fromTopic'
-        ? doc ?? makeDummyScenarioDoc({ topic: topic.trim() || '행사', headcount, venue })
+        ? doc ?? buildTopicSeedDoc({ topic: topic.trim() || '행사', headcount, venue, goal, notes, documentTarget: 'scenario' })
         : doc
     if (!docForGenerate) {
       showToast('생성에 필요한 문서 컨텍스트가 없습니다. 소스 문서를 선택했는지 확인해 주세요.')
@@ -201,6 +146,8 @@ export default function ScenarioGeneratorPage() {
       const data = await apiGenerateStream(
         {
           ...baseBody,
+          briefGoal: sourceMode === 'fromTopic' ? goal.trim() : '',
+          briefNotes: sourceMode === 'fromTopic' ? notes.trim() : '',
           documentTarget: 'scenario',
           existingDoc: docForGenerate,
         },
@@ -260,13 +207,13 @@ export default function ScenarioGeneratorPage() {
     <div className="flex h-screen overflow-hidden bg-gray-50/50">
       <GNB />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="flex items-center justify-between px-6 h-14 border-b border-gray-100 bg-white/90 flex-shrink-0">
+        <header className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 bg-white/90 px-6 py-5 flex-shrink-0">
           <div>
-            <h1 className="text-base font-semibold text-gray-900">시나리오 만들기</h1>
-            <p className="text-xs text-gray-500 mt-0.5">시나리오만 생성합니다</p>
+            <h1 className="text-xl font-semibold tracking-tight text-slate-900">시나리오 만들기</h1>
+            <p className="mt-1 text-sm leading-6 text-slate-600">멘트, 전환, 큐 포인트가 살아 있는 현장 진행 시나리오를 만듭니다.</p>
           </div>
           {me?.subscription?.planType === 'FREE' && (
-            <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1">
+            <span className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-700">
               무료
             </span>
           )}
@@ -275,11 +222,12 @@ export default function ScenarioGeneratorPage() {
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <SimpleGeneratorWizard
             title="시나리오 만들기"
-            subtitle=""
+            subtitle="연출 흐름과 진행 멘트를 같이 정리해 바로 리허설 문서로 쓸 수 있게 구성합니다."
+            highlights={wizardHighlights}
             modes={[
-              { id: 'fromTopic', title: '주제만 입력' },
-              { id: 'fromPlanning', title: '기획안 기준' },
-              { id: 'fromProgram', title: '프로그램 제안서 기준' },
+              { id: 'fromTopic', title: '주제만 입력', desc: '행사 목표와 연출 메모만으로 초안을 만듭니다.' },
+              { id: 'fromPlanning', title: '기획안 기준', desc: '기획 구조를 바탕으로 연출/멘트 흐름을 구체화합니다.' },
+              { id: 'fromProgram', title: '프로그램 제안서 기준', desc: '프로그램 구성안을 실제 진행 시나리오로 바꿉니다.' },
             ]}
             modeId={sourceMode}
             onModeChange={(id) => {
@@ -302,7 +250,7 @@ export default function ScenarioGeneratorPage() {
                     setSelectedBaseDocId(e.target.value || null)
                     setGeneratedDocId(null)
                   }}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-100"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70"
                 >
                   <option value="" disabled>
                     {sourceMode === 'fromPlanning' ? '기획 문서를 선택하세요' : '프로그램 제안서를 선택하세요'}
@@ -315,8 +263,8 @@ export default function ScenarioGeneratorPage() {
                 </select>
               ) : (
                 <div className="space-y-3">
-                  <div className="text-[11px] text-gray-500">
-                    필수: 주제, 목표 / 선택: 인원, 장소, 추가 메모
+                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-600">
+                    오프닝 톤, 강조 메시지, VIP 동선 같은 메모를 넣으면 MC 멘트와 전환 큐가 훨씬 자연스럽게 작성됩니다.
                   </div>
                   <Input
                     label="이벤트 주제"
@@ -386,9 +334,13 @@ export default function ScenarioGeneratorPage() {
                   showTabButtons={false}
                   disableAutoGenerate
                   hideOnDemandGenerate
-                  onExcel={(view) => {
-                    exportToExcel(doc, companySettings ?? undefined, view)
-                    showToast('엑셀 다운로드 완료!')
+                  onExcel={async (view) => {
+                    try {
+                      await exportToExcel(doc, companySettings ?? undefined, view)
+                      showToast('엑셀 다운로드 완료!')
+                    } catch (e) {
+                      showToast(toUserMessage(e, '엑셀 다운로드 실패'))
+                    }
                   }}
                   onPdf={async () => {
                     if (me?.subscription?.planType === 'FREE') {
@@ -425,4 +377,3 @@ export default function ScenarioGeneratorPage() {
     </div>
   )
 }
-

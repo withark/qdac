@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
-import SimpleGeneratorWizard, { type WizardMode } from '@/components/generators/SimpleGeneratorWizard'
+import SimpleGeneratorWizard, { type WizardHighlight, type WizardMode } from '@/components/generators/SimpleGeneratorWizard'
 import { Input, Textarea, Toast } from '@/components/ui'
 import type { CompanySettings, PriceCategory, QuoteDoc } from '@/lib/types'
 import type { PlanType } from '@/lib/plans'
@@ -11,6 +11,7 @@ import { apiFetch, apiGenerateStream } from '@/lib/api/client'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
 import { exportToExcel } from '@/lib/exportExcel'
 import { exportToPdf } from '@/lib/exportPdf'
+import { buildTopicSeedDoc } from '@/lib/topic-seed-doc'
 
 type MeLite = {
   subscription: { planType: PlanType }
@@ -28,69 +29,6 @@ type GeneratedDocListRow = {
 }
 
 type SourceMode = 'fromScenario' | 'fromProgram' | 'fromTopic'
-
-function todayStr() {
-  return new Date().toISOString().slice(0, 10)
-}
-
-function makeDummyCueSheetExistingDoc({
-  topic,
-  headcount,
-  venue,
-}: {
-  topic: string
-  headcount: string
-  venue: string
-}): QuoteDoc {
-  const quoteDate = todayStr()
-  return {
-    eventName: topic,
-    clientName: '',
-    clientManager: '',
-    clientTel: '',
-    quoteDate,
-    eventDate: '',
-    eventDuration: '',
-    venue: venue.trim(),
-    headcount: headcount.trim(),
-    eventType: '기타',
-    quoteItems: [
-      {
-        category: '기타',
-        items: [
-          {
-            name: '기본 컨텍스트',
-            spec: '',
-            qty: 1,
-            unit: '식',
-            unitPrice: 0,
-            total: 0,
-            note: '',
-            kind: '필수',
-          },
-        ],
-      },
-    ],
-    expenseRate: 0,
-    profitRate: 0,
-    cutAmount: 0,
-    notes: '',
-    paymentTerms: '',
-    validDays: 7,
-    program: {
-      concept: '',
-      programRows: [],
-      timeline: [],
-      staffing: [],
-      tips: [],
-      cueRows: [],
-      cueSummary: '',
-    },
-    scenario: undefined,
-    planning: undefined,
-    quoteTemplate: 'default',
-  } as QuoteDoc
-}
 
 export default function CueSheetGeneratorPage() {
   const [toast, setToast] = useState<string | null>(null)
@@ -125,9 +63,21 @@ export default function CueSheetGeneratorPage() {
   const [generationProgressLabel, setGenerationProgressLabel] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const generatingTabs = useMemo(() => ({ program: generating }), [generating])
+  const wizardHighlights: WizardHighlight[] = useMemo(
+    () => [
+      { label: '필수 입력', value: '주제, 목표' },
+      { label: '권장 입력', value: '인원, 장소, 운영 메모' },
+      { label: '결과물', value: '큐시트 + 엑셀/PDF' },
+    ],
+    [],
+  )
 
   const modes: WizardMode[] = useMemo(
-    () => [{ id: 'fromTopic', title: '주제만 입력' }, { id: 'fromScenario', title: '시나리오 기준' }, { id: 'fromProgram', title: '프로그램 제안서 기준' }],
+    () => [
+      { id: 'fromTopic', title: '주제만 입력', desc: '현장 운영 핵심만 넣고 바로 큐시트를 만듭니다.' },
+      { id: 'fromScenario', title: '시나리오 기준', desc: '시나리오 흐름을 스태프 실행표로 바꿉니다.' },
+      { id: 'fromProgram', title: '프로그램 제안서 기준', desc: '프로그램 구성안을 시간축 운영표로 전환합니다.' },
+    ],
     [],
   )
 
@@ -187,7 +137,7 @@ export default function CueSheetGeneratorPage() {
   const handleGenerateCueSheet = useCallback(async () => {
     const contextDocForGenerate =
       sourceMode === 'fromTopic'
-        ? makeDummyCueSheetExistingDoc({ topic: topic.trim() || '행사', headcount, venue })
+        ? buildTopicSeedDoc({ topic: topic.trim() || '행사', headcount, venue, goal, notes, documentTarget: 'cuesheet' })
         : contextDoc
     if (!contextDocForGenerate) {
       showToast('생성에 필요한 문서 컨텍스트가 없습니다. 소스를 선택했는지 확인해 주세요.')
@@ -202,6 +152,8 @@ export default function CueSheetGeneratorPage() {
       const data = await apiGenerateStream(
         {
           ...baseBody,
+          briefGoal: sourceMode === 'fromTopic' ? goal.trim() : '',
+          briefNotes: sourceMode === 'fromTopic' ? notes.trim() : '',
           documentTarget: 'cuesheet',
           existingDoc: contextDocForGenerate,
           cuesheetSampleIds: [],
@@ -262,20 +214,21 @@ export default function CueSheetGeneratorPage() {
     <div className="flex h-screen overflow-hidden bg-gray-50/50">
       <GNB />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="flex items-center justify-between px-6 h-14 border-b border-gray-100 bg-white/90 flex-shrink-0">
+        <header className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 bg-white/90 px-6 py-5 flex-shrink-0">
           <div>
-            <h1 className="text-base font-semibold text-gray-900">큐시트 만들기</h1>
-            <p className="text-xs text-gray-500 mt-0.5">큐시트(운영표)만 생성합니다</p>
+            <h1 className="text-xl font-semibold tracking-tight text-slate-900">큐시트 만들기</h1>
+            <p className="mt-1 text-sm leading-6 text-slate-600">현장 스태프가 그대로 따라갈 수 있는 시간축 운영표를 만듭니다.</p>
           </div>
           {me?.subscription?.planType === 'FREE' && (
-            <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1">무료</span>
+            <span className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-700">무료</span>
           )}
         </header>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <SimpleGeneratorWizard
             title="큐시트 만들기"
-            subtitle=""
+            subtitle="시간, 담당자, 준비물, 멘트 큐를 한 번에 정리해 바로 현장 공유가 가능하도록 구성했습니다."
+            highlights={wizardHighlights}
             modes={modes}
             modeId={sourceMode}
             onModeChange={(id) => {
@@ -301,7 +254,7 @@ export default function CueSheetGeneratorPage() {
                     setDoc(null)
                     setGeneratedDocId(null)
                   }}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-100"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70"
                 >
                   <option value="" disabled>
                     시나리오를 선택하세요
@@ -320,7 +273,7 @@ export default function CueSheetGeneratorPage() {
                     setDoc(null)
                     setGeneratedDocId(null)
                   }}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-100"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70"
                 >
                   <option value="" disabled>
                     프로그램 제안을 선택하세요
@@ -333,6 +286,9 @@ export default function CueSheetGeneratorPage() {
                 </select>
               ) : (
                 <div className="space-y-3">
+                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-600">
+                    대기 위치, 장비 큐, 돌발 대응 메모를 넣으면 현장용 완성도가 크게 올라갑니다.
+                  </div>
                   <Input
                     label="이벤트 주제"
                     value={topic}
@@ -404,9 +360,13 @@ export default function CueSheetGeneratorPage() {
                   disableAutoGenerate
                   hideOnDemandGenerate
                   showCueSheetEditor
-                  onExcel={(view) => {
-                    exportToExcel(doc, companySettings ?? undefined, view)
-                    showToast('엑셀 다운로드 완료!')
+                  onExcel={async (view) => {
+                    try {
+                      await exportToExcel(doc, companySettings ?? undefined, view)
+                      showToast('엑셀 다운로드 완료!')
+                    } catch (e) {
+                      showToast(toUserMessage(e, '엑셀 다운로드 실패'))
+                    }
                   }}
                   onPdf={async () => {
                     if (me?.subscription?.planType === 'FREE') {

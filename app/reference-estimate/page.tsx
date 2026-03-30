@@ -348,7 +348,7 @@ function UploadBox({ uploading, onUpload }: { uploading: boolean; onUpload: (f: 
     <div className="space-y-2">
       <input
         type="file"
-        accept=".txt,.csv,.md,.pdf,.xlsx,.xls,.ppt,.pptx,.doc,.docx"
+        accept=".txt,.csv,.md,.pdf,.xlsx,.ppt,.pptx,.doc,.docx"
         disabled={uploading}
         onChange={(e) => {
           const f = e.target.files?.[0]
@@ -357,7 +357,7 @@ function UploadBox({ uploading, onUpload }: { uploading: boolean; onUpload: (f: 
         }}
       />
       <div className="text-[11px] text-gray-500">
-        지원 형식: txt/csv/md/pdf/xlsx/xls/ppt/pptx/doc/docx · 파일 크기 {formatUploadLimitText()} 이하
+        지원 형식: txt/csv/md/pdf/xlsx/ppt/pptx/doc/docx · 파일 크기 {formatUploadLimitText()} 이하
       </div>
       <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-xs text-gray-600">
         참고 견적서 업로드와 별개로, <b>활성화된 참고 견적서</b>가 있어야 사용자 학습 스타일이 적용됩니다.
@@ -365,4 +365,3 @@ function UploadBox({ uploading, onUpload }: { uploading: boolean; onUpload: (f: 
     </div>
   )
 }
-

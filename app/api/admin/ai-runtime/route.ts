@@ -4,8 +4,18 @@ import { okResponse, errorResponse } from '@/lib/api/response'
 import { getEnv } from '@/lib/env'
 import { getEffectiveEngineConfig } from '@/lib/ai/client'
 import { isAiModeMockRaw, isMockGenerationEnabled, isProductionRuntime } from '@/lib/ai/mode'
+import { clampEngineMaxTokens } from '@/lib/ai/generate-config'
 
 export const dynamic = 'force-dynamic'
+
+const REALTIME_ANTHROPIC_MODEL_DEFAULT = 'claude-sonnet-4-6'
+const REALTIME_MAX_TOKENS_DEFAULT = 6_144
+
+function parsePositiveInt(value: string | undefined, fallback: number): number {
+  const n = Number.parseInt(String(value ?? ''), 10)
+  if (!Number.isFinite(n) || n <= 0) return fallback
+  return n
+}
 
 /**
  * 관리자용: 이 서버 인스턴스에서 /api/generate 가 모의 분기인지 실 LLM 호출인지 즉시 판별.
@@ -18,7 +28,22 @@ export async function GET(req: NextRequest) {
 
   try {
     const env = getEnv()
-    const eff = await getEffectiveEngineConfig()
+    const effRaw = await getEffectiveEngineConfig()
+    const realtimeTokenCap = parsePositiveInt(process.env.AI_REALTIME_MAX_TOKENS, REALTIME_MAX_TOKENS_DEFAULT)
+    const eff =
+      effRaw.provider === 'anthropic'
+        ? {
+            ...effRaw,
+            model:
+              (process.env.ANTHROPIC_REALTIME_MODEL || '').trim() ||
+              (process.env.ANTHROPIC_MODEL_REALTIME || '').trim() ||
+              REALTIME_ANTHROPIC_MODEL_DEFAULT,
+            maxTokens: clampEngineMaxTokens(Math.min(effRaw.maxTokens, realtimeTokenCap)),
+          }
+        : {
+            ...effRaw,
+            maxTokens: clampEngineMaxTokens(Math.min(effRaw.maxTokens, realtimeTokenCap)),
+          }
     const mockOn = isMockGenerationEnabled()
     const mockRaw = isAiModeMockRaw()
     const prod = isProductionRuntime()
@@ -58,6 +83,13 @@ export async function GET(req: NextRequest) {
         provider: eff.provider,
         model: eff.model,
         maxTokens: eff.maxTokens,
+      },
+      realtimePolicy: {
+        realtimeModelForced: effRaw.provider === 'anthropic' && effRaw.model !== eff.model,
+        modelBeforePolicy: effRaw.model,
+        realtimeModelTarget: eff.provider === 'anthropic' ? eff.model : null,
+        maxTokensBeforePolicy: effRaw.maxTokens,
+        realtimeTokenCap,
       },
       apiKeys: {
         anthropicConfigured: !!env.ANTHROPIC_API_KEY,

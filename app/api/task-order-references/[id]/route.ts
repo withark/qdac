@@ -35,13 +35,13 @@ function parseStructuredSummary(summary: string): TaskOrderStructuredSummary | n
   }
 }
 
-export async function GET(req: NextRequest, { params }: { params: { id?: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id?: string }> }) {
   try {
     const userId = await getUserIdFromSession()
     if (!userId) return errorResponse(401, 'UNAUTHORIZED', '로그인이 필요합니다.')
     await ensureFreeSubscription(userId)
 
-    const parsed = ParamsSchema.safeParse(params)
+    const parsed = ParamsSchema.safeParse(await params)
     if (!parsed.success) return errorResponse(400, 'INVALID_REQUEST', 'id가 올바르지 않습니다.')
 
     const id = parsed.data.id
@@ -57,4 +57,3 @@ export async function GET(req: NextRequest, { params }: { params: { id?: string 
     return errorResponse(500, 'INTERNAL_ERROR', '과업지시서 요약을 불러오지 못했습니다.')
   }
 }
-

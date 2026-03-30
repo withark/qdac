@@ -153,24 +153,29 @@ export async function MainPageContent() {
 
   return (
     <PublicPageShell loginHref={loginHref} loginLabel={loginLabel}>
-      <section className="mx-auto -mt-2 w-full max-w-none bg-gradient-to-b from-[#f2f7fc] via-[#f8fbff] to-white px-6 pb-12 pt-14 text-center sm:pb-14 sm:pt-16">
-        <div className="mx-auto max-w-[860px] text-center">
-          <p className="text-[11px] font-semibold tracking-[0.1em] text-primary-600">Event Document Automation</p>
-          <h1 className="mt-4 text-[28px] font-bold leading-[1.3] tracking-tight text-slate-900 sm:text-[38px]">
-            행사 문서 올인원,
+      <section className="mx-auto -mt-2 w-full max-w-none bg-[radial-gradient(circle_at_top,_rgba(37,99,235,0.14),_transparent_38%),linear-gradient(180deg,_#f4f8fc_0%,_#f8fbff_48%,_#ffffff_100%)] px-6 pb-14 pt-16 text-center sm:pb-16 sm:pt-20">
+        <div className="mx-auto max-w-[920px] text-center">
+          <p className="text-xs font-semibold tracking-[0.16em] text-primary-700">Event Document Automation</p>
+          <h1 className="mt-4 text-[34px] font-bold leading-[1.18] tracking-tight text-slate-900 sm:text-[54px]">
+            행사 문서,
             <br />
-            플래닉으로 더 빠르게
+            이제는 바로 만들어 바로 보냅니다
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-[15px]">
-            견적서, 기획안, 프로그램 제안서, 시나리오, 큐시트까지 실무 문서를 빠르게 만들고 바로 활용하세요.
+          <p className="mx-auto mt-5 max-w-3xl text-[15px] leading-7 text-slate-600 sm:text-[18px]">
+            견적서, 기획안, 프로그램 제안서, 시나리오, 큐시트까지.
+            핵심 정보만 입력하면 현업에서 바로 수정하고 고객에게 공유할 수 있는 문서 초안을 빠르게 만듭니다.
           </p>
-          <p className="mt-2 text-sm font-medium text-slate-600">가입 후 무료로 시작 가능합니다.</p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-sm font-medium text-slate-600">
+            <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5">문서 6종 통합 생성</span>
+            <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5">엑셀/PDF 바로 저장</span>
+            <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5">가입 후 무료 시작</span>
+          </div>
 
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <StartNowLink
               variant="cta"
               initialHref={initialStartHref}
-              className="inline-flex min-w-[190px] items-center justify-center rounded-xl bg-primary-600 px-8 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-700"
+              className="inline-flex min-w-[210px] items-center justify-center rounded-2xl bg-primary-600 px-8 py-4 text-[15px] font-semibold text-white shadow-lg shadow-primary-600/20 transition-colors hover:bg-primary-700"
             >
               무료로 시작하기
             </StartNowLink>
@@ -186,11 +191,11 @@ export async function MainPageContent() {
             <p className="text-xs font-semibold tracking-wide text-primary-600">Core Features</p>
             <h2 className="mt-2.5 text-[22px] font-bold text-slate-900 sm:text-[30px]">업무 효율을 높이는 핵심 기능</h2>
           </div>
-          <div className="mt-6 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {featureCards.map((card) => (
-              <article key={card.title} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="text-base font-semibold text-slate-900">{card.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-600">{card.description}</p>
+              <article key={card.title} className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+                <h3 className="text-lg font-semibold text-slate-900">{card.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-slate-600">{card.description}</p>
               </article>
             ))}
           </div>

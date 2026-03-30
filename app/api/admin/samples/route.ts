@@ -15,7 +15,7 @@ import { MAX_UPLOAD_BYTES, formatUploadLimitText } from '@/lib/upload-limits'
 /** 관리자 등록 기준 양식용 user_id (엔진·품질용, 사용자 참고 자료와 구분) */
 const ADMIN_SAMPLE_USER_ID = 'system'
 
-const ALLOWED_EXT = ['pdf', 'xlsx', 'xls', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'txt', 'csv', 'md', 'ppt', 'pptx', 'doc', 'docx']
+const ALLOWED_EXT = ['pdf', 'xlsx', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'txt', 'csv', 'md', 'ppt', 'pptx', 'doc', 'docx']
 
 function getExt(filename: string): string {
   const ext = (filename.split('.').pop() || '').toLowerCase()

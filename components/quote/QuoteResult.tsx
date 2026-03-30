@@ -8,6 +8,7 @@ import { Button } from '@/components/ui'
 import clsx from 'clsx'
 import type { PlanType } from '@/lib/plans'
 import { allowedQuoteTemplates } from '@/lib/plan-entitlements'
+import type { ExcelExportView } from '@/lib/exportExcel'
 
 type DocTab = 'estimate' | 'program' | 'timetable' | 'planning' | 'scenario'
 
@@ -44,7 +45,7 @@ interface Props {
   saving?: boolean
   onRegenerate?: () => void
   regenerating?: boolean
-  onExcel: (view: 'quote' | 'timeline') => void
+  onExcel: (view: ExcelExportView) => void
   onPdf: () => void
   onLoadPrevious?: () => void
   onGenerateTab?: (tab: DocTab) => void | Promise<void>
@@ -152,6 +153,10 @@ function isScenarioReady(doc: QuoteDoc) {
   return !!doc.scenario && typeof summaryTop === 'string' && summaryTop.trim().length > 0
 }
 
+function isEstimateReady(doc: QuoteDoc) {
+  return (doc.quoteItems || []).some((category) => (category.items || []).length > 0)
+}
+
 export function QuoteResult({
   doc,
   companySettings,
@@ -190,6 +195,7 @@ export function QuoteResult({
   const timetableReady = isTimetableReady(doc)
   const planningReady = isPlanningReady(doc)
   const scenarioReady = isScenarioReady(doc)
+  const estimateReady = isEstimateReady(doc)
 
   // 미생성 상태의 on-demand 생성 버튼을 카드 안쪽보다 상단의 주요 액션 영역에 모아 가시성을 높인다.
   const showTopGenerateActions =
@@ -233,6 +239,43 @@ export function QuoteResult({
   const flatPriceItems = safePrices.flatMap(cat =>
     (Array.isArray(cat.items) ? cat.items : []).map(item => ({ ...item, categoryName: cat.name })),
   )
+  const currentExcelView: ExcelExportView | null =
+    tab === 'estimate'
+      ? 'quote'
+      : tab === 'timetable'
+        ? 'timeline'
+        : tab === 'program'
+          ? (showCueSheetEditor ? 'cuesheet' : 'program')
+          : tab === 'planning'
+            ? 'planning'
+            : tab === 'scenario'
+              ? 'scenario'
+              : null
+  const tabLabel =
+    tab === 'estimate'
+      ? '견적서'
+      : tab === 'program'
+        ? (showCueSheetEditor ? '큐시트' : '프로그램 제안')
+        : tab === 'timetable'
+          ? '타임테이블'
+      : tab === 'planning'
+        ? '기획 문서'
+        : '시나리오'
+  const tabReady =
+    tab === 'estimate'
+      ? estimateReady
+      : tab === 'program'
+        ? (showCueSheetEditor ? (d.program.cueRows || []).length > 0 : programReady)
+        : tab === 'timetable'
+          ? timetableReady
+          : tab === 'planning'
+            ? planningReady
+            : scenarioReady
+  const currentTabGenerating = !!generatingTabs[tab]
+  const exportDisabled = !tabReady || currentTabGenerating
+  const exportDisabledReason = currentTabGenerating
+    ? `${tabLabel} 생성이 완료되면 다운로드할 수 있습니다.`
+    : `${tabLabel} 내용이 준비되면 다운로드할 수 있습니다.`
 
   function patchDoc(updater: (base: QuoteDoc) => QuoteDoc) {
     onChange(updater(ensureProgramShape(structuredClone(doc))))
@@ -293,9 +336,10 @@ export function QuoteResult({
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <div className="flex items-center justify-between border-b border-slate-200/80 px-4 flex-shrink-0 bg-white shadow-sm">
-        {showTabButtons && (
-          <div className="flex gap-1 py-2 flex-wrap">
+      <div className="sticky top-0 z-10 flex-shrink-0 border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur">
+        <div className="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
+          {showTabButtons && (
+            <div className="flex flex-wrap gap-1.5">
             {visibleTabs.map((id) => {
               const label =
                 id === 'estimate' ? '견적서' :
@@ -308,67 +352,93 @@ export function QuoteResult({
                   key={id}
                   onClick={() => setTab(id)}
                   className={clsx(
-                    'px-4 py-2 text-sm font-medium rounded-lg transition-all',
-                    id === tab ? 'bg-primary-100 text-primary-700 shadow-sm' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700',
+                    'rounded-xl px-4 py-2.5 text-sm font-semibold transition-all',
+                    id === tab
+                      ? 'bg-primary-100 text-primary-800 shadow-sm ring-1 ring-primary-200'
+                      : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800',
                   )}
                 >
                   {label}
                 </button>
               )
             })}
-          </div>
-        )}
-        <div className="flex gap-2 py-2 flex-wrap items-center">
-          {tab === 'estimate' && (
-            <span className="flex items-center gap-1.5">
-              <span className="text-xs text-gray-500">스타일</span>
+            </div>
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {tab === 'estimate' && (
+              <span className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5">
+                <span className="text-xs font-semibold text-slate-600">스타일</span>
               <select
                 value={doc.quoteTemplate || 'default'}
                 onChange={e => onChange({ ...doc, quoteTemplate: (e.target.value as QuoteTemplateId) || undefined })}
-                className="text-xs border border-gray-200 rounded-md px-2 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-primary-200"
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-200"
               >
                 {allowedQuoteTemplates(planType).map(id => (
                   <option key={id} value={id}>{QUOTE_TEMPLATES[id].name}</option>
                 ))}
               </select>
-            </span>
-          )}
-          {onLoadPrevious && (
-            <Button size="sm" variant="secondary" onClick={onLoadPrevious}>기존 견적서 불러오기</Button>
-          )}
-          {onRegenerate && (
-            <Button size="sm" onClick={onRegenerate} disabled={regenerating}>{regenerating ? '재작성 중...' : '재 작성'}</Button>
-          )}
-          {tab === 'estimate' ? (
-            <Button size="sm" onClick={() => onExcel('quote')}>엑셀 다운로드</Button>
-          ) : tab === 'timetable' ? (
-            <Button size="sm" onClick={() => onExcel('timeline')}>엑셀 다운로드</Button>
-          ) : (
-            <Button size="sm" disabled>엑셀 다운로드</Button>
-          )}
-          {onSaveDoc && docId ? (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => void onSaveDoc(doc)}
-              disabled={!!saving}
-            >
-              {saving ? '저장 중…' : '저장하기'}
-            </Button>
+              </span>
+            )}
+            {onLoadPrevious && (
+              <Button size="sm" variant="secondary" onClick={onLoadPrevious}>기존 견적서 불러오기</Button>
+            )}
+            {onRegenerate && (
+              <Button size="sm" onClick={onRegenerate} disabled={regenerating}>{regenerating ? '재작성 중...' : '재작성'}</Button>
+            )}
+            {currentExcelView ? (
+              <Button size="sm" onClick={() => onExcel(currentExcelView)} disabled={exportDisabled}>엑셀 다운로드</Button>
+            ) : (
+              <Button size="sm" disabled>엑셀 다운로드</Button>
+            )}
+            {onSaveDoc && docId ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => void onSaveDoc(doc)}
+                disabled={!!saving}
+              >
+                {saving ? '저장 중…' : '저장하기'}
+              </Button>
+            ) : null}
+            <Button size="sm" variant="primary" onClick={onPdf} disabled={exportDisabled}>PDF 저장</Button>
+            {planType !== 'FREE' && (
+              <Button size="sm" variant="secondary" onClick={() => alert('이메일 공유 기능은 준비 중입니다.')}>이메일 공유</Button>
+            )}
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-4 py-2.5">
+          <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-semibold text-white">{tabLabel}</span>
+          <span
+            className={clsx(
+              'rounded-full px-2.5 py-1 text-xs font-semibold',
+              tabReady
+                ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                : 'border border-amber-200 bg-amber-50 text-amber-700',
+            )}
+          >
+            {tabReady ? '생성 완료' : '생성 필요'}
+          </span>
+          {doc.eventName ? (
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">{doc.eventName}</span>
           ) : null}
-          <Button size="sm" variant="primary" onClick={onPdf}>PDF 저장</Button>
-          {planType !== 'FREE' && (
-            <Button size="sm" variant="secondary" onClick={() => alert('이메일 공유 기능은 준비 중입니다.')}>이메일 공유</Button>
-          )}
+          {doc.eventDate ? (
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">{doc.eventDate}</span>
+          ) : null}
+          {doc.venue ? (
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">{doc.venue}</span>
+          ) : null}
         </div>
       </div>
-      <p className="text-[10px] text-slate-500 px-4 pb-1.5 flex-shrink-0">
+      <p className="flex-shrink-0 px-4 py-3 text-[13px] leading-5 text-slate-600">
         {tab === 'estimate' && '개당 단가·수량·항목명 등 견적 표에서 바로 수정 가능'}
         {tab === 'program' && '인공지능이 생성한 프로그램 제안을 기반으로 내용/구성을 편집하세요.'}
         {tab === 'timetable' && '생성 시 입력한 시작·종료 시각에 맞춰 배치됩니다. 수정 시 즉시 반영됩니다.'}
         {tab === 'planning' && '기획/운영/산출물 계획을 섹션별로 편집할 수 있습니다.'}
         {tab === 'scenario' && '연출/진행 흐름을 문장 형태로 확인하고 편집할 수 있습니다.'}
       </p>
+      {exportDisabled ? (
+        <p className="flex-shrink-0 px-4 pb-3 text-xs font-medium text-amber-700">{exportDisabledReason}</p>
+      ) : null}
 
       {showTopGenerateActions && (
         <div className="px-4 pb-3 flex-shrink-0">
@@ -509,7 +579,7 @@ export function QuoteResult({
                   {KIND_ORDER.map(kind => {
                     const rows = groupByKind().get(kind)!
                     return (
-                      <>
+                      <Fragment key={kind}>
                         <tr key={kind + '-h'} className="quote-section-row bg-primary-50/60 border-y border-primary-100">
                           <td colSpan={8} className="px-2 py-2 font-semibold text-primary-700 tracking-wide">{kind}</td>
                         </tr>
@@ -610,7 +680,7 @@ export function QuoteResult({
                           <td className="px-2 py-1.5 text-right font-medium tabular-nums text-gray-700">{fmtKRW(subtotalsByKind(doc).get(kind) ?? 0)}</td>
                           <td colSpan={2} />
                         </tr>
-                      </>
+                      </Fragment>
                     )
                   })}
                 </tbody>

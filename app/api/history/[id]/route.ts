@@ -12,9 +12,9 @@ const ParamsSchema = z.object({
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const parsed = ParamsSchema.safeParse(params)
+  const parsed = ParamsSchema.safeParse(await params)
   if (!parsed.success) {
     return errorResponse(400, 'INVALID_REQUEST', '잘못된 요청입니다.', parsed.error.flatten())
   }

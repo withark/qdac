@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
-import SimpleGeneratorWizard, { type WizardMode } from '@/components/generators/SimpleGeneratorWizard'
+import SimpleGeneratorWizard, { type WizardHighlight, type WizardMode } from '@/components/generators/SimpleGeneratorWizard'
 import { Input, Textarea, Toast } from '@/components/ui'
 import type { CompanySettings, HistoryRecord, PriceCategory, QuoteDoc, ReferenceDoc, TaskOrderDoc } from '@/lib/types'
 import { apiFetch, apiGenerateStream } from '@/lib/api/client'
@@ -109,10 +109,18 @@ export default function EstimateGeneratorPage() {
 
   const modes: WizardMode[] = useMemo(
     () => [
-      { id: 'fromTopic', title: '주제만 입력' },
-      { id: 'fromReferenceStyle', title: '참고 견적서 스타일' },
-      { id: 'fromTaskOrder', title: '과업지시서 기준' },
-      { id: 'fromEstimate', title: '저장된 견적서 기준' },
+      { id: 'fromTopic', title: '주제만 입력', desc: '행사 주제와 예산 범위만으로 빠르게 초안을 만듭니다.' },
+      { id: 'fromReferenceStyle', title: '참고 견적서 스타일', desc: '기존 견적 문체와 항목 구조를 최대한 반영합니다.' },
+      { id: 'fromTaskOrder', title: '과업지시서 기준', desc: '요구사항 문서를 바탕으로 바로 견적 초안을 뽑습니다.' },
+      { id: 'fromEstimate', title: '저장된 견적서 기준', desc: '기존 문서를 토대로 비슷한 유형의 견적을 재작성합니다.' },
+    ],
+    [],
+  )
+  const wizardHighlights: WizardHighlight[] = useMemo(
+    () => [
+      { label: '필수 입력', value: '주제, 예산 범위' },
+      { label: '권장 입력', value: '인원, 장소, 추가 메모' },
+      { label: '결과물', value: '바로 수정 가능한 견적서 + 엑셀/PDF' },
     ],
     [],
   )
@@ -218,6 +226,7 @@ export default function EstimateGeneratorPage() {
       headcount: headcount.trim(),
       venue: venue.trim(),
       requirements: promptRequirements,
+      briefNotes: safeNotes,
     }
   }, [
     budget,
@@ -329,12 +338,15 @@ export default function EstimateGeneratorPage() {
 
   const topicInputs = (
     <div className="space-y-3">
+      <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-600">
+        행사명만 넣어도 초안은 만들 수 있지만, 인원과 장소를 함께 넣으면 단가와 항목 구성이 더 현실적으로 맞춰집니다.
+      </div>
       <div>
-        <label className="block text-xs font-medium text-gray-700 mb-1">예산 범위</label>
+        <label className="mb-1.5 block text-[13px] font-semibold text-slate-700">예산 범위</label>
         <select
           value={budget}
           onChange={(e) => setBudget(e.target.value)}
-          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-100"
+          className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70"
         >
           {ESTIMATE_BUDGET_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -378,20 +390,20 @@ export default function EstimateGeneratorPage() {
     <div className="flex h-screen overflow-hidden bg-gray-50/50">
       <GNB />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="flex items-center justify-between px-6 h-14 border-b border-gray-100 bg-white/90 flex-shrink-0">
+        <header className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 bg-white/90 px-6 py-5 flex-shrink-0">
           <div>
-            <h1 className="text-base font-semibold text-gray-900">견적서 만들기</h1>
-            <p className="text-xs text-gray-500 mt-0.5">견적서만 생성합니다</p>
+            <h1 className="text-xl font-semibold tracking-tight text-slate-900">견적서 만들기</h1>
+            <p className="mt-1 text-sm leading-6 text-slate-600">필수 항목만 넣고 바로 고객에게 보낼 수 있는 견적 초안을 생성합니다.</p>
           </div>
           {me?.subscription?.planType === 'FREE' && (
-            <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1">무료</span>
+            <span className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-700">무료</span>
           )}
         </header>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm space-y-2">
-            <div className="text-sm font-semibold text-gray-900">스타일·참고 견적</div>
-            <p className="text-xs text-gray-600 leading-relaxed">
+          <div className="space-y-2 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="text-lg font-semibold text-slate-900">스타일·참고 견적</div>
+            <p className="text-[15px] leading-7 text-slate-600">
               전역 스타일:{' '}
               <strong>{globalStyleMode === 'userStyle' ? '사용자 참고 견적 스타일' : 'AI 추천 템플릿'}</strong>
               {activeReference ? (
@@ -403,14 +415,15 @@ export default function EstimateGeneratorPage() {
                 <> · 활성 참고 견적 없음 (「참고 자료」에서 업로드·활성화)</>
               )}
             </p>
-            <Link href="/reference-estimate" className="inline-block text-xs font-semibold text-primary-700 hover:underline">
+            <Link href="/reference-estimate" className="inline-block text-[15px] font-semibold text-primary-700 hover:underline">
               참고 자료 관리 →
             </Link>
           </div>
 
           <SimpleGeneratorWizard
             title="견적서 만들기"
-            subtitle=""
+            subtitle="입력량은 최소화하고, 결과는 바로 저장·다운로드할 수 있게 구성했습니다."
+            highlights={wizardHighlights}
             modes={modes}
             modeId={sourceMode}
             onModeChange={(id) => {
@@ -431,7 +444,7 @@ export default function EstimateGeneratorPage() {
                     setDoc(null)
                     setGeneratedDocId(null)
                   }}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-100"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70"
                 >
                   <option value="" disabled>
                     저장된 견적을 선택하세요
@@ -445,11 +458,11 @@ export default function EstimateGeneratorPage() {
               ) : sourceMode === 'fromTaskOrder' ? (
                 <>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">예산 범위</label>
+                    <label className="mb-1.5 block text-[13px] font-semibold text-slate-700">예산 범위</label>
                     <select
                       value={budget}
                       onChange={(e) => setBudget(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-100"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70"
                     >
                       {ESTIMATE_BUDGET_OPTIONS.map((o) => (
                         <option key={o.value} value={o.value}>
@@ -465,7 +478,7 @@ export default function EstimateGeneratorPage() {
                       setDoc(null)
                       setGeneratedDocId(null)
                     }}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-100"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70"
                   >
                     <option value="" disabled>
                       과업지시서를 선택하세요
@@ -480,11 +493,11 @@ export default function EstimateGeneratorPage() {
               ) : sourceMode === 'fromReferenceStyle' ? (
                 <>
                   {activeReference ? (
-                    <p className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
+                    <p className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-800">
                       참고 견적 「{activeReference.filename}」 스타일이 이번 생성에 적용됩니다.
                     </p>
                   ) : (
-                    <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                    <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
                       활성 참고 견적이 없습니다. 참고 자료 메뉴에서 파일을 올리고 「견적 생성에 반영」을 눌러 주세요.
                     </p>
                   )}
@@ -505,8 +518,8 @@ export default function EstimateGeneratorPage() {
           {doc && generatedDocId ? (
             <section className="rounded-2xl border border-gray-100 bg-white shadow-card overflow-hidden">
               <div className="p-4 border-b border-gray-100 bg-slate-50/50">
-                <div className="text-sm font-semibold text-gray-900">견적 결과</div>
-                <div className="text-xs text-gray-500 mt-1">생성 후 내용을 편집하고 저장하세요.</div>
+                <div className="text-base font-semibold text-gray-900">견적 결과</div>
+                <div className="text-sm text-gray-600 mt-1">생성 후 내용을 편집하고 저장하세요.</div>
               </div>
               <div className="h-[calc(100vh-220px)] min-h-[420px]">
                 <QuoteResult
@@ -524,9 +537,13 @@ export default function EstimateGeneratorPage() {
                   showTabButtons={false}
                   disableAutoGenerate
                   hideOnDemandGenerate
-                  onExcel={(view) => {
-                    exportToExcel(doc, companySettings ?? undefined, view)
-                    showToast('엑셀 다운로드 완료!')
+                  onExcel={async (view) => {
+                    try {
+                      await exportToExcel(doc, companySettings ?? undefined, view)
+                      showToast('엑셀 다운로드 완료!')
+                    } catch (e) {
+                      showToast(toUserMessage(e, '엑셀 다운로드 실패'))
+                    }
                   }}
                   onPdf={async () => {
                     if (me?.subscription?.planType === 'FREE') {
@@ -545,8 +562,8 @@ export default function EstimateGeneratorPage() {
             </section>
           ) : (
             <section className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center">
-              <div className="text-sm font-semibold text-gray-900">입력 후 생성하세요</div>
-              <div className="text-xs text-gray-500 mt-2">
+              <div className="text-base font-semibold text-gray-900">입력 후 생성하세요</div>
+              <div className="text-sm text-gray-500 mt-2">
                 {sourceMode === 'fromTopic' || sourceMode === 'fromReferenceStyle'
                   ? '이벤트 주제만 입력하면 됩니다'
                   : '소스 선택과 필수 입력이 필요합니다'}

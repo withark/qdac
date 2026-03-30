@@ -15,9 +15,16 @@ export interface CallLLMOptions {
   maxTokens?: number
   model?: string
   timeoutMs?: number
+  systemPrompt?: string
   /** 요청당 1회 조회값을 넘기면 getEffectiveEngineConfig/KV를 다시 읽지 않습니다. */
   engine?: EffectiveEngineConfig
 }
+
+const DEFAULT_SYSTEM_PROMPT = [
+  '당신은 대한민국 이벤트/행사 업계의 수석 문서 전략가입니다.',
+  '사용자가 바로 고객 또는 내부 실무자에게 전달할 수 있는 수준의 문서를 작성합니다.',
+  '출력 형식 지시는 엄격히 지키고, JSON만 요구되면 설명 없이 JSON만 출력합니다.',
+].join(' ')
 
 function readableLLMError(input: unknown, provider: AIProvider): Error & { code?: string; timedOut?: boolean } {
   const err = input as Error & { code?: string; timedOut?: boolean; status?: number }
@@ -145,6 +152,7 @@ export async function callLLM(prompt: string, opts: CallLLMOptions = {}): Promis
   const maxTokens = opts.maxTokens ?? effective.maxTokens
   const model = opts.model ?? effective.model
   const timeoutMs = opts.timeoutMs ?? 90_000
+  const systemPrompt = opts.systemPrompt ?? DEFAULT_SYSTEM_PROMPT
   logInfo('ai.call.start', { provider, model, maxTokens })
 
   const ac = new AbortController()
@@ -158,7 +166,10 @@ export async function callLLM(prompt: string, opts: CallLLMOptions = {}): Promis
         {
           model: model as string,
           max_tokens: maxTokens,
-          messages: [{ role: 'user', content: prompt }],
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: prompt },
+          ],
         },
         llmReqOpts,
       )
@@ -173,6 +184,7 @@ export async function callLLM(prompt: string, opts: CallLLMOptions = {}): Promis
       {
         model: model as string,
         max_tokens: maxTokens,
+        system: systemPrompt,
         messages: [{ role: 'user', content: prompt }],
       },
       llmReqOpts,
@@ -192,4 +204,3 @@ export async function callLLM(prompt: string, opts: CallLLMOptions = {}): Promis
     clearTimeout(timeoutId)
   }
 }
-

@@ -50,12 +50,12 @@ export async function POST(req: NextRequest) {
     }
 
     const ext = (file.name.split('.').pop() || '').toLowerCase()
-    const allowed = ['txt', 'csv', 'md', 'pdf', 'xlsx', 'xls', 'ppt', 'pptx', 'doc', 'docx']
+    const allowed = ['txt', 'csv', 'md', 'pdf', 'xlsx', 'ppt', 'pptx', 'doc', 'docx']
     if (!allowed.includes(ext)) {
       return errorResponse(
         400,
         'UNSUPPORTED_FILE_TYPE',
-        '지원 형식이 아닙니다. (.txt, .csv, .md, .pdf, .xlsx, .xls, .ppt, .pptx, .doc, .docx 중 하나)',
+        '지원 형식이 아닙니다. (.txt, .csv, .md, .pdf, .xlsx, .ppt, .pptx, .doc, .docx 중 하나)',
       )
     }
 

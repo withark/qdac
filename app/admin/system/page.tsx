@@ -6,8 +6,33 @@ import Link from 'next/link'
 type SystemData = {
   status: string
   db: string
+  docStores?: {
+    taskOrderRefs: 'db' | 'fallback' | 'error'
+    scenarioRefs: 'db' | 'fallback' | 'error'
+    cuesheetSamples: 'db' | 'fallback' | 'error'
+  }
   envSummary: { hasDatabase: boolean; nodeEnv: string }
   notice: string | null
+}
+
+function storeStatusLabel(v: 'db' | 'fallback' | 'error' | undefined): string {
+  if (v === 'db') return 'DB 경로'
+  if (v === 'fallback') return '폴백 경로'
+  if (v === 'error') return '오류'
+  return '—'
+}
+
+function storeStatusClass(v: 'db' | 'fallback' | 'error' | undefined): string {
+  if (v === 'db') return 'bg-emerald-50 text-emerald-700 border-emerald-200'
+  if (v === 'fallback') return 'bg-amber-50 text-amber-800 border-amber-200'
+  if (v === 'error') return 'bg-red-50 text-red-700 border-red-200'
+  return 'bg-slate-50 text-slate-600 border-slate-200'
+}
+
+function systemStatusClass(v: string): string {
+  return v === 'ok'
+    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    : 'bg-amber-50 text-amber-800 border-amber-200'
 }
 
 export default function AdminSystemPage() {
@@ -36,10 +61,12 @@ export default function AdminSystemPage() {
         <h1 className="text-lg font-semibold text-gray-900">시스템</h1>
         <Link href="/admin" className="text-sm text-primary-600 hover:text-primary-700">← 대시보드</Link>
       </div>
-      <div className="grid grid-cols-2 gap-4 max-w-xl">
+      <div className="grid grid-cols-2 gap-4 max-w-4xl">
         <div className="p-4 rounded-lg border border-slate-200 bg-white">
           <p className="text-xs text-gray-500">상태</p>
-          <p className="font-medium">{data.status === 'ok' ? '정상' : '제한적'}</p>
+          <p className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold ${systemStatusClass(data.status)}`}>
+            {data.status === 'ok' ? '정상' : '제한적'}
+          </p>
         </div>
         <div className="p-4 rounded-lg border border-slate-200 bg-white">
           <p className="text-xs text-gray-500">DB</p>
@@ -48,6 +75,24 @@ export default function AdminSystemPage() {
         <div className="p-4 rounded-lg border border-slate-200 bg-white">
           <p className="text-xs text-gray-500">NODE_ENV</p>
           <p className="font-medium">{data.envSummary?.nodeEnv ?? '—'}</p>
+        </div>
+        <div className="p-4 rounded-lg border border-slate-200 bg-white">
+          <p className="text-xs text-gray-500">문서 저장소 · 과업지시서</p>
+          <p className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold ${storeStatusClass(data.docStores?.taskOrderRefs)}`}>
+            {storeStatusLabel(data.docStores?.taskOrderRefs)}
+          </p>
+        </div>
+        <div className="p-4 rounded-lg border border-slate-200 bg-white">
+          <p className="text-xs text-gray-500">문서 저장소 · 시나리오</p>
+          <p className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold ${storeStatusClass(data.docStores?.scenarioRefs)}`}>
+            {storeStatusLabel(data.docStores?.scenarioRefs)}
+          </p>
+        </div>
+        <div className="p-4 rounded-lg border border-slate-200 bg-white">
+          <p className="text-xs text-gray-500">문서 저장소 · 큐시트 샘플</p>
+          <p className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-sm font-semibold ${storeStatusClass(data.docStores?.cuesheetSamples)}`}>
+            {storeStatusLabel(data.docStores?.cuesheetSamples)}
+          </p>
         </div>
       </div>
       <section>

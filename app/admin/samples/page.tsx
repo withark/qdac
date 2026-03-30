@@ -144,7 +144,7 @@ export default function AdminSamplesPage() {
           엔진·생성 품질용 기준 양식을 <strong>여기에서 직접</strong> 등록하세요. 아래에서 파일을 선택하면 목록에 추가되며, 문서 유형·연결 탭·우선순위를 설정할 수 있습니다.
         </p>
         <label className="inline-flex items-center gap-2 rounded-lg bg-primary-600 text-white px-4 py-2 text-sm font-medium hover:bg-primary-700 cursor-pointer">
-          <input type="file" className="sr-only" accept=".pdf,.xlsx,.xls,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.md,.ppt,.pptx,.doc,.docx" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadSample(f); e.target.value = ''; }} />
+          <input type="file" className="sr-only" accept=".pdf,.xlsx,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.md,.ppt,.pptx,.doc,.docx" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadSample(f); e.target.value = ''; }} />
           {refUploading ? '업로드 중…' : '파일 선택 후 기준 양식 등록'}
         </label>
       </section>

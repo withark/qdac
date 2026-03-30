@@ -6,6 +6,7 @@ import {
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
   forwardRef,
+  useId,
 } from 'react'
 import clsx from 'clsx'
 
@@ -20,13 +21,13 @@ export function Button({ variant = 'secondary', size = 'md', type = 'button', cl
       type={type}
       {...props}
       className={clsx(
-        'inline-flex items-center justify-center font-medium rounded-lg transition-colors',
+        'inline-flex items-center justify-center rounded-xl font-semibold transition-colors',
         'disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap',
-        size === 'sm' ? 'px-2.5 py-1.5 text-xs' : 'px-3.5 py-2 text-sm',
-        variant === 'primary'   && 'bg-primary-600 text-white hover:bg-primary-700 shadow-sm',
-        variant === 'secondary' && 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300',
+        size === 'sm' ? 'px-3 py-2 text-sm' : 'px-4 py-2.5 text-[15px]',
+        variant === 'primary'   && 'bg-primary-600 text-white hover:bg-primary-700 shadow-sm shadow-primary-500/10',
+        variant === 'secondary' && 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300',
         variant === 'danger'    && 'border border-red-200 text-red-600 hover:bg-red-50',
-        variant === 'ghost'     && 'text-gray-500 hover:text-gray-800 hover:bg-gray-100',
+        variant === 'ghost'     && 'text-slate-500 hover:text-slate-800 hover:bg-slate-100',
         className
       )}
     />
@@ -40,20 +41,30 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string
 }
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, className, ...props }, ref) => (
-    <div className={label ? 'flex flex-col gap-1' : undefined}>
-      {label && <label className="text-xs text-gray-500">{label}</label>}
-      <input
-        ref={ref}
-        {...props}
-        className={clsx(
-          'w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg bg-white',
-          'placeholder-gray-400 focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-100 transition-colors',
-          className
+  ({ label, className, id, ...props }, ref) => {
+    const generatedId = useId()
+    const inputId = id ?? generatedId
+
+    return (
+      <div className={label ? 'flex flex-col gap-1.5' : undefined}>
+        {label && (
+          <label htmlFor={inputId} className="text-sm font-semibold text-slate-700">
+            {label}
+          </label>
         )}
-      />
-    </div>
-  )
+        <input
+          ref={ref}
+          id={inputId}
+          {...props}
+          className={clsx(
+            'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm',
+            'placeholder:text-slate-400 focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70 transition-colors',
+            className
+          )}
+        />
+      </div>
+    )
+  }
 )
 Input.displayName = 'Input'
 
@@ -62,14 +73,22 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string
 }
 export function Select({ label, className, children, ...props }: SelectProps) {
+  const generatedId = useId()
+  const selectId = props.id ?? generatedId
+
   return (
-    <div className={label ? 'flex flex-col gap-1' : undefined}>
-      {label && <label className="text-xs text-gray-500">{label}</label>}
+    <div className={label ? 'flex flex-col gap-1.5' : undefined}>
+      {label && (
+        <label htmlFor={selectId} className="text-sm font-semibold text-slate-700">
+          {label}
+        </label>
+      )}
       <select
         {...props}
+        id={selectId}
         className={clsx(
-          'w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg bg-white',
-          'focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-100 transition-colors',
+          'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm',
+          'focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70 transition-colors',
           className
         )}
       >
@@ -84,14 +103,22 @@ interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string
 }
 export function Textarea({ label, className, ...props }: TextareaProps) {
+  const generatedId = useId()
+  const textareaId = props.id ?? generatedId
+
   return (
-    <div className={label ? 'flex flex-col gap-1' : undefined}>
-      {label && <label className="text-xs text-gray-500">{label}</label>}
+    <div className={label ? 'flex flex-col gap-1.5' : undefined}>
+      {label && (
+        <label htmlFor={textareaId} className="text-sm font-semibold text-slate-700">
+          {label}
+        </label>
+      )}
       <textarea
         {...props}
+        id={textareaId}
         className={clsx(
-          'w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg bg-white resize-none',
-          'placeholder-gray-400 focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-100 transition-colors',
+          'w-full resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm',
+          'placeholder:text-slate-400 focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70 transition-colors',
           className
         )}
       />
@@ -102,8 +129,8 @@ export function Textarea({ label, className, ...props }: TextareaProps) {
 /* ── Label / SectionLabel ─────────────────── */
 export function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-center gap-2 pt-2 pb-1 border-b border-gray-100">
-      <span className="text-xs font-semibold tracking-wide text-gray-700">{children}</span>
+    <div className="flex items-center gap-2 border-b border-slate-100 pb-2 pt-2">
+      <span className="text-sm font-semibold tracking-wide text-slate-800">{children}</span>
     </div>
   )
 }
@@ -121,8 +148,8 @@ export function Card({ children, className }: { children: ReactNode; className?:
 /* ── Field ────────────────────────────────── */
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs text-gray-500">{label}</label>
+    <div className="flex flex-col gap-1.5">
+      <label className="text-sm font-semibold text-slate-700">{label}</label>
       {children}
     </div>
   )

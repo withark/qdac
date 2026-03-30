@@ -2,6 +2,7 @@
 
 import { signIn } from 'next-auth/react'
 import { sanitizeCallbackUrl } from '@/lib/auth-callback'
+import type { SocialAuthProvider } from '@/lib/social-auth-providers'
 
 const DEFAULT_CALLBACK = '/dashboard'
 
@@ -19,6 +20,7 @@ function callbackUrlWithIntent(pathOrUrl: string, intent: AuthIntent): string {
 }
 
 type Props = {
+  provider?: SocialAuthProvider
   callbackUrl?: string | null
   className?: string
   children?: React.ReactNode
@@ -28,10 +30,11 @@ type Props = {
 }
 
 /**
- * Google 로그인 버튼.
+ * 소셜 로그인 버튼.
  * 반드시 next-auth/react signIn() 사용. href / window.location 사용 금지.
  */
 export function GoogleSignInButton({
+  provider = 'google',
   callbackUrl,
   className,
   children,
@@ -42,7 +45,7 @@ export function GoogleSignInButton({
   const safeUrl = intent ? callbackUrlWithIntent(base, intent) : base
 
   const handleClick = () => {
-    signIn('google', { callbackUrl: safeUrl })
+    signIn(provider, { callbackUrl: safeUrl })
   }
 
   return (
@@ -50,7 +53,7 @@ export function GoogleSignInButton({
       type="button"
       onClick={handleClick}
       className={className}
-      aria-label={ariaLabel ?? 'Google로 로그인'}
+      aria-label={ariaLabel ?? `${provider}로 로그인`}
     >
       {children ?? 'Google로 로그인'}
     </button>

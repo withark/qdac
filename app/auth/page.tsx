@@ -6,6 +6,7 @@ import { isDevAuthEnabled } from '@/lib/auth-dev'
 import { isEmailPasswordAuthEnabled } from '@/lib/auth-email-password'
 import { sanitizeCallbackUrl } from '@/lib/auth-callback'
 import { authOptions } from '@/lib/auth'
+import { resolveEnabledSocialAuthProviders } from '@/lib/social-auth-providers'
 
 /** 빌드 시점 NODE_ENV로 폼 노출이 고정되지 않도록 런타임 렌더 */
 export const dynamic = 'force-dynamic'
@@ -25,14 +26,16 @@ function resolveCallbackUrl(searchParams: SearchParams): string {
 export default async function AuthPage({
   searchParams,
 }: {
-  searchParams: SearchParams
+  searchParams: Promise<SearchParams>
 }) {
+  const resolvedSearchParams = await searchParams
   const session = await getServerSession(authOptions)
-  const callbackUrl = resolveCallbackUrl(searchParams)
-  const reason = typeof searchParams?.reason === 'string' ? searchParams.reason : ''
+  const callbackUrl = resolveCallbackUrl(resolvedSearchParams)
+  const reason = typeof resolvedSearchParams?.reason === 'string' ? resolvedSearchParams.reason : ''
   const isSignupInduction = reason === 'signup_required'
   const devEnabled = isDevAuthEnabled()
   const emailPasswordAuthEnabled = isEmailPasswordAuthEnabled()
+  const socialProviders = resolveEnabledSocialAuthProviders()
 
   if (session) {
     redirect(callbackUrl)
@@ -50,10 +53,11 @@ export default async function AuthPage({
         <AuthLoginCard
           callbackUrl={callbackUrl}
           defaultTab={isSignupInduction ? 'signup' : 'login'}
-          error={searchParams?.error}
-          errorDescription={searchParams?.errorDescription}
+          error={resolvedSearchParams?.error}
+          errorDescription={resolvedSearchParams?.errorDescription}
           devEnabled={devEnabled}
           emailPasswordAuthEnabled={emailPasswordAuthEnabled}
+          socialProviders={socialProviders}
           hint={
             isSignupInduction
               ? '바로 시작하기 — 가입·로그인 후 견적 만들기 화면으로 돌아가요.'

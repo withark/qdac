@@ -1,13 +1,14 @@
 'use client'
 import { useState } from 'react'
 import { Btn, Toast } from '@/components/ui'
-import type { QuoteDoc } from '@/lib/types'
+import type { QuoteDoc, CompanySettings } from '@/lib/types'
 import { calcTotals, fmtKRW, getQuoteDateForFilename } from '@/lib/calc'
 import { KIND_ORDER, groupQuoteItemsByKind, subtotalsByKind } from '@/lib/quoteGroup'
+import { exportToExcel } from '@/lib/exportExcel'
 
 interface Props {
   doc: QuoteDoc
-  companySettings: Record<string, string>
+  companySettings: Partial<CompanySettings>
 }
 
 export default function ExportButtons({ doc, companySettings }: Props) {
@@ -20,69 +21,12 @@ export default function ExportButtons({ doc, companySettings }: Props) {
 
   /* ── 엑셀 다운로드 ── */
   async function downloadExcel() {
-    const XLSX = (await import('xlsx')).default
-    const wb = XLSX.utils.book_new()
-    const T = calcTotals(doc)
-
-    // Sheet 1: 견적서
-    const rows: unknown[][] = [
-      ['견 적 서'],
-      ['견적일', doc.quoteDate, '', '', '유효기간', `${doc.validDays}일`, '', ''],
-      [],
-      ['수신 (발주처)', '', '', '', '공급자', '', '', ''],
-      [' 업체명',    doc.clientName,    '', '', ' 상호명', companySettings.name  || ''],
-      [' 담당자',    doc.clientManager, '', '', ' 사업자번호', companySettings.biz || ''],
-      [' 연락처',    doc.clientTel,     '', '', ' 대표자',  companySettings.ceo  || ''],
-      [' 행사명',    doc.eventName,     '', '', ' 담당자',  companySettings.contact || ''],
-      [' 행사 종류', doc.eventType,     '', '', ' 연락처',  companySettings.tel  || ''],
-      [' 행사일',    doc.eventDate,     '', '', ' 주소',    companySettings.addr || ''],
-      [' 행사 시간', doc.eventDuration, '', ''],
-      [' 장소',      doc.venue,         '', ''],
-      [' 참석인원',  doc.headcount,     '', ''],
-      [],
-      ['항목명','규격/내용','수량','단위','개당 단가','합계','비고'],
-    ]
-    const byKind = groupQuoteItemsByKind(doc)
-    const subByKind = subtotalsByKind(doc)
-    KIND_ORDER.forEach(kind => {
-      rows.push([kind])
-      ;(byKind.get(kind) || []).forEach(it => rows.push([it.name, it.spec, it.qty, it.unit, it.unitPrice, it.total, it.note]))
-      rows.push(['소계', '', '', '', '', subByKind.get(kind) ?? 0, ''])
-    })
-    rows.push([])
-    rows.push(['', '', '', '', '소계', T.sub])
-    rows.push(['', '', '', '', `제경비(${doc.expenseRate}%)`, T.exp])
-    rows.push(['', '', '', '', `이윤(${doc.profitRate}%)`, T.prof])
-    rows.push(['', '', '', '', '부가세(10%)', T.vat])
-    rows.push(['', '', '', '', '절사', -T.cut])
-    rows.push(['', '', '', '', '합 계', T.grand])
-    rows.push([])
-    rows.push(['계약조건/특이사항', '', '', '', '결제조건'])
-    rows.push([doc.notes, '', '', '', doc.paymentTerms])
-
-    const ws = XLSX.utils.aoa_to_sheet(rows)
-    ws['!cols'] = [{wch:8},{wch:22},{wch:22},{wch:7},{wch:7},{wch:16},{wch:16},{wch:18}]
-    XLSX.utils.book_append_sheet(wb, ws, '견적서')
-
-    // Sheet 2: 타임테이블
-    const ttRows: unknown[][] = [
-      [`${doc.eventName} — 프로그램 기획안`],
-      [`종류: ${doc.eventType} / 시간: ${doc.eventDuration} / ${doc.program?.concept || ''}`],
-      [],
-      ['시간','내용','세부사항','담당'],
-    ]
-    ;(doc.program?.timeline || []).forEach(r => ttRows.push([r.time, r.content, r.detail, r.manager]))
-    ttRows.push([])
-    ttRows.push(['투입 인력'])
-    ttRows.push(['역할','인원','비고'])
-    ;(doc.program?.staffing || []).forEach(s => ttRows.push([s.role, `${s.count}명`, s.note]))
-    const ttWs = XLSX.utils.aoa_to_sheet(ttRows)
-    ttWs['!cols'] = [{wch:10},{wch:28},{wch:30},{wch:12}]
-    XLSX.utils.book_append_sheet(wb, ttWs, '프로그램 기획안')
-
-    const date = getQuoteDateForFilename(doc.quoteDate)
-    XLSX.writeFile(wb, `견적서_${(doc.eventName||'행사').replace(/\s/g,'_')}_${date}.xlsx`)
-    showToast('엑셀 다운로드 완료!')
+    try {
+      await exportToExcel(doc, companySettings as CompanySettings, 'quote')
+      showToast('엑셀 다운로드 완료!')
+    } catch (e) {
+      showToast('엑셀 생성 실패: ' + (e instanceof Error ? e.message : ''), 'err')
+    }
   }
 
   /* ── PDF 출력 ── */

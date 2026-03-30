@@ -5,13 +5,32 @@ const ADMIN_USER = 'admin'
 const COOKIE_NAME = 'planic_admin'
 const KV_KEY_ADMIN_HASH = 'admin_password_hash'
 const DEFAULT_PASSWORD = 'admin'
+const WEAK_ADMIN_PASSWORDS = new Set(['admin', 'password', '12345678', 'qwerty'])
+
+function isProductionRuntime(): boolean {
+  return process.env.NODE_ENV === 'production'
+}
+
+function isWeakAdminPassword(value: string): boolean {
+  const pw = (value || '').trim()
+  if (!pw) return true
+  if (pw.length < 8) return true
+  return WEAK_ADMIN_PASSWORDS.has(pw.toLowerCase())
+}
 
 function getSecret(): string {
   return process.env.NEXTAUTH_SECRET || process.env.ADMIN_SECRET || 'dev-admin-secret-min-32-chars'
 }
 
-function getEnvPassword(): string {
-  return process.env.ADMIN_PASSWORD?.trim() || DEFAULT_PASSWORD
+function getEnvPassword(): string | null {
+  const configured = process.env.ADMIN_PASSWORD?.trim()
+  if (configured) {
+    if (isProductionRuntime() && isWeakAdminPassword(configured)) return null
+    return configured
+  }
+  // 운영에서는 기본 비밀번호(admin) fallback을 절대 허용하지 않습니다.
+  if (isProductionRuntime()) return null
+  return DEFAULT_PASSWORD
 }
 
 function hashPassword(password: string): string {
@@ -54,10 +73,23 @@ export async function setStoredAdminHash(hash: string): Promise<void> {
 export async function verifyAdmin(username: string, password: string): Promise<boolean> {
   if (username !== ADMIN_USER || !password) return false
   const stored = await getStoredAdminHash()
-  if (stored) {
-    return verifyPassword(password, stored)
+  const isStoredMatch = stored ? verifyPassword(password, stored) : false
+  if (isStoredMatch) {
+    if (isProductionRuntime() && isWeakAdminPassword(password)) return false
+    return true
   }
-  return password === getEnvPassword()
+  const envPassword = getEnvPassword()
+  if (!envPassword) return false
+  if (password !== envPassword) return false
+  // 저장 해시가 운영 중 오래된 값일 수 있으므로 env 비밀번호 인증 성공 시 최신 해시로 동기화합니다.
+  if (stored && hasDatabase()) {
+    try {
+      await setStoredAdminHash(hashPassword(envPassword))
+    } catch {
+      /* ignore */
+    }
+  }
+  return true
 }
 
 function passwordRuleError(password: string): string | null {

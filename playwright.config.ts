@@ -15,7 +15,8 @@ export default defineConfig({
     ...devices['Desktop Chrome'],
   },
   webServer: {
-    command: 'npm run dev',
+    command:
+      'DATA_DIR=.playwright-data NEXTAUTH_URL=${PLAYWRIGHT_BASE_URL:-http://127.0.0.1:3000} NEXTAUTH_SECRET=playwright-nextauth-secret DEV_AUTH=1 DEV_AUTH_SECRET=playwright-secret ENABLE_EMAIL_PASSWORD_AUTH=1 NEXT_PUBLIC_ENABLE_CREDENTIAL_AUTH=1 AI_MODE=${PLAYWRIGHT_AI_MODE:-${AI_MODE:-mock}} npm run dev',
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

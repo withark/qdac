@@ -1,4 +1,4 @@
-# NextAuth / Google 로그인 환경 변수
+# NextAuth / 소셜 로그인 환경 변수
 
 ## 필수 환경 변수
 
@@ -8,6 +8,26 @@
 | `NEXTAUTH_SECRET` | 세션 암호화용 시크릿. 32자 이상 권장. | `openssl rand -base64 32` 로 생성 |
 | `GOOGLE_CLIENT_ID` | Google Cloud Console > 사용자 인증 정보 > OAuth 2.0 클라이언트 ID (플래닉 전용 권장) | `123456-xxx.apps.googleusercontent.com` |
 | `GOOGLE_CLIENT_SECRET` | 위 클라이언트의 비밀번호 | `GOCSPX-xxxxxxxx` |
+
+## 선택 소셜 로그인 (Kakao/Naver)
+
+| 변수명 | 설명 |
+|--------|------|
+| `KAKAO_CLIENT_ID` | Kakao Developers OAuth 앱 키 |
+| `KAKAO_CLIENT_SECRET` | Kakao OAuth 시크릿 |
+| `NAVER_CLIENT_ID` | Naver Developers OAuth 클라이언트 ID |
+| `NAVER_CLIENT_SECRET` | Naver OAuth 클라이언트 시크릿 |
+
+## 아이디/비밀번호 로그인(임시 운영)
+
+| 변수명 | 설명 |
+|--------|------|
+| `ENABLE_EMAIL_PASSWORD_AUTH` | 서버에서 아이디/비밀번호 로그인/가입 활성 (`1`) |
+| `NEXT_PUBLIC_ENABLE_CREDENTIAL_AUTH` | 클라이언트 UI에서 아이디/비밀번호 탭 노출 (`1`) |
+| `AUTH_SOCIAL_ONLY` | 아이디/비밀번호 로그인 강제 비활성 (`1`) |
+| `NEXT_PUBLIC_AUTH_SOCIAL_ONLY` | 클라이언트 UI에서도 소셜-only 강제 (`1`) |
+
+`AUTH_SOCIAL_ONLY=1`이면 credential 관련 활성화 변수보다 우선 적용됩니다.
 
 ### 구글 로그인 화면에 예전 서비스명(예: 쿼닥)이 뜰 때
 
@@ -22,6 +42,14 @@ NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=dev-secret-min-32-characters-long-here
 GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-xxx
+# KAKAO_CLIENT_ID=...
+# KAKAO_CLIENT_SECRET=...
+# NAVER_CLIENT_ID=...
+# NAVER_CLIENT_SECRET=...
+# ENABLE_EMAIL_PASSWORD_AUTH=1
+# NEXT_PUBLIC_ENABLE_CREDENTIAL_AUTH=1
+# AUTH_SOCIAL_ONLY=1
+# NEXT_PUBLIC_AUTH_SOCIAL_ONLY=1
 ```
 
 Google Cloud Console에서 "승인된 리디렉션 URI"에 다음을 등록:
@@ -55,6 +83,14 @@ Google Cloud Console에서 "승인된 리디렉션 URI"에 다음을 등록:
 | `NEXTAUTH_SECRET` | 32자 이상 랜덤 문자열 |
 | `GOOGLE_CLIENT_ID` | Google OAuth 클라이언트 ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth 클라이언트 시크릿 |
+| `KAKAO_CLIENT_ID` | Kakao OAuth 클라이언트 ID (선택) |
+| `KAKAO_CLIENT_SECRET` | Kakao OAuth 클라이언트 시크릿 (선택) |
+| `NAVER_CLIENT_ID` | Naver OAuth 클라이언트 ID (선택) |
+| `NAVER_CLIENT_SECRET` | Naver OAuth 클라이언트 시크릿 (선택) |
+| `ENABLE_EMAIL_PASSWORD_AUTH` | 아이디/비밀번호 로그인 활성 (임시 운영 시) |
+| `NEXT_PUBLIC_ENABLE_CREDENTIAL_AUTH` | 클라이언트 아이디/비밀번호 폼 노출 |
+| `AUTH_SOCIAL_ONLY` | 소셜-only 강제 전환 |
+| `NEXT_PUBLIC_AUTH_SOCIAL_ONLY` | 클라이언트에서도 소셜-only 강제 |
 
 3. **Production / Preview / Development** 에서 필요한 환경에 체크 후 Save.
 4. 재배포 후 로그인 동작 확인.
@@ -67,3 +103,5 @@ Google Cloud Console에서 "승인된 리디렉션 URI"에 다음을 등록:
 | `NEXTAUTH_SECRET` | 세션 암호화 실패, NextAuth 경고/에러 |
 | `GOOGLE_CLIENT_ID` | Google 로그인 버튼 클릭 시 "client_id is required" 등 OAuth 에러 |
 | `GOOGLE_CLIENT_SECRET` | Google 인증 후 콜백 단계에서 토큰 교환 실패 |
+| `KAKAO_CLIENT_ID`/`KAKAO_CLIENT_SECRET` | Kakao 로그인 버튼 클릭 시 OAuth 초기화/토큰 교환 실패 |
+| `NAVER_CLIENT_ID`/`NAVER_CLIENT_SECRET` | Naver 로그인 버튼 클릭 시 OAuth 초기화/토큰 교환 실패 |

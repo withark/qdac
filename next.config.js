@@ -5,6 +5,8 @@ if (!url || !url.startsWith('http')) {
   process.env.NEXTAUTH_URL = 'https://placeholder.build'
 }
 
-const nextConfig = {}
+const nextConfig = {
+  allowedDevOrigins: ['127.0.0.1', 'localhost'],
+}
 
 module.exports = nextConfig

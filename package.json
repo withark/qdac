@@ -8,6 +8,11 @@
     "build": "next build",
     "start": "next start",
     "verify:real-model-quality": "tsx scripts/verify-real-model-quality.ts",
+    "verify:real-all-docs": "tsx scripts/verify-real-all-docs.ts",
+    "verify:production-runtime": "tsx scripts/verify-production-runtime.ts",
+    "test:admin-auth-security": "tsx scripts/test-admin-auth-security.ts",
+    "test:ai-quality": "tsx scripts/test-ai-quality.ts",
+    "test:db-fallback": "tsx scripts/test-db-fallback.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {
@@ -17,11 +22,12 @@
     "@tosspayments/payment-sdk": "^1.9.2",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
+    "exceljs": "^4.4.0",
     "html2canvas": "^1.4.1",
-    "jspdf": "^2.5.1",
+    "jspdf": "^4.2.1",
     "jszip": "^3.10.1",
     "mammoth": "^1.12.0",
-    "next": "14.2.35",
+    "next": "^16.2.1",
     "next-auth": "^4.24.13",
     "node-pptx-parser": "^1.0.1",
     "openai": "^6.29.0",
@@ -31,7 +37,6 @@
     "react": "^18",
     "react-dom": "^18",
     "stripe": "^20.4.1",
-    "xlsx": "^0.18.5",
     "zod": "^4.3.6"
   },
   "devDependencies": {

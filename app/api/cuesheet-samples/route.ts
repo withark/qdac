@@ -6,7 +6,7 @@ import { ensureFreeSubscription } from '@/lib/db/subscriptions-db'
 import { insertCuesheetSampleWithFile, listCuesheetSamples, deleteCuesheetSample } from '@/lib/db/cuesheet-samples-db'
 import { MAX_UPLOAD_BYTES, formatUploadLimitText } from '@/lib/upload-limits'
 
-const ALLOWED_EXT = ['pdf', 'xlsx', 'xls', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'txt', 'csv', 'md', 'ppt', 'pptx', 'doc', 'docx']
+const ALLOWED_EXT = ['pdf', 'xlsx', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'txt', 'csv', 'md', 'ppt', 'pptx', 'doc', 'docx']
 
 function getExt(filename: string): string {
   const ext = (filename.split('.').pop() || '').toLowerCase()

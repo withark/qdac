@@ -30,6 +30,22 @@ function detectEventCategory(eventType: string, eventName: string): EventCategor
   return 'general'
 }
 
+function splitBriefAnchors(value: string | undefined | null): string[] {
+  return (value || '')
+    .split(/\n|,|\/|·|;|\|/g)
+    .map((part) => part.trim())
+    .filter((part) => part.length >= 2 && part.length <= 40)
+}
+
+function extractPromptAnchors(input: GenerateInput): string[] {
+  const anchors = [
+    ...splitBriefAnchors(input.requirements),
+    ...splitBriefAnchors(input.briefGoal),
+    ...splitBriefAnchors(input.briefNotes),
+  ]
+  return Array.from(new Set(anchors)).slice(0, 6)
+}
+
 // ─────────────────────────────────────────────────────────────
 //  행사 유형별 견적 카테고리 가이드
 // ─────────────────────────────────────────────────────────────
@@ -480,9 +496,124 @@ function buildExistingDocContext(input: GenerateInput): string {
     if (doc.quoteItems?.length) {
       parts.push(`기존 견적 카테고리: ${doc.quoteItems.map((c: any) => c.category).join(', ')}`)
     }
+    if (doc.program?.programRows?.length) parts.push(`기존 프로그램 구성: ${doc.program.programRows.length}개`)
+    if (doc.program?.cueRows?.length) parts.push(`기존 큐시트 행: ${doc.program.cueRows.length}개`)
+    if (doc.planning?.overview) parts.push(`기존 기획 방향 요약: ${String(doc.planning.overview).slice(0, 120)}`)
+    if (doc.scenario?.summaryTop) parts.push(`기존 시나리오 한 줄 요약: ${String(doc.scenario.summaryTop).slice(0, 120)}`)
     if (doc.eventName) parts.push(`기존 행사명: ${doc.eventName}`)
     return parts.join('\n')
   } catch { return '' }
+}
+
+function buildBriefContext(input: GenerateInput): string {
+  const goal = input.briefGoal?.trim()
+  const notes = input.briefNotes?.trim()
+  if (!goal && !notes) return ''
+  const lines = ['=== 사용자 브리프 ===']
+  if (goal) lines.push(`핵심 목표: ${goal}`)
+  if (notes) lines.push(`중요 메모: ${notes}`)
+  lines.push('위 브리프는 단순 참고가 아니라 문서 구조와 우선순위에 직접 반영하세요.')
+  return `\n${lines.join('\n')}\n`
+}
+
+function buildTraceabilityContext(input: GenerateInput, target: GenerateInput['documentTarget']): string {
+  const anchors = extractPromptAnchors(input)
+  if (!anchors.length) return ''
+  const targetHint =
+    target === 'planning'
+      ? 'planning 각 섹션과 checklist'
+      : target === 'scenario'
+        ? 'opening/development/mainPoints/directionNotes'
+        : target === 'cuesheet'
+          ? 'cueSummary와 cueRows'
+          : target === 'timetable'
+            ? 'timeline과 programRows'
+            : target === 'program'
+              ? 'concept/programRows/timeline/tips'
+              : 'quoteItems/spec/notes'
+  return `
+=== 요구사항 추적 앵커 ===
+다음 표현 중 최소 2개 이상을 ${targetHint}에 직접 반영하세요.
+${anchors.map((anchor, index) => `${index + 1}. ${anchor}`).join('\n')}
+- 앵커 표현은 비슷한 의미로 흐리지 말고, 실제 단어 또는 매우 가까운 표현으로 문서 안에 남기세요.
+- 앵커는 한 곳에 몰아 쓰지 말고 서로 다른 섹션/행에 분산 반영하세요.
+`
+}
+
+function buildEngineQualityContext(input: GenerateInput): string {
+  const q = input.engineQuality
+  if (!q) return ''
+  const lines = ['=== 엔진 품질 강화 메모 ===']
+  if (q.structureFirst) lines.push('- 구조 완성도를 먼저 확보하고 문장을 다듬습니다.')
+  if (q.toneFirst) lines.push('- 문서 톤은 실무형이되 과장 없이 설득력 있게 유지합니다.')
+  if (q.outputFormatTemplate?.trim()) lines.push(`- 출력 형식 템플릿 메모: ${q.outputFormatTemplate.trim()}`)
+  if (q.sampleWeightNote?.trim()) lines.push(`- 샘플 반영 메모: ${q.sampleWeightNote.trim()}`)
+  if (q.qualityBoost?.trim()) lines.push(`- 추가 품질 강화 지시: ${q.qualityBoost.trim()}`)
+  return lines.length > 1 ? `\n${lines.join('\n')}\n` : ''
+}
+
+function buildDocumentExcellenceGuide(target: GenerateInput['documentTarget']): string {
+  switch (target) {
+    case 'estimate':
+      return `
+[문서 완성도 기준 — 견적서]
+- 항목명은 구매/정산 담당자가 바로 이해할 수준으로 구체적으로 작성합니다.
+- 금액만 나열하지 말고, spec과 note에 왜 필요한지와 산출 근거를 남깁니다.
+- notes와 paymentTerms는 실제 계약 전 공유 문서처럼 명확하게 씁니다.`
+    case 'program':
+      return `
+[문서 완성도 기준 — 프로그램 제안서]
+- 프로그램 구성은 "왜 이 흐름인지"가 보이도록 제안 논리와 참여 경험을 연결합니다.
+- 행 이름은 추상어보다 세션명/활동명 중심으로 작성합니다.
+- 고객이 한눈에 이해할 수 있게 핵심 포인트와 운영 포인트를 분리합니다.
+- "원활하게", "효과적으로" 같은 추상 부사만 쓰지 말고 무엇을 어떻게 운영하는지 적습니다.`
+    case 'planning':
+      return `
+[문서 완성도 기준 — 기획안]
+- overview/scope/approach는 서로 다른 내용을 써야 합니다. 같은 말을 반복하지 마세요.
+- 운영 계획은 시간축, 역할, 산출물, 리스크 대응이 모두 보이게 작성합니다.
+- 내부 검토 문서이면서 동시에 클라이언트 공유용 문서처럼 읽히게 씁니다.
+- 추상적인 총론보다 의사결정 포인트, 승인 포인트, 실행 기준을 직접 적습니다.`
+    case 'scenario':
+      return `
+[문서 완성도 기준 — 시나리오]
+- MC 멘트, 전환 큐, 장비 큐가 실제 현장에서 읽히는 순서로 자연스럽게 이어져야 합니다.
+- opening/development/closing은 장면이 머릿속에 그려질 정도로 구체적으로 작성합니다.
+- mainPoints는 체크포인트 목록이 아니라 현장 운영 포인트 목록이 되게 작성합니다.
+- "분위기를 조성한다" 같은 추상 표현만 쓰지 말고, 누가 어떤 큐를 언제 실행하는지 적습니다.`
+    case 'cuesheet':
+      return `
+[문서 완성도 기준 — 큐시트]
+- 스태프가 바로 실행할 수 있게 짧고 명확한 문장으로 씁니다.
+- prep/script/special은 서로 다른 역할을 하도록 작성합니다.
+- 시간, 담당, 준비, 멘트, 돌발 대응이 한 줄 안에서 즉시 파악돼야 합니다.
+- 추상 멘트 대신 실제 호출 문구·장비 큐·우선순위 변경 기준을 적습니다.`
+    case 'timetable':
+      return `
+[문서 완성도 기준 — 타임테이블]
+- 시간표만 있는 문서가 아니라 구간별 운영 의도와 담당이 함께 보이게 작성합니다.
+- 휴식, 전환, 장비 셋업 시간도 실제 운영 기준으로 반영합니다.
+- programRows와 timeline이 서로 다른 표처럼 보이지 않게 동일 시간축과 구간명을 유지합니다.`
+    default:
+      return ''
+  }
+}
+
+function buildSelfCheckGuide(target: GenerateInput['documentTarget']): string {
+  const common = [
+    '- 출력 전 내부적으로 최소 조건 누락이 없는지 스스로 점검합니다.',
+    '- 같은 문장을 반복하거나 의미 없는 추상어로 채우지 않습니다.',
+    '- 요청사항/브리프의 핵심 표현이 서로 다른 섹션과 행에 실제로 반영됐는지 확인합니다.',
+    '- 고객이 바로 읽어도 되는 문장 품질인지 확인한 뒤 JSON만 출력합니다.',
+  ]
+  if (target === 'estimate') {
+    common.push('- quoteItems, notes, paymentTerms가 비거나 부실하면 다시 보강합니다.')
+  } else if (target === 'cuesheet') {
+    common.push('- cueRows 각 행에 time/content/staff/prep/script/special이 모두 채워졌는지 확인합니다.')
+  } else if (target === 'planning') {
+    common.push('- planning 각 섹션이 서로 다른 정보와 결정 포인트를 담는지 확인합니다.')
+  }
+  return common.join('\n')
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -519,6 +650,7 @@ export function buildGeneratePrompt(input: GenerateInput): string {
 
   const categoryGuide = getCategoryGuide(category, headcount)
   const programFlowGuide = getProgramFlowGuide(category, input)
+  const briefCtx = buildBriefContext(input)
   const programItemsHint = (['estimate', 'program', 'timetable'] as const).includes(target as any)
     ? getProgramItemsHint(input.requirements || '', input.programs)
     : ''
@@ -529,6 +661,10 @@ export function buildGeneratePrompt(input: GenerateInput): string {
   const scenarioRefCtx = target === 'scenario' ? buildScenarioRefContext(input) : ''
   const cuesheetCtx = target === 'cuesheet' ? buildCuesheetSampleContext(input) : ''
   const existingDocCtx = target !== 'estimate' ? buildExistingDocContext(input) : ''
+  const engineQualityCtx = buildEngineQualityContext(input)
+  const traceabilityCtx = buildTraceabilityContext(input, target)
+  const excellenceGuide = buildDocumentExcellenceGuide(target)
+  const selfCheckGuide = buildSelfCheckGuide(target)
   const outputSchema = getOutputSchema(target, category)
 
   const principles = [
@@ -541,6 +677,8 @@ export function buildGeneratePrompt(input: GenerateInput): string {
       : '5. content는 구체적 진행 내용 (예: "명랑운동회 1부 — 비전탑 세우기·도전99초").',
     '6. requirements에 언급된 내용 반드시 반영.',
     '7. 항목/행은 최소 기준 이상으로 작성. 누락보다 과잉이 낫습니다.',
+    '8. 결과물은 내부 메모 수준이 아니라 고객에게 바로 전달 가능한 실무 문서 품질이어야 합니다.',
+    '9. 문장은 간결하되 정보 밀도는 높게 유지합니다.',
   ].join('\n')
 
   return `당신은 대한민국 행사·이벤트 업계 전문 ${label} 작성 AI입니다.
@@ -553,6 +691,7 @@ ${settingsCtx}
 === 행사 유형별 가이드 ===
 ${categoryGuide}
 ${programFlowGuide}
+${briefCtx}
 ${programItemsHint}
 ${priceCtx}
 ${referenceCtx}
@@ -560,11 +699,99 @@ ${taskOrderCtx}
 ${scenarioRefCtx}
 ${cuesheetCtx}
 ${existingDocCtx}
+${engineQualityCtx}
+${traceabilityCtx}
+
+=== 문서 완성도 기준 ===
+${excellenceGuide}
 
 === 작성 원칙 ===
 ${principles}
 
+=== 내부 점검 ===
+${selfCheckGuide}
+
 ${outputSchema}
 
 위 지시에 따라 JSON만 출력하세요.`.trim()
+}
+
+export function buildRepairPrompt(
+  input: GenerateInput,
+  draft: unknown,
+  issues: string[],
+  options?: { strict?: boolean; focus?: 'coherence' | 'coverage' | 'specificity' | 'all' },
+): string {
+  const target = input.documentTarget ?? 'estimate'
+  const targetLabel: Record<NonNullable<GenerateInput['documentTarget']>, string> = {
+    estimate: '견적서',
+    program: '프로그램 제안서',
+    timetable: '타임테이블',
+    planning: '기획안',
+    scenario: '시나리오',
+    cuesheet: '큐시트',
+  }
+  const outputSchema = getOutputSchema(target, detectEventCategory(input.eventType || '', input.eventName || ''))
+  const draftJson = JSON.stringify(draft)
+  const anchors = extractPromptAnchors(input)
+  const focusGuide =
+    options?.focus === 'coherence'
+      ? `
+
+=== 정합성 우선 보정 ===
+- programRows/timeline/cueRows 등 표 간 시간축과 구간명을 반드시 맞춰 재작성하세요.
+- 행 개수, 시간 순서, 담당자 정보 누락을 먼저 해결하세요.`
+      : options?.focus === 'coverage'
+        ? `
+
+=== 브리프 반영 우선 보정 ===
+- 요청사항/핵심목표/중요메모의 표현을 서로 다른 섹션과 행에 최소 2개 이상 분산 반영하세요.
+- 브리프 문구를 한 문단에 몰아 넣지 말고, 각 구간의 실행 문장으로 풀어 쓰세요.`
+        : options?.focus === 'specificity'
+          ? `
+
+=== 구체성 우선 보정 ===
+- 추상 표현(원활하게/효과적으로/충분히/적절히) 대신 누가 무엇을 언제 어떻게 실행하는지 작성하세요.
+- 짧은 총론 문장은 줄이고, 운영 포인트·큐·역할·타이밍을 명확히 적으세요.`
+          : ''
+  const strictGuide = options?.strict
+    ? `
+
+=== 엄격 재작성 모드 ===
+- 초안 표현을 늘려 분량만 채우지 말고, 행사명/장소/인원/요청사항/브리프를 각 섹션과 행에 직접 반영하세요.
+- planning/scenario/program/cuesheet의 각 항목은 서로 다른 실행 정보여야 합니다. 같은 문장을 변형해 반복하지 마세요.
+- 일반론, 추상어, 공통 운영론 문구가 보이면 새로 다시 쓰는 수준으로 재구성하세요.
+- 타임라인/큐/체크리스트/포인트는 즉시 실행 가능한 수준의 구체 명사와 동사로 작성하세요.
+- "원활하게", "효과적으로", "충분히", "적절히" 같은 추상 부사만으로 문장을 끝내지 마세요.`
+    : ''
+  return `당신은 대한민국 행사 업계의 수석 ${targetLabel[target]} 편집자입니다.
+아래 초안 JSON은 기본 구조는 있으나 완성도가 부족합니다. 지적된 문제를 모두 해결해 더 완성도 높은 문서로 수정하세요.
+
+=== 반드시 해결할 문제 ===
+${issues.map((issue, index) => `${index + 1}. ${issue}`).join('\n')}
+
+=== 행사 핵심 정보 ===
+행사명: ${input.eventName || ''}
+행사 유형: ${input.eventType || ''}
+행사 일자: ${input.eventDate || ''}
+장소: ${input.venue || ''}
+인원: ${input.headcount || ''}
+요청사항: ${input.requirements || ''}
+핵심 목표: ${input.briefGoal || ''}
+중요 메모: ${input.briefNotes || ''}
+${anchors.length ? `반드시 반영할 앵커:\n${anchors.map((anchor, index) => `${index + 1}. ${anchor}`).join('\n')}` : ''}
+
+=== 수정 대상 초안 JSON ===
+${draftJson}
+
+${focusGuide}
+${strictGuide}
+
+=== 재작성 기준 ===
+${buildDocumentExcellenceGuide(target)}
+${buildSelfCheckGuide(target)}
+
+${outputSchema}
+
+설명 없이 수정된 단일 JSON 객체만 출력하세요.`.trim()
 }

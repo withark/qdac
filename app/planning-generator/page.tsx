@@ -4,13 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
 import { Input, Textarea, Toast } from '@/components/ui'
-import SimpleGeneratorWizard from '@/components/generators/SimpleGeneratorWizard'
+import SimpleGeneratorWizard, { type WizardHighlight } from '@/components/generators/SimpleGeneratorWizard'
 import type { CompanySettings, HistoryRecord, PriceCategory, QuoteDoc, TaskOrderDoc } from '@/lib/types'
 import { apiFetch, apiGenerateStream } from '@/lib/api/client'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
 import { exportToExcel } from '@/lib/exportExcel'
 import { exportToPdf } from '@/lib/exportPdf'
 import type { PlanType } from '@/lib/plans'
+import { buildTopicSeedDoc } from '@/lib/topic-seed-doc'
 
 type MeLite = {
   subscription: { planType: PlanType }
@@ -19,40 +20,6 @@ type MeLite = {
 }
 
 type SourceMode = 'fromEstimate' | 'fromTaskOrder' | 'fromTopic'
-
-function makeDummyQuoteDoc({
-  topic,
-  headcount,
-  venue,
-}: {
-  topic: string
-  headcount: string
-  venue: string
-}): QuoteDoc {
-  return {
-    eventName: topic || '행사',
-    clientName: '',
-    clientManager: '',
-    clientTel: '',
-    quoteDate: new Date().toISOString().slice(0, 10),
-    eventDate: '',
-    eventDuration: '',
-    venue: venue.trim(),
-    headcount: headcount.trim(),
-    eventType: '기타',
-    quoteItems: [{ category: '기타', items: [{ name: '기본 컨텍스트', spec: '', qty: 1, unit: '식', unitPrice: 0, total: 0, note: '', kind: '필수' }] }],
-    expenseRate: 0,
-    profitRate: 0,
-    cutAmount: 0,
-    notes: '',
-    paymentTerms: '',
-    validDays: 7,
-    program: { concept: '', programRows: [], timeline: [], staffing: [], tips: [], cueRows: [], cueSummary: '' },
-    scenario: undefined,
-    planning: undefined,
-    quoteTemplate: 'default',
-  }
-}
 
 export default function PlanningGeneratorPage() {
   const [me, setMe] = useState<MeLite | null>(null)
@@ -88,6 +55,14 @@ export default function PlanningGeneratorPage() {
   const [generationProgressLabel, setGenerationProgressLabel] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const generatingTabs = useMemo(() => ({ planning: generating }), [generating])
+  const wizardHighlights: WizardHighlight[] = useMemo(
+    () => [
+      { label: '필수 입력', value: '주제, 목표' },
+      { label: '권장 입력', value: '인원, 장소, 운영 메모' },
+      { label: '결과물', value: '기획안 + 엑셀/PDF' },
+    ],
+    [],
+  )
 
   useEffect(() => {
     apiFetch<MeLite>('/api/me').then(setMe).catch(() => {})
@@ -121,7 +96,7 @@ export default function PlanningGeneratorPage() {
         const raw = d?.structuredSummary as { projectTitle?: string; oneLineSummary?: string } | null | undefined
         setTaskOrderSummary(raw ?? {})
         const title = raw?.projectTitle || raw?.oneLineSummary || selectedTaskOrderBaseId
-        setDoc(makeDummyQuoteDoc({ topic: String(title), headcount: '', venue: '' }))
+        setDoc(buildTopicSeedDoc({ topic: String(title), headcount: '', venue: '', documentTarget: 'planning' }))
         setGeneratedDocId(null)
       })
       .catch(() => {
@@ -162,7 +137,7 @@ export default function PlanningGeneratorPage() {
   const handleGeneratePlanning = useCallback(async () => {
     const docForGenerate =
       sourceMode === 'fromTopic'
-        ? doc ?? makeDummyQuoteDoc({ topic: topic.trim() || '행사', headcount, venue })
+        ? doc ?? buildTopicSeedDoc({ topic: topic.trim() || '행사', headcount, venue, goal, notes, documentTarget: 'planning' })
         : doc
     if (!docForGenerate) {
       showToast('생성에 필요한 문서 컨텍스트가 없습니다. 소스를 선택했는지 확인해 주세요.')
@@ -183,6 +158,8 @@ export default function PlanningGeneratorPage() {
       const data = await apiGenerateStream(
         {
           ...body,
+          briefGoal: sourceMode === 'fromTopic' ? goal.trim() : '',
+          briefNotes: sourceMode === 'fromTopic' ? notes.trim() : '',
           documentTarget: 'planning',
           existingDoc: docForGenerate,
         },
@@ -247,21 +224,22 @@ export default function PlanningGeneratorPage() {
     <div className="flex h-screen overflow-hidden bg-gray-50/50">
       <GNB />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="flex items-center justify-between px-6 h-14 border-b border-gray-100 bg-white/90 flex-shrink-0">
+        <header className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 bg-white/90 px-6 py-5 flex-shrink-0">
           <div>
-            <h1 className="text-base font-semibold text-gray-900">기획안 만들기</h1>
-            <p className="text-xs text-gray-500 mt-0.5">기획안만 생성합니다</p>
+            <h1 className="text-xl font-semibold tracking-tight text-slate-900">기획안 만들기</h1>
+            <p className="mt-1 text-sm leading-6 text-slate-600">목적, 운영 방향, 리스크 대응까지 정리된 기획 문서를 빠르게 만듭니다.</p>
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <SimpleGeneratorWizard
             title="기획안 만들기"
-            subtitle=""
+            subtitle="실행 계획과 산출물 기준이 보이도록, 내부 검토와 고객 공유 둘 다 가능한 초안으로 작성합니다."
+            highlights={wizardHighlights}
             modes={[
-              { id: 'fromTopic', title: '주제만 입력' },
-              { id: 'fromEstimate', title: '견적서 기준' },
-              { id: 'fromTaskOrder', title: '과업지시서 기준' },
+              { id: 'fromTopic', title: '주제만 입력', desc: '행사 목적과 메시지를 중심으로 기획안을 씁니다.' },
+              { id: 'fromEstimate', title: '견적서 기준', desc: '기존 행사 정보와 견적 문맥을 이어서 기획합니다.' },
+              { id: 'fromTaskOrder', title: '과업지시서 기준', desc: '요구사항 문서 기준으로 범위와 운영안을 정리합니다.' },
             ]}
             modeId={sourceMode}
             onModeChange={(id) => {
@@ -287,7 +265,7 @@ export default function PlanningGeneratorPage() {
                     setDoc(null)
                     setGeneratedDocId(null)
                   }}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-100"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70"
                 >
                   <option value="" disabled>
                     저장된 견적을 선택하세요
@@ -307,7 +285,7 @@ export default function PlanningGeneratorPage() {
                     setDoc(null)
                     setGeneratedDocId(null)
                   }}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-100"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70"
                 >
                   <option value="" disabled>
                     과업지시서 요약을 선택하세요
@@ -320,8 +298,8 @@ export default function PlanningGeneratorPage() {
                 </select>
               ) : (
                 <div className="space-y-3">
-                  <div className="text-[11px] text-gray-500">
-                    필수: 주제, 목표 / 선택: 인원, 장소, 추가 메모
+                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-600">
+                    목표와 메모를 구체적으로 적으면 운영 범위, 체크리스트, 리스크 대응 문장이 더 실무형으로 정리됩니다.
                   </div>
                   <Input
                     label="이벤트 주제"
@@ -390,9 +368,13 @@ export default function PlanningGeneratorPage() {
                   initialTab="planning"
                   showTabButtons={false}
                   disableAutoGenerate
-                  onExcel={(view) => {
-                    exportToExcel(doc, companySettings ?? undefined, view)
-                    showToast('엑셀 다운로드 완료!')
+                  onExcel={async (view) => {
+                    try {
+                      await exportToExcel(doc, companySettings ?? undefined, view)
+                      showToast('엑셀 다운로드 완료!')
+                    } catch (e) {
+                      showToast(toUserMessage(e, '엑셀 다운로드 실패'))
+                    }
                   }}
                   onPdf={async () => {
                     if (me?.subscription?.planType === 'FREE') {
@@ -430,4 +412,3 @@ export default function PlanningGeneratorPage() {
     </div>
   )
 }
-

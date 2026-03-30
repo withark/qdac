@@ -34,6 +34,8 @@ const GenerateRequestSchema = z.object({
   eventType: z.string().min(1, '행사 종류를 선택해주세요.'),
   budget: z.string().optional().default(''),
   requirements: z.string().optional().default(''),
+  briefGoal: z.string().optional().default(''),
+  briefNotes: z.string().optional().default(''),
   generationMode: z.enum(['normal', 'taskOrderBase']).optional().default('normal'),
   taskOrderBaseId: z.string().optional().default(''),
   documentTarget: z

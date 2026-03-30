@@ -17,7 +17,6 @@ const PROTECTED_PREFIXES = [
   '/settings',
   '/history',
   '/prices',
-  // legacy routes (direct access 보호)
   '/generate',
   '/references',
   '/dashboard',
@@ -29,7 +28,7 @@ const PROTECTED_PREFIXES = [
  * /admin (정확히) 은 로그인 페이지이므로 항상 통과.
  * /admin/xxx 는 쿠키 없으면 /admin 으로 리다이렉트.
  */
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const hostname = request.nextUrl.hostname
 
@@ -40,7 +39,6 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(target, 308)
   }
 
-  // 1) 관리자 페이지 보호
   if (pathname.startsWith('/admin')) {
     if (pathname === '/admin') return NextResponse.next()
     const token = request.cookies.get(ADMIN_COOKIE_NAME)?.value
@@ -53,7 +51,6 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // 2) 보호 페이지: 로그인 필요
   const needsAuth = PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'))
   if (!needsAuth) return NextResponse.next()
 
@@ -77,7 +74,6 @@ export function middleware(request: NextRequest) {
     const callbackUrl = request.nextUrl.pathname + request.nextUrl.search
     url.pathname = '/auth'
     url.searchParams.set('callbackUrl', callbackUrl)
-    // estimate-generator 접근은 "회원가입(로그인) 필요"로 안내, 그 외는 일반 로그인 안내
     const reason =
       pathname === '/estimate-generator' || pathname.startsWith('/estimate-generator/')
       || pathname === '/generate' || pathname.startsWith('/generate/')
@@ -89,8 +85,6 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // host canonicalize는 전 경로에 적용되어야 세션/콜백 도메인 불일치가 사라진다.
-  // next 내부 리소스/정적 파일/이미지 최적화/API는 제외.
   matcher: [
     '/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\..*).*)',
   ],

@@ -1,0 +1,33 @@
+name: Production Runtime Smoke
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  verify-production-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify production runtime
+        run: npm run verify:production-runtime
+        env:
+          PLANIC_BASE_URL: ${{ secrets.PLANIC_BASE_URL }}
+          PLANIC_ADMIN_USERNAME: ${{ secrets.PLANIC_ADMIN_USERNAME }}
+          PLANIC_ADMIN_PASSWORD: ${{ secrets.PLANIC_ADMIN_PASSWORD }}
+          PLANIC_EXPECT_PROVIDER: ${{ secrets.PLANIC_EXPECT_PROVIDER }}
+          PLANIC_CHECK_DEFAULT_ADMIN: ${{ secrets.PLANIC_CHECK_DEFAULT_ADMIN }}
+          PLANIC_CHECK_ADMIN_QUALITY_BUNDLE: ${{ secrets.PLANIC_CHECK_ADMIN_QUALITY_BUNDLE }}

@@ -20,6 +20,7 @@ import { listScenarioRefs } from '@/lib/db/scenario-refs-db'
 import { getCuesheetFile } from '@/lib/db/cuesheet-samples-db'
 import { extractTextFromBuffer } from '@/lib/file-utils'
 import { getEffectiveEngineConfig } from '@/lib/ai/client'
+import { clampEngineMaxTokens } from '@/lib/ai/generate-config'
 import { logError, logInfo } from '@/lib/utils/logger'
 import { parseBudgetCeilingKRW } from '@/lib/budget'
 import { enforceBudgetHardConstraint } from '@/lib/quote/budget-enforcer'
@@ -50,6 +51,8 @@ export type GeneratePipelineBody = {
   eventType: string
   budget?: string
   requirements?: string
+  briefGoal?: string
+  briefNotes?: string
   generationMode?: 'normal' | 'taskOrderBase'
   taskOrderBaseId?: string
   documentTarget?: 'estimate' | 'program' | 'timetable' | 'planning' | 'scenario' | 'cuesheet'
@@ -78,6 +81,59 @@ export type ExecuteGeneratePipelineResult = {
   totals: ReturnType<typeof calcTotals>
   id: string
   genMeta: Awaited<ReturnType<typeof generateQuoteWithMeta>>['meta']
+}
+
+const REALTIME_ANTHROPIC_MODEL_DEFAULT = 'claude-sonnet-4-6'
+const REALTIME_MAX_TOKENS_DEFAULT = 6_144
+
+function parsePositiveInt(value: string | undefined, fallback: number): number {
+  const n = Number.parseInt(String(value ?? ''), 10)
+  if (!Number.isFinite(n) || n <= 0) return fallback
+  return n
+}
+
+function applyRealtimeEnginePolicy(
+  engine: Awaited<ReturnType<typeof getEffectiveEngineConfig>>,
+): {
+  engine: Awaited<ReturnType<typeof getEffectiveEngineConfig>>
+  forcedModel: boolean
+  cappedTokens: boolean
+  tokenCap: number
+  targetModel: string | null
+} {
+  const tokenCap = parsePositiveInt(process.env.AI_REALTIME_MAX_TOKENS, REALTIME_MAX_TOKENS_DEFAULT)
+  const cappedMaxTokens = clampEngineMaxTokens(Math.min(engine.maxTokens, tokenCap))
+  const cappedTokens = cappedMaxTokens < engine.maxTokens
+
+  if (engine.provider !== 'anthropic') {
+    return {
+      engine: {
+        ...engine,
+        maxTokens: cappedMaxTokens,
+      },
+      forcedModel: false,
+      cappedTokens,
+      tokenCap,
+      targetModel: null,
+    }
+  }
+
+  const targetModel =
+    (process.env.ANTHROPIC_REALTIME_MODEL || '').trim() ||
+    (process.env.ANTHROPIC_MODEL_REALTIME || '').trim() ||
+    REALTIME_ANTHROPIC_MODEL_DEFAULT
+  const forcedModel = engine.model !== targetModel
+  return {
+    engine: {
+      ...engine,
+      model: targetModel,
+      maxTokens: cappedMaxTokens,
+    },
+    forcedModel,
+    cappedTokens,
+    tokenCap,
+    targetModel,
+  }
 }
 
 export async function executeGeneratePipeline(
@@ -113,7 +169,7 @@ export async function executeGeneratePipeline(
       ? getTaskOrderRefById(userId, taskOrderBaseId).then((r) => (r ? [r] : []))
       : Promise.resolve([])
 
-  const [prices, settings, references, taskOrderRefs, scenarioRefs, cuesheetSampleContext, effective] =
+  const [prices, settings, references, taskOrderRefs, scenarioRefs, cuesheetSampleContext, effectiveRaw] =
     await Promise.all([
       needPrices ? getUserPrices(userId) : Promise.resolve([]),
       (async () => {
@@ -140,6 +196,8 @@ export async function executeGeneratePipeline(
       getEffectiveEngineConfig(),
     ])
   const contextLoadMs = Date.now() - contextStartedAt
+  const realtimePolicy = applyRealtimeEnginePolicy(effectiveRaw)
+  const effective = realtimePolicy.engine
 
   const effectiveStyleMode: 'userStyle' | 'aiTemplate' =
     styleMode === 'userStyle' && references.length > 0 ? 'userStyle' : 'aiTemplate'
@@ -195,6 +253,13 @@ export async function executeGeneratePipeline(
     provider: effective.provider,
     model: effective.model,
     maxTokens: effective.maxTokens,
+    modelBeforeRealtimePolicy: effectiveRaw.model,
+    maxTokensBeforeRealtimePolicy: effectiveRaw.maxTokens,
+    realtimeModelForced: realtimePolicy.forcedModel,
+    realtimeModelTarget: realtimePolicy.targetModel,
+    realtimeTokenCap: realtimePolicy.tokenCap,
+    realtimeTokenCapped: realtimePolicy.cappedTokens,
+    batchPolicy: 'realtime_disabled',
     mockAi: isMockAi,
     aiModeRawMock,
     branchUsed: isMockAi ? 'mock' : 'real',
@@ -251,6 +316,7 @@ export async function executeGeneratePipeline(
     styleMode: effectiveStyleMode,
     existingDoc,
     cachedEngineConfig: effective,
+    generationProfile: 'realtime',
     pipelineEmit,
   }
 
@@ -296,6 +362,45 @@ export async function executeGeneratePipeline(
 
   pipelineEmit?.({ stage: 'save', label: '문서 저장 중' })
 
+  const totalElapsedMs = Date.now() - reqStartedAt
+  const generationTotalMs = genMeta?.totalMs ?? 0
+  const timingsSnapshot = {
+    authSessionMs: authMs,
+    contextLoadMs,
+    promptBuildMs: genMeta?.promptBuildMs ?? 0,
+    aiCallMs: genMeta?.aiCallMs ?? 0,
+    parseNormalizeMs: genMeta?.parseNormalizeMs ?? 0,
+    stagedRefineMs: genMeta?.stagedRefineMs ?? 0,
+    retries: genMeta?.retries ?? 0,
+    llmPrimaryMs: genMeta?.llmPrimaryMs ?? 0,
+    llmRetryMs: genMeta?.llmRetryMs ?? 0,
+    llmRefineMs: genMeta?.llmRefineMs ?? 0,
+    timedOut: genMeta?.timedOut ?? false,
+    slowestStage: genMeta?.slowestStage ?? '',
+    slowestStageMs: genMeta?.slowestStageMs ?? 0,
+    saveMs: Math.max(0, totalElapsedMs - authMs - contextLoadMs - generationTotalMs),
+    totalMs: totalElapsedMs,
+  }
+  const qualitySnapshot = {
+    strictTarget: documentTarget !== 'estimate',
+    issueCountBefore: genMeta?.qualityIssueCountBefore ?? 0,
+    issueCountAfter: genMeta?.qualityIssueCountAfter ?? 0,
+    scoreBefore: genMeta?.qualityScoreBefore ?? 0,
+    scoreAfter: genMeta?.qualityScoreAfter ?? 0,
+    improved:
+      (genMeta?.qualityIssueCountAfter ?? 0) < (genMeta?.qualityIssueCountBefore ?? 0) ||
+      (genMeta?.qualityScoreAfter ?? 0) < (genMeta?.qualityScoreBefore ?? 0),
+    cleared: (genMeta?.qualityIssueCountAfter ?? 0) === 0,
+    repairAttempts: genMeta?.repairAttempts ?? 0,
+    repairFocusHistory: genMeta?.repairFocusHistory ?? [],
+    topIssuesAfter: genMeta?.qualityIssuesAfterTop ?? [],
+  }
+  const persistedEngineSnapshot = {
+    ...engineSnapshot,
+    timings: timingsSnapshot,
+    quality: qualitySnapshot,
+  }
+
   await insertGeneratedDoc({
     userId,
     id: quoteId,
@@ -321,7 +426,7 @@ export async function executeGeneratePipeline(
           sampleId: appliedSampleId || undefined,
           sampleFilename: appliedSampleFilename || undefined,
           cuesheetApplied,
-          engineSnapshot,
+          engineSnapshot: persistedEngineSnapshot,
         },
       },
       userId,
@@ -341,20 +446,7 @@ export async function executeGeneratePipeline(
     budgetCeilingKRW: parsedBudgetForLogging.ceilingKRW,
     generatedFinalTotalKRW: totals.grand,
     budgetFit: budgetConstraint?.budgetFit ?? true,
-    engineSnapshot: {
-      ...engineSnapshot,
-      timings: {
-        authSessionMs: authMs,
-        contextLoadMs,
-        promptBuildMs: genMeta?.promptBuildMs ?? 0,
-        aiCallMs: genMeta?.aiCallMs ?? 0,
-        parseNormalizeMs: genMeta?.parseNormalizeMs ?? 0,
-        stagedRefineMs: genMeta?.stagedRefineMs ?? 0,
-        retries: genMeta?.retries ?? 0,
-        saveMs: Date.now() - reqStartedAt - authMs - contextLoadMs - (genMeta?.totalMs ?? 0),
-        totalMs: Date.now() - reqStartedAt,
-      },
-    },
+    engineSnapshot: persistedEngineSnapshot,
   }).catch((err) => logError('generation_run.insert', err))
   await kvSet('generationRunsLast', { at: new Date().toISOString(), userId, ok: true }).catch((err) =>
     logError('generation_run.kvSet', err),

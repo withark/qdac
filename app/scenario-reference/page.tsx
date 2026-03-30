@@ -116,7 +116,7 @@ export default function ScenarioReferencePage() {
                 ref={fileRef}
                 type="file"
                 className="hidden"
-                accept=".txt,.csv,.md,.pdf,.xlsx,.xls,.ppt,.pptx,.doc,.docx"
+                accept=".txt,.csv,.md,.pdf,.xlsx,.ppt,.pptx,.doc,.docx"
                 onChange={(e) => {
                   const f = e.target.files?.[0]
                   if (f) void upload(f)
@@ -125,7 +125,7 @@ export default function ScenarioReferencePage() {
               />
             </div>
             <div className="text-[11px] text-gray-500 mt-2">
-              지원 형식: txt/csv/md/pdf/xlsx/xls/ppt/pptx/doc/docx · 파일 크기 {formatUploadLimitText()} 이하
+              지원 형식: txt/csv/md/pdf/xlsx/ppt/pptx/doc/docx · 파일 크기 {formatUploadLimitText()} 이하
             </div>
           </section>
 

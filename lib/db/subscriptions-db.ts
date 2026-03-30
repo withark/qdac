@@ -1,4 +1,5 @@
 import { getDb, hasDatabase, initDb } from '@/lib/db/client'
+import { runWithDbFallback } from '@/lib/db/db-fallback'
 import { uid } from '@/lib/calc'
 import type { BillingCycle, PlanType } from '@/lib/plans'
 
@@ -24,89 +25,107 @@ function toBillingCycle(v: unknown): BillingCycle {
   return v === 'monthly' || v === 'annual' ? v : null
 }
 
+function localFreeSubscription(userId: string): SubscriptionRow {
+  const now = new Date().toISOString()
+  return {
+    id: `local_free_${userId}`,
+    userId,
+    planType: 'FREE',
+    billingCycle: null,
+    status: 'active',
+    startedAt: now,
+    expiresAt: null,
+    canceledAt: null,
+    stripeSubscriptionId: null,
+    createdAt: now,
+    updatedAt: now,
+  }
+}
+
 export async function getActiveSubscription(userId: string): Promise<SubscriptionRow | null> {
   if (!hasDatabase()) {
     // DBless(로컬/테스트)에서는 영구 FREE로 취급합니다.
-    const now = new Date().toISOString()
-    return {
-      id: `local_free_${userId}`,
-      userId,
-      planType: 'FREE',
-      billingCycle: null,
-      status: 'active',
-      startedAt: now,
-      expiresAt: null,
-      canceledAt: null,
-      stripeSubscriptionId: null,
-      createdAt: now,
-      updatedAt: now,
-    }
+    return localFreeSubscription(userId)
   }
-  await initDb()
-  const sql = getDb()
-  // 만료 처리: active인데 expires_at이 지난 경우 expired로 정리
-  await sql`
-    UPDATE subscriptions
-    SET status = 'expired', updated_at = now()
-    WHERE user_id = ${userId}
-      AND status = 'active'
-      AND expires_at IS NOT NULL
-      AND expires_at < now()
-  `
-  const rows = await sql`
-    SELECT *
-    FROM subscriptions
-    WHERE user_id = ${userId} AND status = 'active'
-    ORDER BY created_at DESC
-    LIMIT 1
-  `
-  if (rows.length === 0) return null
-  const r = rows[0] as Record<string, unknown>
-  return {
-    id: String(r.id),
-    userId: String(r.user_id),
-    planType: toPlanType(r.plan_type),
-    billingCycle: toBillingCycle(r.billing_cycle),
-    status: r.status as SubscriptionRow['status'],
-    startedAt: r.started_at ? new Date(r.started_at as string).toISOString() : null,
-    expiresAt: r.expires_at ? new Date(r.expires_at as string).toISOString() : null,
-    canceledAt: r.canceled_at ? new Date(r.canceled_at as string).toISOString() : null,
-    stripeSubscriptionId: r.stripe_subscription_id ? String(r.stripe_subscription_id) : null,
-    createdAt: new Date(r.created_at as string).toISOString(),
-    updatedAt: new Date(r.updated_at as string).toISOString(),
-  }
+  return runWithDbFallback(
+    'subscriptions',
+    'get_active',
+    async () => {
+      await initDb()
+      const sql = getDb()
+      // 만료 처리: active인데 expires_at이 지난 경우 expired로 정리
+      await sql`
+        UPDATE subscriptions
+        SET status = 'expired', updated_at = now()
+        WHERE user_id = ${userId}
+          AND status = 'active'
+          AND expires_at IS NOT NULL
+          AND expires_at < now()
+      `
+      const rows = await sql`
+        SELECT *
+        FROM subscriptions
+        WHERE user_id = ${userId} AND status = 'active'
+        ORDER BY created_at DESC
+        LIMIT 1
+      `
+      if (rows.length === 0) return null
+      const r = rows[0] as Record<string, unknown>
+      return {
+        id: String(r.id),
+        userId: String(r.user_id),
+        planType: toPlanType(r.plan_type),
+        billingCycle: toBillingCycle(r.billing_cycle),
+        status: r.status as SubscriptionRow['status'],
+        startedAt: r.started_at ? new Date(r.started_at as string).toISOString() : null,
+        expiresAt: r.expires_at ? new Date(r.expires_at as string).toISOString() : null,
+        canceledAt: r.canceled_at ? new Date(r.canceled_at as string).toISOString() : null,
+        stripeSubscriptionId: r.stripe_subscription_id ? String(r.stripe_subscription_id) : null,
+        createdAt: new Date(r.created_at as string).toISOString(),
+        updatedAt: new Date(r.updated_at as string).toISOString(),
+      }
+    },
+    () => localFreeSubscription(userId),
+  )
 }
 
 export async function ensureFreeSubscription(userId: string): Promise<SubscriptionRow> {
   if (!hasDatabase()) {
     // getActiveSubscription에서 이미 처리하므로, 단일 호출 경로를 유지합니다.
-    return getActiveSubscription(userId) as unknown as SubscriptionRow
+    return localFreeSubscription(userId)
   }
-  await initDb()
   const existing = await getActiveSubscription(userId)
   if (existing) return existing
 
-  const sql = getDb()
-  const now = new Date().toISOString()
-  const id = uid()
-  await sql`
-    INSERT INTO subscriptions (
-      id, user_id, plan_type, billing_cycle, status,
-      started_at, expires_at, canceled_at, stripe_subscription_id, created_at, updated_at
-    ) VALUES (
-      ${id}, ${userId}, 'FREE', NULL, 'active',
-      ${now}::timestamptz, NULL, NULL, NULL, ${now}::timestamptz, ${now}::timestamptz
-    )
-    ON CONFLICT DO NOTHING
-  `
-  const sub = await getActiveSubscription(userId)
-  if (!sub) {
-    // 유니크 인덱스 충돌 등으로 active가 생겼을 수 있음
-    const again = await getActiveSubscription(userId)
-    if (again) return again
-    throw new Error('구독 정보를 생성하지 못했습니다.')
-  }
-  return sub
+  return runWithDbFallback(
+    'subscriptions',
+    'ensure_free',
+    async () => {
+      await initDb()
+      const sql = getDb()
+      const now = new Date().toISOString()
+      const id = uid()
+      await sql`
+        INSERT INTO subscriptions (
+          id, user_id, plan_type, billing_cycle, status,
+          started_at, expires_at, canceled_at, stripe_subscription_id, created_at, updated_at
+        ) VALUES (
+          ${id}, ${userId}, 'FREE', NULL, 'active',
+          ${now}::timestamptz, NULL, NULL, NULL, ${now}::timestamptz, ${now}::timestamptz
+        )
+        ON CONFLICT DO NOTHING
+      `
+      const sub = await getActiveSubscription(userId)
+      if (!sub) {
+        // 유니크 인덱스 충돌 등으로 active가 생겼을 수 있음
+        const again = await getActiveSubscription(userId)
+        if (again) return again
+        throw new Error('구독 정보를 생성하지 못했습니다.')
+      }
+      return sub
+    },
+    () => localFreeSubscription(userId),
+  )
 }
 
 export async function setActiveSubscription(input: {
@@ -233,4 +252,3 @@ export async function cancelActiveSubscription(userId: string): Promise<void> {
     WHERE user_id = ${userId} AND status = 'active'
   `
 }
-

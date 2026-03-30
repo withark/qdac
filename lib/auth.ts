@@ -1,5 +1,7 @@
 import type { NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
+import KakaoProvider from 'next-auth/providers/kakao'
+import NaverProvider from 'next-auth/providers/naver'
 import { hasDatabase } from '@/lib/db/client'
 import { upsertUser } from '@/lib/db/users-db'
 import { ensureFreeSubscription } from '@/lib/db/subscriptions-db'
@@ -7,9 +9,42 @@ import { devAuthProvider, isDevAuthEnabled } from '@/lib/auth-dev'
 import { emailPasswordCredentialsProvider, isEmailPasswordAuthEnabled } from '@/lib/auth-email-password'
 import { resolveNextAuthSecret } from '@/lib/nextauth-secret'
 import { planicProductionSharedCookie, PLANIC_SESSION_COOKIE_NAME } from '@/lib/planic-auth-env'
+import { resolveEnabledSocialAuthProviders } from '@/lib/social-auth-providers'
 
 const secure = process.env.NODE_ENV === 'production'
 const cookieDomain = planicProductionSharedCookie() ? '.planic.cloud' : undefined
+
+function oauthProviders(): NextAuthOptions['providers'] {
+  const enabled = resolveEnabledSocialAuthProviders()
+  const providers: NextAuthOptions['providers'] = []
+
+  if (enabled.includes('google')) {
+    providers.push(
+      GoogleProvider({
+        clientId: process.env.GOOGLE_CLIENT_ID ?? '',
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
+      }),
+    )
+  }
+  if (enabled.includes('kakao')) {
+    providers.push(
+      KakaoProvider({
+        clientId: process.env.KAKAO_CLIENT_ID ?? '',
+        clientSecret: process.env.KAKAO_CLIENT_SECRET ?? '',
+      }),
+    )
+  }
+  if (enabled.includes('naver')) {
+    providers.push(
+      NaverProvider({
+        clientId: process.env.NAVER_CLIENT_ID ?? '',
+        clientSecret: process.env.NAVER_CLIENT_SECRET ?? '',
+      }),
+    )
+  }
+
+  return providers
+}
 
 /**
  * NextAuth 옵션.
@@ -18,10 +53,7 @@ const cookieDomain = planicProductionSharedCookie() ? '.planic.cloud' : undefine
  */
 export const authOptions: NextAuthOptions = {
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID ?? '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
-    }),
+    ...oauthProviders(),
     ...(isDevAuthEnabled() ? [devAuthProvider()] : []),
     ...(isEmailPasswordAuthEnabled() ? [emailPasswordCredentialsProvider()] : []),
   ],

@@ -7,6 +7,7 @@ import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
 import { EmailPasswordAuthForm } from '@/components/auth/EmailPasswordAuthForm'
 import { AuthErrorAlert } from '@/components/auth/AuthErrorAlert'
 import type { AuthIntent } from '@/components/auth/GoogleSignInButton'
+import type { SocialAuthProvider } from '@/lib/social-auth-providers'
 
 function GoogleMark({ className }: { className?: string }) {
   return (
@@ -40,6 +41,7 @@ type Props = {
   errorDescription?: string
   devEnabled: boolean
   emailPasswordAuthEnabled: boolean
+  socialProviders: SocialAuthProvider[]
   /** signup_required 시 짧은 안내 (카드 위) */
   hint?: string
   /** login_required 시 한 줄 */
@@ -53,20 +55,28 @@ export function AuthLoginCard({
   errorDescription,
   devEnabled,
   emailPasswordAuthEnabled,
+  socialProviders,
   hint,
   loginRequiredNote,
 }: Props) {
   const [tab, setTab] = useState<Tab>(defaultTab)
+  const availableSocialProviders = Array.from(new Set(socialProviders)).filter(Boolean)
 
   const title = tab === 'signup' ? '회원가입' : '로그인'
   const subtitle =
     tab === 'signup'
       ? emailPasswordAuthEnabled
-        ? '아이디·비밀번호 또는 Google로 가입할 수 있어요.'
-        : 'Google 계정으로 가입 후 견적·문서 작업을 바로 이어갈 수 있어요.'
+        ? '아이디·비밀번호 또는 소셜 계정으로 가입할 수 있어요.'
+        : '소셜 계정으로 가입 후 견적·문서 작업을 바로 이어갈 수 있어요.'
       : emailPasswordAuthEnabled
-        ? '아이디·비밀번호 또는 Google로 로그인할 수 있어요.'
-        : 'Google 계정으로 로그인하면 이전 작업을 이어갈 수 있어요.'
+        ? '아이디·비밀번호 또는 소셜 계정으로 로그인할 수 있어요.'
+        : '소셜 계정으로 로그인하면 이전 작업을 이어갈 수 있어요.'
+
+  const providerLabel: Record<SocialAuthProvider, string> = {
+    google: 'Google',
+    kakao: 'Kakao',
+    naver: 'Naver',
+  }
 
   return (
     <div className="w-full max-w-[400px] mx-auto flex flex-col items-center">
@@ -129,15 +139,27 @@ export function AuthLoginCard({
             </>
           ) : null}
 
-          <GoogleSignInButton
-            intent={tab}
-            callbackUrl={callbackUrl}
-            aria-label={tab === 'signup' ? 'Google로 가입' : 'Google로 로그인'}
-            className="w-full min-h-[52px] rounded-xl border border-slate-200 bg-white text-gray-800 text-sm font-medium shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-colors flex items-center justify-center gap-3"
-          >
-            <GoogleMark />
-            {tab === 'signup' ? 'Google로 가입' : 'Google로 로그인'}
-          </GoogleSignInButton>
+          {availableSocialProviders.map((provider) => {
+            const name = providerLabel[provider] ?? provider
+            return (
+              <GoogleSignInButton
+                key={provider}
+                provider={provider}
+                intent={tab}
+                callbackUrl={callbackUrl}
+                aria-label={tab === 'signup' ? `${name}로 가입` : `${name}로 로그인`}
+                className="w-full min-h-[52px] rounded-xl border border-slate-200 bg-white text-gray-800 text-sm font-medium shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-colors flex items-center justify-center gap-3"
+              >
+                {provider === 'google' ? <GoogleMark /> : null}
+                {tab === 'signup' ? `${name}로 가입` : `${name}로 로그인`}
+              </GoogleSignInButton>
+            )
+          })}
+          {availableSocialProviders.length === 0 ? (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+              사용 가능한 소셜 로그인 설정이 없습니다. 관리자에게 OAuth 설정을 요청해 주세요.
+            </p>
+          ) : null}
 
           {devEnabled ? (
             <Link

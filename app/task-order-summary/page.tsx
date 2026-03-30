@@ -123,7 +123,7 @@ export default function TaskOrderSummaryPage() {
               <input
                 ref={taskOrderFileRef}
                 type="file"
-                accept=".txt,.csv,.md,.pdf,.xlsx,.xls,.ppt,.pptx,.doc,.docx"
+                accept=".txt,.csv,.md,.pdf,.xlsx,.ppt,.pptx,.doc,.docx"
                 className="hidden"
                 onChange={e => {
                   const f = e.target.files?.[0]
@@ -143,7 +143,7 @@ export default function TaskOrderSummaryPage() {
                 한글(.hwp)은 먼저 PDF 또는 Word(.docx)로 저장해서 올려주세요.
               </button>
               <p className="text-xs text-gray-500 mb-3">
-                지원 형식: .txt, .csv, .md, .pdf, .xlsx, .xls, .ppt, .pptx, .doc, .docx · 파일 크기 {formatUploadLimitText()} 이하
+                지원 형식: .txt, .csv, .md, .pdf, .xlsx, .ppt, .pptx, .doc, .docx · 파일 크기 {formatUploadLimitText()} 이하
               </p>
             </section>
 
@@ -242,4 +242,3 @@ export default function TaskOrderSummaryPage() {
     </div>
   )
 }
-

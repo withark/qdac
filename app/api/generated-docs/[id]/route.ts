@@ -13,13 +13,13 @@ const ParamsSchema = z.object({
   id: z.string().min(1),
 })
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const userId = await getUserIdFromSession()
     if (!userId) return errorResponse(401, 'UNAUTHORIZED', '로그인이 필요합니다.')
     await ensureFreeSubscription(userId)
 
-    const parsed = ParamsSchema.safeParse(params)
+    const parsed = ParamsSchema.safeParse(await params)
     if (!parsed.success) {
       return errorResponse(400, 'INVALID_REQUEST', 'id가 올바르지 않습니다.', parsed.error.flatten())
     }
@@ -38,13 +38,13 @@ const PatchBodySchema = z.object({
   doc: z.any(),
 })
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const userId = await getUserIdFromSession()
     if (!userId) return errorResponse(401, 'UNAUTHORIZED', '로그인이 필요합니다.')
     await ensureFreeSubscription(userId)
 
-    const parsedParams = ParamsSchema.safeParse(params)
+    const parsedParams = ParamsSchema.safeParse(await params)
     if (!parsedParams.success) {
       return errorResponse(400, 'INVALID_REQUEST', 'id가 올바르지 않습니다.', parsedParams.error.flatten())
     }
@@ -70,4 +70,3 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return errorResponse(500, 'INTERNAL_ERROR', '문서 저장에 실패했습니다.')
   }
 }
-

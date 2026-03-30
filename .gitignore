@@ -17,3 +17,6 @@ blogbi/
 
 # 로컬 진단/스크래치 덤프 (커밋 제외)
 /check.txt
+.vercel
+.env.verify-real
+.playwright-data/

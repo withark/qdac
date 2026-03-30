@@ -4,6 +4,8 @@ import type { QuoteDoc, PriceCategory, CompanySettings, ReferenceDoc, TaskOrderD
 export type { QuoteDoc, PriceCategory, CompanySettings, ReferenceDoc, TaskOrderDoc }
 
 export interface GenerateInput {
+  /** 실행 프로필: 사용자 실시간 요청 vs 관리자/배치성 후처리 */
+  generationProfile?: 'realtime' | 'background'
   /** 생성 모드: 일반 생성 vs 과업지시서 기반 기본 견적서(빠른 생성) */
   generationMode?: 'normal' | 'taskOrderBase'
   /** 과업지시서 기반 모드일 때 적용할 특정 업로드 ID */
@@ -30,6 +32,10 @@ export interface GenerateInput {
   eventType: string
   budget: string
   requirements: string
+  /** fromTopic 계열 입력의 구조화된 목표 */
+  briefGoal?: string
+  /** fromTopic 계열 입력의 구조화된 메모 */
+  briefNotes?: string
   /** 프로그램 종목 목록(선택) — 프롬프트 물품 추론 힌트용 */
   programs?: string[]
   prices: PriceCategory[]

@@ -11,9 +11,15 @@ export type WizardMode = {
   desc?: string
 }
 
+export type WizardHighlight = {
+  label: string
+  value: string
+}
+
 export default function SimpleGeneratorWizard({
   title,
   subtitle,
+  highlights = [],
   modes,
   modeId,
   onModeChange,
@@ -27,6 +33,7 @@ export default function SimpleGeneratorWizard({
 }: {
   title: string
   subtitle?: string
+  highlights?: WizardHighlight[]
   modes: WizardMode[]
   modeId: string
   onModeChange: (id: string) => void
@@ -56,19 +63,34 @@ export default function SimpleGeneratorWizard({
   }
 
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-card">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <div className="text-base font-semibold text-gray-900">{title}</div>
-          {subtitle ? <div className="text-xs text-gray-500 mt-1">{subtitle}</div> : null}
+    <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-card sm:p-7">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="max-w-3xl">
+          <div className="text-xs font-semibold tracking-wide text-primary-700">바로 전달 가능한 문서 생성</div>
+          <div className="mt-2 text-xl font-semibold tracking-tight text-slate-900 sm:text-[28px]">{title}</div>
+          {subtitle ? <div className="mt-2 text-[15px] leading-7 text-slate-600 sm:text-base">{subtitle}</div> : null}
         </div>
-        <div className="text-xs font-medium text-primary-700 bg-primary-50 border border-primary-100 rounded-full px-2.5 py-0.5">3단계</div>
+        <div className="rounded-full border border-primary-200 bg-primary-50 px-3 py-1.5 text-sm font-semibold text-primary-900">3단계 완료형</div>
       </div>
 
-      <div className="mt-5 space-y-4">
+      {highlights.length ? (
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          {highlights.map((item) => (
+            <div key={`${item.label}-${item.value}`} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+              <div className="text-xs font-semibold tracking-wide text-slate-500">{item.label}</div>
+              <div className="mt-1 text-sm font-semibold leading-6 text-slate-900">{item.value}</div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="mt-6 space-y-5">
         <section>
-          <div className="text-sm font-semibold text-gray-900 mb-3">1. 기준 선택</div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-slate-900 px-2 text-xs font-semibold text-white">1</span>
+            <div className="text-[17px] font-semibold text-slate-900">기준 선택</div>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {modes.map((m) => {
               const active = m.id === modeId
               return (
@@ -77,17 +99,26 @@ export default function SimpleGeneratorWizard({
                   type="button"
                   onClick={() => onModeChange(m.id)}
                   className={clsx(
-                    'text-left rounded-2xl border p-4 transition-colors shadow-sm',
+                    'rounded-2xl border p-4 text-left transition-all shadow-sm',
                     active
-                      ? 'bg-primary-50 border-primary-100 ring-1 ring-primary-100'
-                      : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-primary-200',
+                      ? 'border-primary-300 bg-primary-50 ring-2 ring-primary-100'
+                      : 'border-slate-200 bg-white hover:border-primary-200 hover:bg-slate-50',
                   )}
                 >
-                  <div className={clsx('font-bold', active ? 'text-gray-900' : 'text-gray-900')}>
-                    {m.title}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className={clsx('text-[15px] font-semibold', active ? 'text-slate-900' : 'text-slate-900')}>
+                      {m.title}
+                    </div>
+                    <span
+                      className={clsx(
+                        'mt-0.5 h-5 w-5 rounded-full border',
+                        active ? 'border-primary-600 bg-primary-600 shadow-sm shadow-primary-500/20' : 'border-slate-300 bg-white',
+                      )}
+                      aria-hidden="true"
+                    />
                   </div>
                   {m.desc ? (
-                    <div className={clsx('mt-1 text-xs', active ? 'text-gray-500' : 'text-gray-500')}>{m.desc}</div>
+                    <div className={clsx('mt-2 text-sm leading-5', active ? 'text-slate-600' : 'text-slate-500')}>{m.desc}</div>
                   ) : null}
                 </button>
               )
@@ -96,17 +127,23 @@ export default function SimpleGeneratorWizard({
         </section>
 
         <section>
-          <div className="text-sm font-semibold text-gray-900 mb-3">2. 필요한 입력</div>
-          <div className="rounded-2xl border border-gray-100 bg-gray-50/30 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-slate-900 px-2 text-xs font-semibold text-white">2</span>
+            <div className="text-[17px] font-semibold text-slate-900">핵심 정보 입력</div>
+          </div>
+          <div className="rounded-3xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
             {requiredInput}
           </div>
         </section>
 
         <section>
-          <div className="text-sm font-semibold text-gray-900 mb-3">3. 생성</div>
+          <div className="mb-3 flex items-center gap-2">
+            <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-slate-900 px-2 text-xs font-semibold text-white">3</span>
+            <div className="text-[17px] font-semibold text-slate-900">생성 및 확인</div>
+          </div>
           {generating && generationProgressLabel ? (
             <div
-              className="mb-3 rounded-xl border border-primary-200 bg-gradient-to-r from-primary-50 to-white px-3 py-2.5 text-sm text-primary-900 font-medium"
+              className="mb-3 rounded-2xl border border-primary-200 bg-gradient-to-r from-primary-50 to-white px-4 py-3 text-sm font-medium text-primary-900"
               role="status"
               aria-live="polite"
             >
@@ -114,13 +151,14 @@ export default function SimpleGeneratorWizard({
             </div>
           ) : null}
           {generateDisabled && validationMessage ? (
-            <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-              {validationMessage}
+            <div className="mb-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3">
+              <p className="text-sm font-semibold text-amber-900">생성 전에 확인해 주세요</p>
+              <p className="mt-1 text-sm text-amber-900">{validationMessage}</p>
             </div>
           ) : null}
           <Button
             variant="primary"
-            className="w-full justify-center py-3.5 text-sm"
+            className="w-full justify-center py-4 text-[15px]"
             disabled={generateDisabled || generating}
             onClick={() => void handleGenerateClick()}
           >
@@ -131,4 +169,3 @@ export default function SimpleGeneratorWizard({
     </div>
   )
 }
-

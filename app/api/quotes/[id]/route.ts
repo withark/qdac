@@ -17,13 +17,13 @@ const PatchBodySchema = z.object({
   doc: z.any(),
 })
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const userId = await getUserIdFromSession()
     if (!userId) return errorResponse(401, 'UNAUTHORIZED', '로그인이 필요합니다.')
     await ensureFreeSubscription(userId)
 
-    const parsedParams = ParamsSchema.safeParse(params)
+    const parsedParams = ParamsSchema.safeParse(await params)
     if (!parsedParams.success) {
       return errorResponse(400, 'INVALID_REQUEST', 'id가 올바르지 않습니다.', parsedParams.error.flatten())
     }

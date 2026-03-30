@@ -2,10 +2,36 @@ import { createRequire } from 'node:module'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { tmpdir } from 'node:os'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import JSZip from 'jszip'
 
 const require = createRequire(import.meta.url)
+
+function worksheetToText(worksheet: ExcelJS.Worksheet): string {
+  const lines: string[] = []
+  worksheet.eachRow({ includeEmpty: false }, (row) => {
+    const values: string[] = []
+    const limit = Math.max(row.cellCount, row.actualCellCount)
+    for (let i = 1; i <= limit; i += 1) {
+      values.push(row.getCell(i).text || '')
+    }
+    if (values.some((value) => value.trim() !== '')) {
+      lines.push(values.join(','))
+    }
+  })
+  return lines.join('\n')
+}
+
+async function extractXlsxText(buf: Buffer): Promise<string> {
+  const workbook = new ExcelJS.Workbook()
+  await workbook.xlsx.load(Buffer.from(buf) as unknown as Parameters<ExcelJS.Workbook['xlsx']['load']>[0])
+  const lines: string[] = []
+  workbook.eachSheet((worksheet) => {
+    const text = worksheetToText(worksheet).trim()
+    if (text) lines.push(`[시트: ${worksheet.name}]\n${text}`)
+  })
+  return lines.join('\n\n') || '(내용 없음)'
+}
 
 async function extractPptxTextViaZip(buf: Buffer): Promise<string> {
   const zip = await JSZip.loadAsync(buf)
@@ -107,15 +133,11 @@ export async function extractTextFromBuffer(buf: Buffer, ext: string, filename: 
       }
     }
   }
-  if (e === 'xlsx' || e === 'xls') {
-    const wb = XLSX.read(buf, { type: 'buffer' })
-    const lines: string[] = []
-    for (const name of wb.SheetNames) {
-      const sheet = wb.Sheets[name]
-      const csv = XLSX.utils.sheet_to_csv(sheet, { blankrows: false })
-      if (csv.trim()) lines.push(`[시트: ${name}]\n${csv}`)
-    }
-    return lines.join('\n\n') || '(내용 없음)'
+  if (e === 'xlsx') {
+    return extractXlsxText(buf)
+  }
+  if (e === 'xls') {
+    return '(구형 .xls는 더 이상 지원하지 않습니다. .xlsx로 다시 저장한 뒤 업로드해 주세요.)'
   }
   if (e === 'docx' || e === 'doc') {
     const mammoth = await import('mammoth')
@@ -175,15 +197,12 @@ export async function extractTextFromFile(file: File): Promise<string> {
     return text
   }
 
-  if (ext === 'xlsx' || ext === 'xls') {
-    const wb = XLSX.read(buf, { type: 'buffer' })
-    const lines: string[] = []
-    for (const name of wb.SheetNames) {
-      const sheet = wb.Sheets[name]
-      const csv = XLSX.utils.sheet_to_csv(sheet, { blankrows: false })
-      if (csv.trim()) lines.push(`[시트: ${name}]\n${csv}`)
-    }
-    return lines.join('\n\n') || '(내용 없음)'
+  if (ext === 'xlsx') {
+    return extractXlsxText(buf)
+  }
+
+  if (ext === 'xls') {
+    return '(구형 .xls는 더 이상 지원하지 않습니다. .xlsx로 다시 저장한 뒤 업로드해 주세요.)'
   }
 
   if (ext === 'docx' || ext === 'doc') {
