@@ -8,6 +8,7 @@ import { toUserMessage } from '@/lib/errors/toUserMessage'
 import { LoadingState } from '@/components/ui/AsyncState'
 import { CREATE_DOCUMENT_HUB_ITEMS } from '@/lib/marketing-documents'
 import type { PlanLimits, PlanType } from '@/lib/plans'
+import { planLabelKo } from '@/lib/plans'
 
 function ArrowIntoIcon({ className }: { className?: string }) {
   return (
@@ -32,14 +33,8 @@ function ArrowIntoIcon({ className }: { className?: string }) {
 type MeResponse = {
   user: { id: string; email: string | null; name: string | null; image: string | null }
   subscription: { planType: PlanType; billingCycle: 'monthly' | 'annual' | null; status: string; expiresAt: string | null }
-  usage: { periodKey: string; quoteGeneratedCount: number; companyProfileCount: number }
+  usage: { periodKey: string; quoteGeneratedCount: number; premiumGeneratedCount: number; companyProfileCount: number }
   limits: PlanLimits
-}
-
-function planLabel(p: PlanType) {
-  if (p === 'BASIC') return '베이직'
-  if (p === 'PREMIUM') return '프리미엄'
-  return '무료'
 }
 
 function usageLine(label: string, used: number, limit: number) {
@@ -83,11 +78,19 @@ function DashboardContent() {
   const plan = me?.subscription?.planType ?? 'FREE'
   const lines = useMemo(() => {
     if (!me) return []
-    return [
-      usageLine('이번 달 견적 생성', me.usage.quoteGeneratedCount, me.limits.monthlyQuoteGenerateLimit),
-      usageLine('기업정보 저장', me.usage.companyProfileCount, me.limits.companyProfileLimit),
-    ]
-  }, [me])
+    const rows = [usageLine('이번 달 견적 생성', me.usage.quoteGeneratedCount, me.limits.monthlyQuoteGenerateLimit)]
+    if (plan === 'PREMIUM') {
+      rows.push(
+        usageLine(
+          '이번 달 프리미엄(Opus) 정제',
+          Number(me.usage.premiumGeneratedCount ?? 0),
+          me.limits.monthlyPremiumGenerationLimit,
+        ),
+      )
+    }
+    rows.push(usageLine('기업정보 저장', me.usage.companyProfileCount, me.limits.companyProfileLimit))
+    return rows
+  }, [me, plan])
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50/50">
@@ -101,7 +104,7 @@ function DashboardContent() {
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             <span className="text-xs text-gray-500">플랜</span>
             <span className="px-2.5 py-1 rounded-lg bg-primary-50 text-primary-700 text-xs font-semibold">
-              {planLabel(plan)}
+              {planLabelKo(plan)}
             </span>
             <Link href="/plans" className="text-xs font-semibold text-primary-700 hover:text-primary-800 underline underline-offset-2">
               업그레이드

@@ -6,8 +6,10 @@ import { logError } from '@/lib/utils/logger'
 import { getUserIdFromSession } from '@/lib/auth-server'
 import { ensureFreeSubscription, getActiveSubscription } from '@/lib/db/subscriptions-db'
 import { getOrCreateUsage } from '@/lib/db/usage-db'
-import { assertQuoteGenerateAllowed, EntitlementError } from '@/lib/entitlements'
+import { assertEstimateGenerationAllowed, EntitlementError } from '@/lib/entitlements'
+import { shouldUsePremiumRefineModel } from '@/lib/ai/config'
 import type { PlanType } from '@/lib/plans'
+import { PLAN_LIMITS } from '@/lib/plans'
 import { isAiModeMockRaw, isMockGenerationEnabled, isProductionRuntime } from '@/lib/ai/mode'
 import {
   executeGeneratePipeline,
@@ -50,6 +52,8 @@ const GenerateRequestSchema = z.object({
   cuesheetSampleIds: z.array(z.string()).optional().default([]),
   /** true면 NDJSON 스트림으로 단계별 진행 + 최종 결과 */
   streamProgress: z.boolean().optional().default(false),
+  /** 견적 레이아웃(프로·프리미엄 템플릿 Opus 라우팅) — 최초 생성 시에도 전달 가능 */
+  quoteTemplate: z.string().optional().default(''),
 })
 
 export async function POST(req: NextRequest) {
@@ -94,9 +98,28 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    if (body.generationMode === 'taskOrderBase' && plan === 'FREE') {
+      return errorResponse(
+        403,
+        'PLAN_UPGRADE_REQUIRED',
+        '과업지시서 연동 생성은 베이직 플랜부터 이용할 수 있어요.',
+      )
+    }
+
+    let forceStandardHybridRefine: boolean | undefined
     if (body.documentTarget === 'estimate') {
       const usage = await getOrCreateUsage(userId)
-      assertQuoteGenerateAllowed(plan, usage.quoteGeneratedCount)
+      const existing = body.existingDoc as { quoteTemplate?: string } | undefined
+      const templateId = (existing?.quoteTemplate || body.quoteTemplate || 'default').trim() || 'default'
+      const wantsPremiumRefine = shouldUsePremiumRefineModel(plan, templateId)
+      const willUsePremiumRefine =
+        plan === 'PREMIUM' &&
+        wantsPremiumRefine &&
+        usage.premiumGeneratedCount < PLAN_LIMITS.PREMIUM.monthlyPremiumGenerationLimit
+      if (plan === 'PREMIUM' && wantsPremiumRefine && !willUsePremiumRefine) {
+        forceStandardHybridRefine = true
+      }
+      assertEstimateGenerationAllowed(plan, usage, willUsePremiumRefine)
     }
 
     const pipelineArgs = {
@@ -110,6 +133,7 @@ export async function POST(req: NextRequest) {
       isMockAi,
       aiModeRawMock,
       mockBlockedInProduction,
+      forceStandardHybridRefine,
     }
 
     if (body.streamProgress) {

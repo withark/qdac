@@ -64,6 +64,8 @@ export interface GenerateInput {
 
   /** 서버 전용: hybrid 프리미엄 템플릿 라우팅(magazine 등) — 미전달 시 existingDoc.quoteTemplate 사용 */
   hybridTemplateId?: string | null
+  /** 프리미엄(Opus) 월 쿼터 소진 등으로 Sonnet 정제로 강제할 때 true */
+  forceStandardHybridRefine?: boolean
 
   /** 서버 전용: 요청당 1회 조회된 엔진 설정 — callLLM 내부 KV 중복 조회 방지 */
   cachedEngineConfig?: {

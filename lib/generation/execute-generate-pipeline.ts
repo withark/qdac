@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS } from '@/lib/defaults'
 import { quotesDbAppend } from '@/lib/db/quotes-db'
 import { normalizeTemplateForPlan } from '@/lib/plan-entitlements'
 import type { PlanType } from '@/lib/plans'
+import { referenceStyleDocLimitForPlan } from '@/lib/plans'
 import { getUserPrices } from '@/lib/db/prices-db'
 import { listReferenceDocsForStyle } from '@/lib/db/reference-docs-db'
 import {
@@ -63,6 +64,8 @@ export type GeneratePipelineBody = {
   existingDoc?: unknown
   scenarioRefIds?: string[]
   cuesheetSampleIds?: string[]
+  /** estimate 최초 생성 시 견적 레이아웃(하이브리드 Opus 라우팅용) */
+  quoteTemplate?: string
 }
 
 export type ExecuteGeneratePipelineArgs = {
@@ -76,6 +79,8 @@ export type ExecuteGeneratePipelineArgs = {
   isMockAi: boolean
   aiModeRawMock: boolean
   mockBlockedInProduction: boolean
+  /** 프로: 프리미엄 쿼터 소진 시 Sonnet으로 강제 */
+  forceStandardHybridRefine?: boolean
   pipelineEmit?: (info: { stage: string; label: string }) => void
 }
 
@@ -154,6 +159,7 @@ export async function executeGeneratePipeline(
     isMockAi,
     aiModeRawMock,
     mockBlockedInProduction,
+    forceStandardHybridRefine,
     pipelineEmit,
   } = args
 
@@ -173,6 +179,7 @@ export async function executeGeneratePipeline(
       ? getTaskOrderRefById(userId, taskOrderBaseId).then((r) => (r ? [r] : []))
       : Promise.resolve([])
 
+  const refLimit = referenceStyleDocLimitForPlan(plan)
   const [prices, settings, references, taskOrderRefs, scenarioRefs, cuesheetSampleContext, effectiveRaw] =
     await Promise.all([
       needPrices ? getUserPrices(userId) : Promise.resolve([]),
@@ -180,7 +187,7 @@ export async function executeGeneratePipeline(
         const p = await getDefaultCompanyProfile(userId)
         return p ? profileToCompanySettings(p) : DEFAULT_SETTINGS
       })(),
-      needReferences ? listReferenceDocsForStyle(userId, 3) : Promise.resolve([]),
+      needReferences ? listReferenceDocsForStyle(userId, refLimit) : Promise.resolve([]),
       taskOrderRefsPromise,
       documentTarget === 'scenario' && scenarioRefIds.length
         ? listScenarioRefs(userId).then((list) => list.filter((r) => scenarioRefIds.includes(r.id)))
@@ -251,9 +258,14 @@ export async function executeGeneratePipeline(
   const appliedSampleFilename = ''
   const cuesheetApplied = false
 
+  const quoteTemplateHint = (body.quoteTemplate || '').trim() || undefined
+  const hybridTemplateIdForPolicy =
+    (existingDoc as QuoteDoc | undefined)?.quoteTemplate ?? quoteTemplateHint
+
   const overlayForPrompt = effective.overlay
   const hybridEngines = getHybridPipelineEngines(plan, {
-    hybridTemplateId: (existingDoc as QuoteDoc | undefined)?.quoteTemplate,
+    hybridTemplateId: hybridTemplateIdForPolicy,
+    forceStandardRefine: forceStandardHybridRefine,
   })
 
   const engineSnapshot: Record<string, unknown> = {
@@ -332,7 +344,8 @@ export async function executeGeneratePipeline(
     styleMode: effectiveStyleMode,
     existingDoc,
     userPlan: plan,
-    hybridTemplateId: (existingDoc as QuoteDoc | undefined)?.quoteTemplate,
+    hybridTemplateId: hybridTemplateIdForPolicy,
+    forceStandardHybridRefine,
     cachedEngineConfig: effective,
     generationProfile: 'realtime',
     pipelineEmit,
@@ -471,7 +484,9 @@ export async function executeGeneratePipeline(
       userId,
     )
 
-    await incQuoteGenerated(userId, 1)
+    await incQuoteGenerated(userId, 1, new Date(), {
+      countAsPremium: genMeta?.hybridRefineTier === 'opus',
+    })
   }
 
   await insertGenerationRun({

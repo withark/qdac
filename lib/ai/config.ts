@@ -19,7 +19,8 @@ function parsePositiveInt(value: string | undefined, fallback: number): number {
 }
 
 export function parseHybridTemplateIds(): string[] {
-  const raw = (getEnv().AI_HYBRID_TEMPLATES || 'magazine,emotion,product').trim()
+  /** 견적 레이아웃 템플릿 ID — 프로에서 Opus 정제·프리미엄 쿼터 대상(기본: minimal/classic/modern) */
+  const raw = (getEnv().AI_HYBRID_TEMPLATES || 'minimal,classic,modern').trim()
   return raw
     .split(/[,;\s]+/g)
     .map((s) => s.trim().toLowerCase())
@@ -105,6 +106,7 @@ export function resolveFinalMaxTokens(): number {
 /**
  * PREMIUM 플랜 + AI_HYBRID_TEMPLATES 일치 + env 플래그일 때만 Opus 4.1 정제.
  * (FREE/BASIC은 이 경로를 타지 않음 — plan !== 'PREMIUM' 이면 false)
+ * 쿼터 소진 시 호출부에서 forceStandardRefine로 Sonnet으로 폴백합니다.
  */
 export function shouldUsePremiumRefineModel(plan: PlanType | undefined, hybridTemplateId: string | null | undefined): boolean {
   if (!readEnvBool('AI_ENABLE_PREMIUM_HYBRID' as keyof AppEnv, true)) return false

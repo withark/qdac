@@ -30,6 +30,58 @@ export function assertQuoteGenerateAllowed(plan: PlanType, usedCount: number): v
   }
 }
 
+/**
+ * 견적(estimate) 생성 전 — 프로 플랜은 표준(Sonnet)·프리미엄(Opus) 쿼터를 분리해 검사합니다.
+ * @param willUsePremiumRefine 이번 요청에서 Opus 정제가 실제로 적용되는 경우 true
+ */
+export function assertEstimateGenerationAllowed(
+  plan: PlanType,
+  usage: { quoteGeneratedCount: number; premiumGeneratedCount: number },
+  willUsePremiumRefine: boolean,
+): void {
+  if (plan !== 'PREMIUM') {
+    assertQuoteGenerateAllowed(plan, usage.quoteGeneratedCount)
+    return
+  }
+
+  const lim = PLAN_LIMITS.PREMIUM
+  const stdCap = lim.monthlyStandardGenerationLimit ?? lim.monthlyQuoteGenerateLimit
+  const premCap = lim.monthlyPremiumGenerationLimit
+  const totalCap = lim.monthlyQuoteGenerateLimit
+
+  const standardUsed = usage.quoteGeneratedCount - usage.premiumGeneratedCount
+  const premiumUsed = usage.premiumGeneratedCount
+
+  if (willUsePremiumRefine) {
+    if (usage.quoteGeneratedCount >= totalCap) {
+      throw new EntitlementError(
+        `이번 달 생성 한도(${totalCap}건)를 모두 사용했습니다. 다음 결제 주기까지 기다려 주세요.`,
+        'QUOTA_EXCEEDED',
+      )
+    }
+    if (premiumUsed >= premCap) {
+      throw new EntitlementError(
+        `이번 달 프리미엄(Opus) 정제 포함 횟수(${premCap}건)를 모두 사용했습니다. 다음 달에 다시 이용하거나 표준 생성만 가능합니다.`,
+        'QUOTA_EXCEEDED',
+      )
+    }
+    return
+  }
+
+  if (usage.quoteGeneratedCount >= totalCap) {
+    throw new EntitlementError(
+      `이번 달 생성 한도(${totalCap}건)를 모두 사용했습니다. 다음 결제 주기까지 기다려 주세요.`,
+      'QUOTA_EXCEEDED',
+    )
+  }
+  if (standardUsed >= stdCap) {
+    throw new EntitlementError(
+      `이번 달 표준 생성 한도(${stdCap}건)를 모두 사용했습니다. 프로 플랜에서 프리미엄 정제가 포함된 생성을 이용하거나, 다음 달을 기다려 주세요.`,
+      'QUOTA_EXCEEDED',
+    )
+  }
+}
+
 export function assertCompanyProfileCreateAllowed(plan: PlanType, profileCount: number): void {
   const limit = PLAN_LIMITS[plan].companyProfileLimit
   if (profileCount >= limit) {
@@ -42,4 +94,3 @@ export function assertCompanyProfileCreateAllowed(plan: PlanType, profileCount: 
     )
   }
 }
-

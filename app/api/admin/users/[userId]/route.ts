@@ -25,6 +25,7 @@ export async function GET(
       SELECT u.id, u.email, u.name, u.created_at, u.last_login_at, u.auth_provider, u.is_admin, u.is_active,
         s.plan_type, s.status AS sub_status, s.expires_at, s.started_at,
         COALESCE(uq.quote_generated_count, 0)::int AS gen_used,
+        COALESCE(uq.premium_generated_count, 0)::int AS prem_used,
         (SELECT COUNT(*)::int FROM quotes q WHERE q.user_id = u.id) AS quote_count,
         (SELECT MAX(approved_at) FROM billing_orders b WHERE b.user_id = u.id AND b.status = 'approved') AS last_paid_at
       FROM users u
@@ -38,8 +39,13 @@ export async function GET(
     const plan = (r.plan_type as string) || 'FREE'
     const lim = PLAN_LIMITS[(plan as PlanType) || 'FREE'].monthlyQuoteGenerateLimit
     const used = Number(r.gen_used ?? 0)
+    const premUsed = Number(r.prem_used ?? 0)
     const over = used >= lim
     const paid = plan === 'BASIC' || plan === 'PREMIUM'
+    const usageStatus =
+      plan === 'PREMIUM'
+        ? `${used} / ${lim} (생성) · Opus ${premUsed} / ${PLAN_LIMITS.PREMIUM.monthlyPremiumGenerationLimit}`
+        : `${used} / ${lim} (이번 달 생성)`
 
     return okResponse({
       userId: String(r.id),
@@ -51,7 +57,7 @@ export async function GET(
       subscriptionStatus: String(r.sub_status || 'active'),
       expiresAt: r.expires_at ? new Date(r.expires_at as string).toISOString() : null,
       startedAt: r.started_at ? new Date(r.started_at as string).toISOString() : null,
-      usageStatus: `${used} / ${lim} (이번 달 생성)`,
+      usageStatus,
       quotaExceeded: over,
       loginMethod: String(r.auth_provider || '—'),
       isAdmin: Boolean(r.is_admin),

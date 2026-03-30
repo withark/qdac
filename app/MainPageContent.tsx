@@ -5,7 +5,7 @@ import { PublicPageShell } from '@/components/public/PublicPageShell'
 import { HelpFaqAccordion } from '@/components/public/HelpFaqAccordion'
 import { authOptions } from '@/lib/auth'
 import { buildStartHref } from '@/lib/auth-redirect'
-import { PLAN_LIMITS, PRICES_KRW, type PlanType } from '@/lib/plans'
+import { PLAN_LIMITS, planLabelKo, PRICES_KRW, type PlanType } from '@/lib/plans'
 import { HomeStepsAccordion } from '@/components/public/HomeStepsAccordion'
 
 const featureCards = [
@@ -59,15 +59,15 @@ function fmtKRW(n: number) {
 }
 
 const PLAN_LABELS: Record<PlanType, string> = {
-  FREE: '무료',
-  BASIC: '베이직',
-  PREMIUM: '프리미엄',
+  FREE: planLabelKo('FREE'),
+  BASIC: planLabelKo('BASIC'),
+  PREMIUM: planLabelKo('PREMIUM'),
 }
 
 const PLAN_DESCRIPTIONS: Record<PlanType, string> = {
-  FREE: '무료로 시작',
-  BASIC: '실무 기능 + 넉넉한 한도',
-  PREMIUM: '브랜딩/고급 기능 + 확장 준비',
+  FREE: '표준 품질 유지 · 사용량으로 차별화',
+  BASIC: '실무에 필요한 기능 전부 · 메인 유료 플랜',
+  PREMIUM: '대량 생성 · Opus 정제 · 프리미엄 템플릿',
 }
 
 const PRICING_PLANS: PlanType[] = ['FREE', 'BASIC', 'PREMIUM']
@@ -80,17 +80,34 @@ type PricingCard = {
 
 function planItems(plan: PlanType) {
   const limits = PLAN_LIMITS[plan]
-  const lines = [
-    `월 ${limits.monthlyQuoteGenerateLimit}회 견적 생성`,
-    `기업 정보 저장: ${limits.companyProfileLimit === Number.POSITIVE_INFINITY ? '무제한' : `${limits.companyProfileLimit}개`}`,
-    `이력 보관: ${limits.historyRetentionDays == null ? '무제한' : `${limits.historyRetentionDays}일`}`,
-  ]
+  const company =
+    limits.companyProfileLimit === Number.POSITIVE_INFINITY ? '무제한' : `${limits.companyProfileLimit}개`
+  const history = limits.historyRetentionDays == null ? '무제한' : `${limits.historyRetentionDays}일`
 
-  // Free 플랜은 상세 혜택을 단순화해 보여주고, 나머지는 한도/보관 중심으로 구성합니다.
   if (plan === 'FREE') {
-    return ['기본 템플릿', ...lines.slice(0, 2), `이력 보관: ${limits.historyRetentionDays}일`]
+    return [
+      `월 ${limits.monthlyQuoteGenerateLimit}회 견적 생성`,
+      '표준 하이브리드 품질(동일 파이프라인)',
+      '주제·자료 기반 생성·저장·편집',
+      '기본 견적 레이아웃 · 참고 견적 1건 반영',
+      `기업 정보 ${company} · 이력 ${history}`,
+    ]
   }
-  return lines
+  if (plan === 'BASIC') {
+    return [
+      `월 ${limits.monthlyQuoteGenerateLimit}회 견적 생성`,
+      'PDF·복제·이메일 공유',
+      '참고 견적 다중 반영 · 과업지시서 연동',
+      '견적 레이아웃 전체 · 스타일 모드',
+      `기업 정보 ${company} · 이력 ${history}`,
+    ]
+  }
+  return [
+    `월 최대 ${limits.monthlyQuoteGenerateLimit}회(표준 ${limits.monthlyStandardGenerationLimit} + 프리미엄 Opus ${limits.monthlyPremiumGenerationLimit})`,
+    '프리미엄 레이아웃 전체 · 우선 처리',
+    '고급 문서·브랜딩 출력에 맞춘 Opus 정제',
+    `기업 정보 ${company} · 이력 ${history}`,
+  ]
 }
 
 const pricingCards: PricingCard[] = [

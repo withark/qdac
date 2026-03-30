@@ -1929,16 +1929,17 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
   const eff = input.cachedEngineConfig ?? (await getEffectiveEngineConfig())
   const hybridTemplateId =
     input.hybridTemplateId ?? (input.existingDoc as QuoteDoc | undefined)?.quoteTemplate ?? undefined
-  const hybrid = getHybridPipelineEngines(input.userPlan, { hybridTemplateId })
-  const hybridRefineTier:
-    | 'opus'
-    | 'sonnet'
-    | 'skipped' =
-    !hybrid?.refine
-      ? 'skipped'
-      : shouldUsePremiumRefineModel(input.userPlan, hybridTemplateId)
-        ? 'opus'
-        : 'sonnet'
+  const hybrid = getHybridPipelineEngines(input.userPlan, {
+    hybridTemplateId,
+    forceStandardRefine: input.forceStandardHybridRefine,
+  })
+  const premiumRefineActive =
+    shouldUsePremiumRefineModel(input.userPlan, hybridTemplateId) && !input.forceStandardHybridRefine
+  const hybridRefineTier: 'opus' | 'sonnet' | 'skipped' = !hybrid?.refine
+    ? 'skipped'
+    : premiumRefineActive
+      ? 'opus'
+      : 'sonnet'
   const primaryEff = hybrid?.draft ?? eff
   const refineEff = hybrid?.refine
   const maxOut = resolveGenerateMaxTokens(

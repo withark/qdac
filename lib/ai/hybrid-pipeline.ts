@@ -1,4 +1,4 @@
-import { getEnv, readEnvBool } from '@/lib/env'
+import { getEnv } from '@/lib/env'
 import type { PlanType } from '@/lib/plans'
 import type { EffectiveEngineConfig } from './client'
 import { clampEngineMaxTokens } from './generate-config'
@@ -8,7 +8,6 @@ import {
   resolveAnthropicFinalModel,
   resolveAnthropicPremiumModel,
   resolveFinalMaxTokens,
-  resolveOpenAIPremiumDraftModel,
   resolveOpenAIStructModel,
   resolveStructMaxTokens,
   shouldUsePremiumRefineModel,
@@ -22,7 +21,7 @@ import {
  */
 export function getHybridPipelineEngines(
   userPlan: PlanType | undefined,
-  opts?: { hybridTemplateId?: string | null },
+  opts?: { hybridTemplateId?: string | null; forceStandardRefine?: boolean },
 ): {
   draft: EffectiveEngineConfig
   refine: EffectiveEngineConfig
@@ -35,14 +34,13 @@ export function getHybridPipelineEngines(
   const draftTokens = clampEngineMaxTokens(resolveStructMaxTokens())
   const refineTokens = clampEngineMaxTokens(resolveFinalMaxTokens())
 
-  const premiumMode = readEnvBool('AI_ENABLE_PREMIUM_MODE', true)
-  const draftModel =
-    premiumMode && userPlan === 'PREMIUM' ? resolveOpenAIPremiumDraftModel() : resolveOpenAIStructModel()
+  /** 무료·유료 동일 초안 모델(gpt-5.4-mini 등) — 품질 차별화는 정제 단계·프리미엄 템플릿·한도로 둠 */
+  const draftModel = resolveOpenAIStructModel()
 
   const templateId = opts?.hybridTemplateId
-  const refineModel = shouldUsePremiumRefineModel(userPlan, templateId)
-    ? resolveAnthropicPremiumModel()
-    : resolveAnthropicFinalModel()
+  const useOpus =
+    !opts?.forceStandardRefine && shouldUsePremiumRefineModel(userPlan, templateId)
+  const refineModel = useOpus ? resolveAnthropicPremiumModel() : resolveAnthropicFinalModel()
 
   return {
     draft: { provider: 'openai', model: draftModel, maxTokens: draftTokens, overlay: null },

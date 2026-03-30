@@ -7,7 +7,7 @@ import { PublicPageShell } from '@/components/public/PublicPageShell'
 import { apiFetch } from '@/lib/api/client'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
 import type { PlanType } from '@/lib/plans'
-import { PRICES_KRW, PLAN_LIMITS } from '@/lib/plans'
+import { PRICES_KRW, PLAN_LIMITS, planLabelKo } from '@/lib/plans'
 
 type BillingCycle = 'monthly' | 'annual'
 
@@ -15,12 +15,6 @@ type MeLite = { subscription: { planType: PlanType } }
 
 function fmtKRW(n: number) {
   return n.toLocaleString('ko-KR')
-}
-
-function planName(p: PlanType) {
-  if (p === 'BASIC') return '베이직'
-  if (p === 'PREMIUM') return '프리미엄'
-  return '무료'
 }
 
 function annualDiscountText(monthly: number, annual: number) {
@@ -63,9 +57,9 @@ function PlansContent() {
 
   const cards = useMemo(() => {
     const plans: { plan: PlanType; title: string; desc: string; badge?: string; highlight?: boolean }[] = [
-      { plan: 'FREE', title: '무료', desc: '무료로 시작' },
-      { plan: 'BASIC', title: '베이직', desc: '실무 기능 + 넉넉한 한도', badge: '추천', highlight: true },
-      { plan: 'PREMIUM', title: '프리미엄', desc: '브랜딩/고급 기능 + 확장 준비' },
+      { plan: 'FREE', title: planLabelKo('FREE'), desc: '표준 품질 유지 · 사용량으로 차별화' },
+      { plan: 'BASIC', title: planLabelKo('BASIC'), desc: '실무 기능 전부 · 메인 유료 플랜', badge: '추천', highlight: true },
+      { plan: 'PREMIUM', title: planLabelKo('PREMIUM'), desc: '대량·Opus 정제·프리미엄 템플릿' },
     ]
     return plans
   }, [])
@@ -93,7 +87,7 @@ function PlansContent() {
         return
       }
       setCurrentPlan(planType)
-      setToast(`${planName(planType)} 플랜이 활성화되었습니다.`)
+      setToast(`${planLabelKo(planType)} 플랜이 활성화되었습니다.`)
       setTimeout(() => setToast(''), 2500)
     } catch (e) {
       setToast(toUserMessage(e, '구독 처리에 실패했습니다.'))
@@ -109,7 +103,7 @@ function PlansContent() {
         <div className="mx-auto mb-8 max-w-3xl">
           <h1 className="text-[28px] font-bold tracking-tight text-slate-900 sm:text-[32px]">요금제</h1>
           <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-[15px]">
-            플래닉은 행사 문서 생성 흐름에 맞춘 플랜을 제공합니다. 월간/연간을 선택해 팀에 맞는 구성을 비교해보세요.
+            무료 플랜도 표준 하이브리드 품질을 유지합니다. 유료 가치는 생성 규모, 속도, 프리미엄 템플릿·Opus 정제에서 제공됩니다.
           </p>
         </div>
 
@@ -117,11 +111,11 @@ function PlansContent() {
           <h2 id="plans-compare-heading" className="text-[17px] font-semibold text-slate-900">
             플랜 핵심 비교
           </h2>
-          <p className="mt-1 text-xs text-slate-500 sm:text-sm">한도·보관 기간을 한눈에 비교한 뒤 아래에서 결제 주기를 고르세요.</p>
+          <p className="mt-1 text-xs text-slate-500 sm:text-sm">한도·기능·보관을 한눈에 비교한 뒤 아래에서 결제 주기를 고르세요.</p>
           <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
             <table
-              className="w-full min-w-[520px] border-collapse text-left text-sm text-slate-700"
-              aria-label="무료, 베이직, 프리미엄 플랜 비교"
+              className="w-full min-w-[560px] border-collapse text-left text-sm text-slate-700"
+              aria-label="무료, 베이직, 프로 플랜 비교"
             >
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/90">
@@ -135,22 +129,68 @@ function PlansContent() {
                     베이직
                   </th>
                   <th scope="col" className="px-3 py-3 text-center font-semibold text-slate-900 sm:px-4">
-                    프리미엄
+                    프로
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 <tr>
                   <th scope="row" className="px-4 py-3 font-medium text-slate-600 sm:px-5">
-                    월 견적 생성
+                    월 견적 생성 (최대)
                   </th>
                   {(['FREE', 'BASIC', 'PREMIUM'] as const).map((p) => (
                     <td key={p} className="px-3 py-3 text-center tabular-nums sm:px-4">
-                      {Number.isFinite(PLAN_LIMITS[p].monthlyQuoteGenerateLimit)
-                        ? `${PLAN_LIMITS[p].monthlyQuoteGenerateLimit}건`
-                        : '—'}
+                      {p === 'PREMIUM'
+                        ? `최대 ${PLAN_LIMITS.PREMIUM.monthlyQuoteGenerateLimit}건`
+                        : Number.isFinite(PLAN_LIMITS[p].monthlyQuoteGenerateLimit)
+                          ? `${PLAN_LIMITS[p].monthlyQuoteGenerateLimit}건`
+                          : '—'}
                     </td>
                   ))}
+                </tr>
+                <tr>
+                  <th scope="row" className="px-4 py-3 font-medium text-slate-600 sm:px-5">
+                    프리미엄 정제 (Opus)
+                  </th>
+                  <td className="px-3 py-3 text-center text-slate-500 sm:px-4">—</td>
+                  <td className="px-3 py-3 text-center text-slate-500 sm:px-4">—</td>
+                  <td className="px-3 py-3 text-center tabular-nums sm:px-4">
+                    월 {PLAN_LIMITS.PREMIUM.monthlyPremiumGenerationLimit}건 포함
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row" className="px-4 py-3 font-medium text-slate-600 sm:px-5">
+                    표준 하이브리드 품질
+                  </th>
+                  {(['FREE', 'BASIC', 'PREMIUM'] as const).map((p) => (
+                    <td key={p} className="px-3 py-3 text-center sm:px-4">
+                      {p === 'FREE' ? '✓ (동일 파이프라인)' : '✓'}
+                    </td>
+                  ))}
+                </tr>
+                <tr>
+                  <th scope="row" className="px-4 py-3 font-medium text-slate-600 sm:px-5">
+                    참고 견적 반영(활성)
+                  </th>
+                  <td className="px-3 py-3 text-center sm:px-4">1건</td>
+                  <td className="px-3 py-3 text-center sm:px-4">3건</td>
+                  <td className="px-3 py-3 text-center sm:px-4">5건</td>
+                </tr>
+                <tr>
+                  <th scope="row" className="px-4 py-3 font-medium text-slate-600 sm:px-5">
+                    과업지시서 연동 생성
+                  </th>
+                  <td className="px-3 py-3 text-center text-slate-500 sm:px-4">—</td>
+                  <td className="px-3 py-3 text-center sm:px-4">✓</td>
+                  <td className="px-3 py-3 text-center sm:px-4">✓</td>
+                </tr>
+                <tr>
+                  <th scope="row" className="px-4 py-3 font-medium text-slate-600 sm:px-5">
+                    견적 레이아웃 템플릿
+                  </th>
+                  <td className="px-3 py-3 text-center sm:px-4">기본</td>
+                  <td className="px-3 py-3 text-center sm:px-4">전체</td>
+                  <td className="px-3 py-3 text-center sm:px-4">전체 + 우선</td>
                 </tr>
                 <tr>
                   <th scope="row" className="px-4 py-3 font-medium text-slate-600 sm:px-5">
@@ -272,8 +312,20 @@ function PlansContent() {
                 <ul className="mt-5 space-y-2 text-sm text-slate-700">
                   <li className="flex items-center justify-between">
                     <span className="text-slate-600">월 견적 생성</span>
-                    <span className="font-semibold tabular-nums">{Number.isFinite(limits.monthlyQuoteGenerateLimit) ? `${limits.monthlyQuoteGenerateLimit}건` : '충분히'}</span>
+                    <span className="font-semibold tabular-nums text-right">
+                      {c.plan === 'PREMIUM'
+                        ? `최대 ${limits.monthlyQuoteGenerateLimit}건`
+                        : Number.isFinite(limits.monthlyQuoteGenerateLimit)
+                          ? `${limits.monthlyQuoteGenerateLimit}건`
+                          : '—'}
+                    </span>
                   </li>
+                  {c.plan === 'PREMIUM' && (
+                    <li className="flex items-center justify-between">
+                      <span className="text-slate-600">프리미엄 Opus 정제</span>
+                      <span className="font-semibold tabular-nums">{limits.monthlyPremiumGenerationLimit}건/월</span>
+                    </li>
+                  )}
                   <li className="flex items-center justify-between">
                     <span className="text-slate-600">기업정보 저장</span>
                     <span className="font-semibold tabular-nums">{Number.isFinite(limits.companyProfileLimit) ? `${limits.companyProfileLimit}개` : '무제한'}</span>
@@ -301,10 +353,13 @@ function PlansContent() {
                           !planDetailOpen[c.plan] && 'max-md:hidden'
                         )}
                       >
-                        - 기본 템플릿만
+                        - 표준 하이브리드 품질(품질 의도적 하향 없음)
                       </li>
                       <li className={clsx('text-xs text-slate-500', !planDetailOpen[c.plan] && 'max-md:hidden')}>
-                        - PDF/고급 다운로드 제한
+                        - 참고 견적 1건 · 과업지시서 연동 없음
+                      </li>
+                      <li className={clsx('text-xs text-slate-500', !planDetailOpen[c.plan] && 'max-md:hidden')}>
+                        - PDF는 베이직부터
                       </li>
                     </>
                   )}
@@ -316,13 +371,13 @@ function PlansContent() {
                           !planDetailOpen[c.plan] && 'max-md:hidden'
                         )}
                       >
-                        - PDF 다운로드
+                        - PDF·복제·이메일 공유
                       </li>
                       <li className={clsx('text-xs text-slate-500', !planDetailOpen[c.plan] && 'max-md:hidden')}>
-                        - 견적 복제/재편집
+                        - 참고 견적 3건 · 과업지시서 연동
                       </li>
                       <li className={clsx('text-xs text-slate-500', !planDetailOpen[c.plan] && 'max-md:hidden')}>
-                        - 이메일 공유
+                        - 견적 레이아웃 전체
                       </li>
                     </>
                   )}
@@ -334,13 +389,13 @@ function PlansContent() {
                           !planDetailOpen[c.plan] && 'max-md:hidden'
                         )}
                       >
-                        - 고급 브랜딩
+                        - 표준 180건 + Opus {limits.monthlyPremiumGenerationLimit}건(최대 200건)
                       </li>
                       <li className={clsx('text-xs text-slate-500', !planDetailOpen[c.plan] && 'max-md:hidden')}>
-                        - 제안서/견적서 통합 출력(준비중)
+                        - 프리미엄 레이아웃·우선 처리
                       </li>
                       <li className={clsx('text-xs text-slate-500', !planDetailOpen[c.plan] && 'max-md:hidden')}>
-                        - 팀 기능 확장 구조(준비중)
+                        - 참고 견적 5건
                       </li>
                     </>
                   )}

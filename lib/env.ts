@@ -41,7 +41,7 @@ const EnvSchema = z.object({
   AI_ENABLE_FALLBACK_REWRITE: z.string().optional(),
   AI_HYBRID_PLAN_BASIC: z.string().optional(),
   AI_HYBRID_PLAN_PREMIUM: z.string().optional(),
-  /** 콤마 구분 — magazine,emotion,product 등 PREMIUM+Opus 정제 라우팅 */
+  /** 콤마 구분 견적 레이아웃 ID — 프로+Opus 정제 라우팅(코드 기본: minimal,classic,modern) */
   AI_HYBRID_TEMPLATES: z.string().optional(),
   /** true면 품질 보정(repair) LLM 루프 생략 */
   AI_ENABLE_REFINE_SKIP: z.string().optional(),

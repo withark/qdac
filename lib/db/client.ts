@@ -132,10 +132,16 @@ export async function initDb(): Promise<void> {
       user_id text NOT NULL,
       period_key text NOT NULL,
       quote_generated_count int NOT NULL DEFAULT 0,
+      premium_generated_count int NOT NULL DEFAULT 0,
       company_profile_count int NOT NULL DEFAULT 0,
       updated_at timestamptz NOT NULL DEFAULT now()
     )
   `
+  try {
+    await sql`ALTER TABLE usage_quotas ADD COLUMN IF NOT EXISTS premium_generated_count int NOT NULL DEFAULT 0`
+  } catch {
+    /* */
+  }
   await sql`CREATE UNIQUE INDEX IF NOT EXISTS uidx_usage_user_period ON usage_quotas (user_id, period_key)`
   await sql`CREATE INDEX IF NOT EXISTS idx_usage_user_id ON usage_quotas (user_id)`
 
