@@ -20,6 +20,7 @@ import { listScenarioRefs } from '@/lib/db/scenario-refs-db'
 import { getCuesheetFile } from '@/lib/db/cuesheet-samples-db'
 import { extractTextFromBuffer } from '@/lib/file-utils'
 import { getEffectiveEngineConfig } from '@/lib/ai/client'
+import { getHybridPipelineEngines } from '@/lib/ai/hybrid-pipeline'
 import { clampEngineMaxTokens } from '@/lib/ai/generate-config'
 import { logError, logInfo } from '@/lib/utils/logger'
 import { parseBudgetCeilingKRW } from '@/lib/budget'
@@ -248,6 +249,7 @@ export async function executeGeneratePipeline(
   const cuesheetApplied = false
 
   const overlayForPrompt = effective.overlay
+  const hybridEngines = getHybridPipelineEngines(plan)
 
   const engineSnapshot: Record<string, unknown> = {
     provider: effective.provider,
@@ -273,6 +275,11 @@ export async function executeGeneratePipeline(
     taskOrderRefsLoaded: filteredTaskOrderRefs.length,
     taskOrderBaseId: taskOrderBaseId || null,
     generationMode: generationMode,
+
+    hybridPipeline:
+      hybridEngines != null
+        ? { draftModel: hybridEngines.draft.model, refineModel: hybridEngines.refine.model }
+        : null,
 
     structureFirst: overlayForPrompt?.structureFirst,
     toneFirst: overlayForPrompt?.toneFirst,
@@ -315,6 +322,7 @@ export async function executeGeneratePipeline(
     documentTarget,
     styleMode: effectiveStyleMode,
     existingDoc,
+    userPlan: plan,
     cachedEngineConfig: effective,
     generationProfile: 'realtime',
     pipelineEmit,

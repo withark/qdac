@@ -12,6 +12,7 @@ import {
   applySuggestedPrices,
 } from './parsers'
 import { resolveGenerateMaxTokens } from './generate-config'
+import { getHybridPipelineEngines } from './hybrid-pipeline'
 import { hhmmToMinutes, minutesToHHMM } from './timeline-utils'
 
 export type { GenerateInput, QuoteDoc, PriceCategory }
@@ -1883,7 +1884,10 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
   }
 
   const eff = input.cachedEngineConfig ?? (await getEffectiveEngineConfig())
-  const maxOut = resolveGenerateMaxTokens(eff.maxTokens, eff.provider)
+  const hybrid = getHybridPipelineEngines(input.userPlan)
+  const primaryEff = hybrid?.draft ?? eff
+  const refineEff = hybrid?.refine
+  const maxOut = resolveGenerateMaxTokens(primaryEff.maxTokens, primaryEff.provider)
   const promptStart = Date.now()
   input.pipelineEmit?.({ stage: 'prompt', label: '프롬프트 구성 중' })
   const prompt = buildGeneratePrompt(input)
@@ -1900,7 +1904,7 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
   async function runOnce(extra = '', kind: 'primary' | 'retry'): Promise<string> {
     const started = Date.now()
     try {
-      const out = await callLLM(prompt + extra, { maxTokens: maxOut, timeoutMs: 90_000, engine: eff })
+      const out = await callLLM(prompt + extra, { maxTokens: maxOut, timeoutMs: 90_000, engine: primaryEff })
       const ms = Date.now() - started
       aiCallMs += ms
       if (kind === 'primary') llmPrimaryMs += ms
@@ -2000,7 +2004,13 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
         })
         try {
           const llmStarted = Date.now()
-          const refinedText = await callLLM(repairPrompt, { maxTokens: maxOut, timeoutMs: 90_000, engine: eff })
+          const repairEngine = refineEff ?? eff
+          const repairMax = resolveGenerateMaxTokens(repairEngine.maxTokens, repairEngine.provider)
+          const refinedText = await callLLM(repairPrompt, {
+            maxTokens: repairMax,
+            timeoutMs: 90_000,
+            engine: repairEngine,
+          })
           const llmMs = Date.now() - llmStarted
           llmRefineMs += llmMs
 

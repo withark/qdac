@@ -6,6 +6,13 @@ const EnvSchema = z.object({
   AI_PROVIDER: z.enum(['anthropic', 'openai']).optional(),
   OPENAI_MODEL: z.string().optional(),
   ANTHROPIC_MODEL: z.string().optional(),
+  /** hybrid: OpenAI 초안 + Anthropic 품질 보정(둘 다 API 키 필요) */
+  AI_PIPELINE_MODE: z.string().optional(),
+  OPENAI_MODEL_DRAFT: z.string().optional(),
+  ANTHROPIC_MODEL_REFINE: z.string().optional(),
+  ANTHROPIC_MODEL_PREMIUM: z.string().optional(),
+  OPENAI_MAX_TOKENS_DRAFT: z.string().optional(),
+  ANTHROPIC_MAX_TOKENS_REFINE: z.string().optional(),
   DATA_DIR: z.string().optional(),
 })
 

@@ -1,4 +1,5 @@
 import type { EngineConfigOverlay } from '../admin-types'
+import type { PlanType } from '../plans'
 import type { QuoteDoc, PriceCategory, CompanySettings, ReferenceDoc, TaskOrderDoc, ScenarioRefDoc } from '../types'
 
 export type { QuoteDoc, PriceCategory, CompanySettings, ReferenceDoc, TaskOrderDoc }
@@ -57,6 +58,9 @@ export interface GenerateInput {
 
   /** 큐시트 생성 시 참고할(업로드) 샘플 텍스트 컨텍스트 */
   cuesheetSampleContext?: string
+
+  /** 서버 전용: 구독 플랜 — hybrid 시 프리미엄 모델(ANTHROPIC_MODEL_PREMIUM) 선택에 사용 */
+  userPlan?: PlanType
 
   /** 서버 전용: 요청당 1회 조회된 엔진 설정 — callLLM 내부 KV 중복 조회 방지 */
   cachedEngineConfig?: {
