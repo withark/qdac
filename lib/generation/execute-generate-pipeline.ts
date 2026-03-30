@@ -20,6 +20,7 @@ import { listScenarioRefs } from '@/lib/db/scenario-refs-db'
 import { getCuesheetFile } from '@/lib/db/cuesheet-samples-db'
 import { extractTextFromBuffer } from '@/lib/file-utils'
 import { getEffectiveEngineConfig } from '@/lib/ai/client'
+import { resolveAnthropicFinalModel } from '@/lib/ai/config'
 import { getHybridPipelineEngines } from '@/lib/ai/hybrid-pipeline'
 import { readEnvBool } from '@/lib/env'
 import { clampEngineMaxTokens } from '@/lib/ai/generate-config'
@@ -85,7 +86,7 @@ export type ExecuteGeneratePipelineResult = {
   genMeta: Awaited<ReturnType<typeof generateQuoteWithMeta>>['meta']
 }
 
-const REALTIME_ANTHROPIC_MODEL_DEFAULT = 'claude-sonnet-4-6'
+const REALTIME_ANTHROPIC_MODEL_DEFAULT = resolveAnthropicFinalModel()
 const REALTIME_MAX_TOKENS_DEFAULT = 6_144
 
 function parsePositiveInt(value: string | undefined, fallback: number): number {
@@ -123,6 +124,7 @@ function applyRealtimeEnginePolicy(
   const targetModel =
     (process.env.ANTHROPIC_REALTIME_MODEL || '').trim() ||
     (process.env.ANTHROPIC_MODEL_REALTIME || '').trim() ||
+    (process.env.ANTHROPIC_MODEL_FINAL || '').trim() ||
     REALTIME_ANTHROPIC_MODEL_DEFAULT
   const forcedModel = engine.model !== targetModel
   return {
@@ -250,7 +252,9 @@ export async function executeGeneratePipeline(
   const cuesheetApplied = false
 
   const overlayForPrompt = effective.overlay
-  const hybridEngines = getHybridPipelineEngines(plan)
+  const hybridEngines = getHybridPipelineEngines(plan, {
+    hybridTemplateId: (existingDoc as QuoteDoc | undefined)?.quoteTemplate,
+  })
 
   const engineSnapshot: Record<string, unknown> = {
     provider: effective.provider,
@@ -328,6 +332,7 @@ export async function executeGeneratePipeline(
     styleMode: effectiveStyleMode,
     existingDoc,
     userPlan: plan,
+    hybridTemplateId: (existingDoc as QuoteDoc | undefined)?.quoteTemplate,
     cachedEngineConfig: effective,
     generationProfile: 'realtime',
     pipelineEmit,
@@ -425,6 +430,8 @@ export async function executeGeneratePipeline(
           tokenUsage: genMeta.tokenUsage,
           costEstimateUsd: genMeta.costEstimateUsd,
           hybridPipeline: genMeta.hybridPipeline,
+          hybridRefineTier: genMeta.hybridRefineTier,
+          documentTarget: genMeta.documentTarget,
           documentRefineSkipped: genMeta.documentRefineSkipped,
           documentRefineSkipReason: genMeta.documentRefineSkipReason,
           usedReferenceSources: genMeta.usedReferenceSources,

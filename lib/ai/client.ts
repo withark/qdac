@@ -1,6 +1,14 @@
 import Anthropic from '@anthropic-ai/sdk'
 import OpenAI from 'openai'
 import { getEnv, readEnvBool } from '../env'
+import {
+  resolveAnthropicFinalModel,
+  resolveOpenAIStructModel,
+  shouldLogAiModel,
+  shouldLogAiProvider,
+  shouldLogPipelineStage,
+  shouldLogPromptSize,
+} from './config'
 import { hasDatabase } from '../db/client'
 import { kvGet } from '../db/kv'
 import type { EngineConfigOverlay } from '../admin-types'
@@ -19,6 +27,8 @@ export interface CallLLMOptions {
   systemPrompt?: string
   /** 요청당 1회 조회값을 넘기면 getEffectiveEngineConfig/KV를 다시 읽지 않습니다. */
   engine?: EffectiveEngineConfig
+  /** draft_primary | draft_retry | document_refine | quality_repair 등 — 로그·메타용 */
+  pipelineStage?: string
 }
 
 const DEFAULT_SYSTEM_PROMPT = [
@@ -115,7 +125,7 @@ export async function getEffectiveEngineConfig(): Promise<{
       : getAIProvider()
   const model =
     overlay?.model?.trim() ||
-    (provider === 'openai' ? (env.OPENAI_MODEL ?? 'gpt-4o') : (env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6'))
+    (provider === 'openai' ? (env.OPENAI_MODEL ?? resolveOpenAIStructModel()) : (env.ANTHROPIC_MODEL ?? resolveAnthropicFinalModel()))
   const maxTokens = clampEngineMaxTokens(overlay?.maxTokens ?? ENGINE_MAX_TOKENS_DEFAULT)
   return { provider, model, maxTokens, overlay }
 }
@@ -165,7 +175,12 @@ export async function callLLMWithUsage(
   const model = opts.model ?? effective.model
   const timeoutMs = opts.timeoutMs ?? 90_000
   const systemPrompt = opts.systemPrompt ?? DEFAULT_SYSTEM_PROMPT
-  logInfo('ai.call.start', { provider, model, maxTokens })
+  const startPayload: Record<string, unknown> = { maxTokens }
+  if (shouldLogAiProvider()) startPayload.provider = provider
+  if (shouldLogAiModel()) startPayload.model = model
+  if (opts.pipelineStage && shouldLogPipelineStage()) startPayload.pipelineStage = opts.pipelineStage
+  if (shouldLogPromptSize()) startPayload.promptChars = prompt.length
+  logInfo('ai.call.start', startPayload)
 
   const ac = new AbortController()
   const timeoutId = setTimeout(() => ac.abort(), timeoutMs)
@@ -187,7 +202,13 @@ export async function callLLMWithUsage(
       )
       const text = res.choices[0]?.message?.content
       if (text == null) throw new Error('OpenAI 응답이 비어 있습니다.')
-      logInfo('ai.call.ok', { provider, model, id: res.id ?? null, openai: { id: res.id ?? null } })
+      logInfo('ai.call.ok', {
+        ...(shouldLogAiProvider() ? { provider } : {}),
+        ...(shouldLogAiModel() ? { model } : {}),
+        ...(opts.pipelineStage && shouldLogPipelineStage() ? { pipelineStage: opts.pipelineStage } : {}),
+        id: res.id ?? null,
+        openai: { id: res.id ?? null },
+      })
       const usage = res.usage
       let outUsage: LLMUsage | undefined
       if (usage) {
@@ -227,8 +248,9 @@ export async function callLLMWithUsage(
       llmReqOpts,
     )
     logInfo('ai.call.ok', {
-      provider,
-      model,
+      ...(shouldLogAiProvider() ? { provider } : {}),
+      ...(shouldLogAiModel() ? { model } : {}),
+      ...(opts.pipelineStage && shouldLogPipelineStage() ? { pipelineStage: opts.pipelineStage } : {}),
       id: (message as { id?: string }).id ?? null,
       anthropic: { id: (message as { id?: string }).id ?? null },
     })

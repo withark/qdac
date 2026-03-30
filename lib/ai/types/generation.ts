@@ -30,6 +30,8 @@ export type GenerationMetadata = {
   styleMode: GenerateInput['styleMode']
   premiumMode: boolean
   hybridPipeline: boolean
+  /** Sonnet vs Opus 정제 티어(하이브리드 메타) */
+  hybridRefineTier?: 'opus' | 'sonnet' | 'skipped'
   documentRefineSkipped?: boolean
   documentRefineSkipReason?: string
 }

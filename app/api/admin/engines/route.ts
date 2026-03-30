@@ -6,6 +6,7 @@ import { getAIProvider } from '@/lib/ai/client'
 import { hasDatabase } from '@/lib/db/client'
 import { kvGet, kvSet } from '@/lib/db/kv'
 import type { EngineConfigOverlay } from '@/lib/admin-types'
+import { resolveAnthropicFinalModel, resolveOpenAIStructModel } from '@/lib/ai/config'
 import { clampEngineMaxTokens, ENGINE_MAX_TOKENS_DEFAULT } from '@/lib/ai/generate-config'
 
 export const dynamic = 'force-dynamic'
@@ -24,7 +25,9 @@ export async function GET(_req: NextRequest) {
     }
     const effective = {
       provider: overlay?.provider ?? provider,
-      model: overlay?.model ?? (provider === 'openai' ? (env.OPENAI_MODEL ?? 'gpt-4o') : (env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6')),
+      model:
+        overlay?.model ??
+        (provider === 'openai' ? (env.OPENAI_MODEL ?? resolveOpenAIStructModel()) : (env.ANTHROPIC_MODEL ?? resolveAnthropicFinalModel())),
       maxTokens: clampEngineMaxTokens(overlay?.maxTokens ?? ENGINE_MAX_TOKENS_DEFAULT),
     }
     return okResponse({

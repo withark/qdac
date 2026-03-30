@@ -7,7 +7,7 @@ import { callLLMWithUsage, type CallLLMOptions, type EffectiveEngineConfig } fro
 export async function refineDocument(
   prompt: string,
   engine: EffectiveEngineConfig,
-  opts?: Pick<CallLLMOptions, 'maxTokens' | 'timeoutMs' | 'systemPrompt'>,
+  opts?: Pick<CallLLMOptions, 'maxTokens' | 'timeoutMs' | 'systemPrompt' | 'pipelineStage'>,
 ) {
   return callLLMWithUsage(prompt, { engine, ...opts })
 }

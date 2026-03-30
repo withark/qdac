@@ -4,11 +4,12 @@ import { okResponse, errorResponse } from '@/lib/api/response'
 import { getEnv } from '@/lib/env'
 import { getEffectiveEngineConfig } from '@/lib/ai/client'
 import { isAiModeMockRaw, isMockGenerationEnabled, isProductionRuntime } from '@/lib/ai/mode'
+import { resolveAnthropicFinalModel } from '@/lib/ai/config'
 import { clampEngineMaxTokens } from '@/lib/ai/generate-config'
 
 export const dynamic = 'force-dynamic'
 
-const REALTIME_ANTHROPIC_MODEL_DEFAULT = 'claude-sonnet-4-6'
+const REALTIME_ANTHROPIC_MODEL_DEFAULT = resolveAnthropicFinalModel()
 const REALTIME_MAX_TOKENS_DEFAULT = 6_144
 
 function parsePositiveInt(value: string | undefined, fallback: number): number {
@@ -37,6 +38,7 @@ export async function GET(req: NextRequest) {
             model:
               (process.env.ANTHROPIC_REALTIME_MODEL || '').trim() ||
               (process.env.ANTHROPIC_MODEL_REALTIME || '').trim() ||
+              (process.env.ANTHROPIC_MODEL_FINAL || '').trim() ||
               REALTIME_ANTHROPIC_MODEL_DEFAULT,
             maxTokens: clampEngineMaxTokens(Math.min(effRaw.maxTokens, realtimeTokenCap)),
           }

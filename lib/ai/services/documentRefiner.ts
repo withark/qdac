@@ -35,5 +35,9 @@ export async function runDocumentRefinementPass(params: {
       : params.draftJsonText
   const prompt = buildDocumentRefinementPrompt(params.input, capped)
   const maxTokens = resolveGenerateMaxTokens(params.engine.maxTokens, params.engine.provider)
-  return refineDocument(prompt, params.engine, { maxTokens, timeoutMs: 90_000 })
+  return refineDocument(prompt, params.engine, {
+    maxTokens,
+    timeoutMs: 90_000,
+    pipelineStage: 'document_refine',
+  })
 }

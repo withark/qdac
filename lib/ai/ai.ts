@@ -12,10 +12,12 @@ import {
   applySuggestedPrices,
 } from './parsers'
 import { resolveGenerateMaxTokens, resolveDraftMaxTokensForDocumentTarget } from './generate-config'
-import { getHybridPipelineEngines } from './hybrid-pipeline'
+import { getHybridPipelineEngines, shouldSkipHybridRefinementForPlan } from './hybrid-pipeline'
 import { runDocumentRefinementPass, shouldSkipDocumentRefinementPass } from './services/documentRefiner'
 import { aggregateGenerationCostUsd } from './services/pricingCalculator'
 import { hhmmToMinutes, minutesToHHMM } from './timeline-utils'
+import { logInfo } from '@/lib/utils/logger'
+import { shouldLogPipelineStage, shouldUsePremiumRefineModel } from './config'
 
 export type { GenerateInput, QuoteDoc, PriceCategory }
 export type GenerateTimingMeta = {
@@ -60,6 +62,9 @@ export type GenerateTimingMeta = {
   styleMode?: GenerateInput['styleMode']
   premiumMode: boolean
   hybridPipeline: boolean
+  /** 하이브리드 2단계 정제 모델 티어(메타·로그) */
+  hybridRefineTier?: 'opus' | 'sonnet' | 'skipped'
+  documentTarget?: GenerateInput['documentTarget']
 }
 
 function shouldUseHeuristicFallback(): boolean {
@@ -1913,6 +1918,8 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
         styleMode: input.styleMode,
         premiumMode: false,
         hybridPipeline: false,
+        hybridRefineTier: 'skipped',
+        documentTarget: input.documentTarget,
       },
     }
   }
@@ -1920,7 +1927,18 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
   const startedAt = new Date().toISOString()
   const premiumMode = readEnvBool('AI_ENABLE_PREMIUM_MODE', true)
   const eff = input.cachedEngineConfig ?? (await getEffectiveEngineConfig())
-  const hybrid = getHybridPipelineEngines(input.userPlan)
+  const hybridTemplateId =
+    input.hybridTemplateId ?? (input.existingDoc as QuoteDoc | undefined)?.quoteTemplate ?? undefined
+  const hybrid = getHybridPipelineEngines(input.userPlan, { hybridTemplateId })
+  const hybridRefineTier:
+    | 'opus'
+    | 'sonnet'
+    | 'skipped' =
+    !hybrid?.refine
+      ? 'skipped'
+      : shouldUsePremiumRefineModel(input.userPlan, hybridTemplateId)
+        ? 'opus'
+        : 'sonnet'
   const primaryEff = hybrid?.draft ?? eff
   const refineEff = hybrid?.refine
   const maxOut = resolveGenerateMaxTokens(
@@ -1952,6 +1970,7 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
         maxTokens: maxOut,
         timeoutMs: 90_000,
         engine: primaryEff,
+        pipelineStage: kind === 'primary' ? 'draft_primary' : 'draft_retry',
       })
       aiCallMs += latencyMs
       if (kind === 'primary') llmPrimaryMs += latencyMs
@@ -1981,6 +2000,13 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
       documentRefineSkipReason = hybrid ? undefined : 'no_hybrid_engines'
       return jsonTextIn
     }
+    if (shouldSkipHybridRefinementForPlan(input.userPlan)) {
+      documentRefineSkipReason = 'plan_disallows_refine'
+      if (shouldLogPipelineStage()) {
+        logInfo('ai.pipeline.refine.skip', { reason: 'plan_disallows_refine', plan: input.userPlan })
+      }
+      return jsonTextIn
+    }
     const sk = shouldSkipDocumentRefinementPass(input, jsonTextIn)
     if (sk.skip) {
       documentRefineSkipReason = sk.reason
@@ -2003,8 +2029,15 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
         documentRefineSkipReason = 'refine_parse_failed'
         return jsonTextIn
       }
-    } catch {
+    } catch (e) {
       documentRefineSkipReason = 'refine_failed'
+      if (shouldLogPipelineStage()) {
+        logInfo('ai.pipeline.refine.failed', {
+          reason: 'refine_failed',
+          model: refineEff.model,
+          message: e instanceof Error ? e.message : String(e),
+        })
+      }
       return jsonTextIn
     }
   }
@@ -2099,6 +2132,7 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
             maxTokens: repairMax,
             timeoutMs: 90_000,
             engine: repairEngine,
+            pipelineStage: 'quality_repair',
           })
           llmRefineMs += repairMs
           if (repairU) repairUsageLast = repairU
@@ -2233,6 +2267,8 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
       styleMode: input.styleMode,
       premiumMode,
       hybridPipeline: hybrid != null,
+      hybridRefineTier,
+      documentTarget: input.documentTarget,
     },
   }
 }

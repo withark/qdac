@@ -3,6 +3,7 @@
 // 모든 행사 유형(sports·corporate·festival·wedding·conference·launch·school·general)
 
 import type { GenerateInput } from '../types'
+import { getEnvDrivenPromptPolicyFragment } from '../config'
 import { taskOrderSummaryPromptFragment } from './taskOrderSummaryPrompt'
 
 // ─────────────────────────────────────────────────────────────
@@ -693,6 +694,7 @@ export function buildGeneratePrompt(input: GenerateInput): string {
   const excellenceGuide = buildDocumentExcellenceGuide(target)
   const selfCheckGuide = buildSelfCheckGuide(target)
   const outputSchema = getOutputSchema(target, category)
+  const envPolicyFragment = getEnvDrivenPromptPolicyFragment()
 
   const principles = [
     '1. 모든 필드를 구체적으로 작성. 빈 문자열·"-"·"해당없음" 절대 불가.',
@@ -730,6 +732,7 @@ ${cuesheetCtx}
 ${existingDocCtx}
 ${engineQualityCtx}
 ${traceabilityCtx}
+${envPolicyFragment}
 
 === 문서 완성도 기준 ===
 ${excellenceGuide}

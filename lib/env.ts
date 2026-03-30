@@ -8,15 +8,41 @@ const EnvSchema = z.object({
   ANTHROPIC_MODEL: z.string().optional(),
   /** hybrid: OpenAI 초안 + Anthropic 품질 보정(둘 다 API 키 필요) */
   AI_PIPELINE_MODE: z.string().optional(),
+  /** hybrid | single | off — 미설정 시 레거시 AI_PIPELINE_MODE와 병행 */
+  AI_MODE: z.string().optional(),
+  AI_PROVIDER_PRIMARY: z.string().optional(),
+  AI_PROVIDER_SECONDARY: z.string().optional(),
   OPENAI_MODEL_DRAFT: z.string().optional(),
+  /** Stage 1 구조·초안 (권장: gpt-5.4-mini) */
+  OPENAI_MODEL_STRUCT: z.string().optional(),
+  /** 보조 재작성·초안 변형 (권장: gpt-5.4-mini) */
+  OPENAI_MODEL_REWRITE: z.string().optional(),
   ANTHROPIC_MODEL_REFINE: z.string().optional(),
+  /** Stage 2 기본 정제 (권장: claude-sonnet-4-20250514) */
+  ANTHROPIC_MODEL_FINAL: z.string().optional(),
   ANTHROPIC_MODEL_PREMIUM: z.string().optional(),
   /** hybrid·PREMIUM 플랜 시 초안용(더 강한 OpenAI 등) — 미설정 시 일반 초안 모델 */
   OPENAI_MODEL_PREMIUM_DRAFT: z.string().optional(),
   OPENAI_MAX_TOKENS_DRAFT: z.string().optional(),
   ANTHROPIC_MAX_TOKENS_REFINE: z.string().optional(),
+  AI_STRUCT_MAX_TOKENS: z.string().optional(),
+  AI_FINAL_MAX_TOKENS: z.string().optional(),
+  AI_MIN_LENGTH_SHORT: z.string().optional(),
+  AI_MIN_LENGTH_MEDIUM: z.string().optional(),
+  AI_MIN_LENGTH_LONG: z.string().optional(),
+  AI_REQUIRE_SECTIONS: z.string().optional(),
+  AI_REQUIRE_CTA: z.string().optional(),
+  AI_REQUIRE_PRICE_FORMAT: z.string().optional(),
+  AI_REQUIRE_TEMPLATE_DIFFERENTIATION: z.string().optional(),
   /** hybrid 시 PREMIUM 플랜에 ANTHROPIC_MODEL_PREMIUM 사용(기본: 켜짐) */
   AI_ENABLE_PREMIUM_MODE: z.string().optional(),
+  AI_ENABLE_HYBRID: z.string().optional(),
+  AI_ENABLE_PREMIUM_HYBRID: z.string().optional(),
+  AI_ENABLE_FALLBACK_REWRITE: z.string().optional(),
+  AI_HYBRID_PLAN_BASIC: z.string().optional(),
+  AI_HYBRID_PLAN_PREMIUM: z.string().optional(),
+  /** 콤마 구분 — magazine,emotion,product 등 PREMIUM+Opus 정제 라우팅 */
+  AI_HYBRID_TEMPLATES: z.string().optional(),
   /** true면 품질 보정(repair) LLM 루프 생략 */
   AI_ENABLE_REFINE_SKIP: z.string().optional(),
   /** true면 hybrid 시 Claude 2차(문서 다듬기) 패스 생략 — 초안만 사용 */
@@ -25,6 +51,11 @@ const EnvSchema = z.object({
   AI_LOG_TOKENS: z.string().optional(),
   /** true면 대략적 USD 비용 추정 로그(AI_LOG_TOKENS와 무관하게 usage가 있으면 계산) */
   AI_LOG_COST_ESTIMATE: z.string().optional(),
+  AI_LOG_PROVIDER: z.string().optional(),
+  AI_LOG_MODEL: z.string().optional(),
+  AI_LOG_PIPELINE_STAGE: z.string().optional(),
+  AI_LOG_PROMPT_SIZE: z.string().optional(),
+  AI_LOG_RAW_RESPONSE: z.string().optional(),
   DATA_DIR: z.string().optional(),
 })
 
