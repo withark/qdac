@@ -189,6 +189,18 @@ export default function ReferenceEstimatePage() {
                   ? `업로드 문서 스타일 반영 중 — ${activeRef.filename}`
                   : '학습 모드이지만, 아직 견적 생성에 반영 중인 파일이 없습니다. 아래에서 업로드한 뒤 목록에서 「견적 생성에 반영」을 눌러 주세요.'}
             </p>
+            <p className="mt-2 text-xs text-slate-600 border-l-2 border-primary-200 pl-3 leading-relaxed">
+              {styleMode === 'aiTemplate' ? (
+                <>
+                  템플릿 모드에서는 업로드·활성화와 관계없이 <span className="font-medium text-slate-800">표준 포맷만</span> 사용합니다. 파일은 보관·나중에 학습 모드로 전환할 때 쓸 수 있습니다.
+                </>
+              ) : (
+                <>
+                  <span className="font-medium text-slate-800">업로드 ≠ 견적 반영</span>입니다. 학습 스타일을 쓰려면 아래 파일 목록에서{' '}
+                  <span className="font-medium text-slate-800">「견적 생성에 반영」</span>까지 눌러 주세요.
+                </>
+              )}
+            </p>
 
             <ol className="mt-5 grid gap-4 sm:grid-cols-2">
               <li className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
@@ -221,6 +233,17 @@ export default function ReferenceEstimatePage() {
                     <span className="text-gray-600">견적 생성에 반영 중인 참고 견적서가 없습니다.</span>
                   )}
                 </p>
+                {!activeRef && styleMode === 'userStyle' ? (
+                  <p className="text-xs text-primary-800 bg-primary-50/80 border border-primary-100 rounded-lg px-2.5 py-2 mt-3 leading-relaxed">
+                    업로드 후 이 페이지 아래 <span className="font-semibold">파일 목록</span>에서 해당 파일의 「견적 생성에 반영」을 눌러 주세요.{' '}
+                    <a
+                      href="#reference-estimate-file-list"
+                      className="font-semibold text-primary-700 underline underline-offset-2 hover:text-primary-900"
+                    >
+                      목록으로 이동
+                    </a>
+                  </p>
+                ) : null}
                 {activeRef ? (
                   <Btn size="sm" variant="danger" className="mt-3" onClick={() => void activateRef(null)}>
                     반영 해제
@@ -232,32 +255,54 @@ export default function ReferenceEstimatePage() {
 
           <section className="rounded-2xl border border-gray-100 bg-white shadow-card overflow-hidden">
             {styleMode === 'aiTemplate' ? (
-              <details className="group border-b border-gray-100 bg-primary-50/40 open:bg-primary-50/60">
-                <summary className="cursor-pointer list-none px-5 py-3 flex items-center justify-between gap-2 text-sm font-semibold text-primary-900 [&::-webkit-details-marker]:hidden">
-                  <span>템플릿 모드 안내</span>
-                  <span className="text-xs font-normal text-primary-700/80 group-open:hidden">자세히</span>
-                  <span className="text-xs font-normal text-primary-700/80 hidden group-open:inline">접기</span>
-                </summary>
-                <div className="px-5 pb-4 text-sm text-gray-700 leading-relaxed">
-                  사용자 참고(활성 참고 견적서) 대신 플래닉 표준 포맷으로 생성합니다. 업로드한 문서를 반영하려면 위에서 스타일 모드를 「사용자 학습 스타일」로 바꾼 뒤, 목록에서 파일을 활성화하세요.
-                </div>
-              </details>
+              <div className="border-b border-amber-100 bg-amber-50/90">
+                <p className="px-5 py-3.5 text-sm text-amber-950 leading-relaxed">
+                  <span className="font-semibold">템플릿 모드:</span> 견적은 플래닉 표준 포맷으로만 생성됩니다. 업로드·활성 참고 견적은{' '}
+                  <span className="font-semibold">이 모드에서 견적에 쓰이지 않습니다.</span> 학습 문서를 반영하려면 위에서 「사용자 학습 스타일」로 바꾼 뒤 목록에서 활성화하세요.
+                </p>
+                <details className="group border-t border-amber-100/80 bg-amber-50/50 open:bg-amber-50/70">
+                  <summary className="cursor-pointer list-none px-5 py-2.5 flex items-center justify-between gap-3 text-sm font-medium text-amber-950 [&::-webkit-details-marker]:hidden min-h-11">
+                    <span className="flex items-center gap-2">
+                      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200/80 text-xs font-bold text-amber-950" aria-hidden>
+                        i
+                      </span>
+                      추가로 알아두면 좋은 점
+                    </span>
+                    <span className="shrink-0 text-sm font-semibold text-amber-900/90 tabular-nums group-open:hidden">▼ 펼치기</span>
+                    <span className="shrink-0 text-sm font-semibold text-amber-900/90 hidden group-open:inline">▲ 접기</span>
+                  </summary>
+                  <div className="px-5 pb-4 text-sm text-amber-950/95 leading-relaxed">
+                    나중에 사용자 학습으로 전환할 때를 대비해 파일을 미리 올려 둘 수는 있습니다. 반영 여부는 항상 스타일 모드와 목록의 「견적 생성에 반영」 상태로 결정됩니다.
+                  </div>
+                </details>
+              </div>
             ) : null}
             <div className="p-5 border-b border-gray-100 bg-slate-50/50">
               <div className="text-base font-semibold text-gray-900">3 · 참고 견적서 업로드</div>
               <div className="text-sm text-gray-600 mt-1">
-                항목명·카테고리 구성·문체 경향을 학습합니다. 큐시트·시나리오는 다른 메뉴에서 올려 주세요.
+                {styleMode === 'aiTemplate' ? (
+                  <>
+                    파일을 올리면 목록에 저장됩니다. <span className="font-medium text-gray-800">현재 모드에서는 견적 생성에 학습 반영이 되지 않습니다.</span> 항목명·구성·문체 학습은 「사용자 학습 스타일」일 때 의미가 있습니다.
+                  </>
+                ) : (
+                  <>항목명·카테고리 구성·문체 경향을 학습합니다. 큐시트·시나리오는 다른 메뉴에서 올려 주세요.</>
+                )}
               </div>
             </div>
 
-            <div className="p-5 space-y-4">
-              <UploadBox uploading={uploading} onUpload={upload} />
+            <div id="reference-estimate-file-list" className="p-5 space-y-4 scroll-mt-24">
+              <UploadBox uploading={uploading} onUpload={upload} deemphasized={styleMode === 'aiTemplate'} />
 
               {refs.length === 0 ? (
                 <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-gradient-to-b from-gray-50 to-white px-6 py-12 text-center">
                   <p className="text-base font-semibold text-gray-800">등록된 참고 견적서가 없습니다</p>
                   <p className="text-sm text-gray-600 mt-2 max-w-md mx-auto">
-                    위 영역에 파일을 끌어 놓거나 「참고 견적서 업로드」로 선택하세요. 업로드 후 목록에서 「견적 생성에 반영」을 눌러야 학습 스타일이 적용됩니다.
+                    위 영역에 파일을 끌어 놓거나 「참고 견적서 업로드」로 선택하세요.
+                    {styleMode === 'aiTemplate' ? (
+                      <> 지금은 템플릿 모드라 견적에 학습이 반영되지 않습니다. 학습을 쓰려면 스타일 모드를 바꾼 뒤 목록에서 활성화하세요.</>
+                    ) : (
+                      <> 업로드 후 목록에서 「견적 생성에 반영」을 눌러야 학습 스타일이 적용됩니다.</>
+                    )}
                   </p>
                   <ul className="mt-4 text-xs text-gray-500 text-left max-w-sm mx-auto space-y-1 list-disc list-inside">
                     <li>지원: txt, csv, md, pdf, xlsx, ppt, pptx, doc, docx</li>
@@ -362,7 +407,15 @@ export default function ReferenceEstimatePage() {
   )
 }
 
-function UploadBox({ uploading, onUpload }: { uploading: boolean; onUpload: (f: File) => Promise<void> }) {
+function UploadBox({
+  uploading,
+  onUpload,
+  deemphasized,
+}: {
+  uploading: boolean
+  onUpload: (f: File) => Promise<void>
+  deemphasized?: boolean
+}) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [dragActive, setDragActive] = useState(false)
 
@@ -379,7 +432,12 @@ function UploadBox({ uploading, onUpload }: { uploading: boolean; onUpload: (f: 
   )
 
   return (
-    <div className="space-y-3">
+    <div className={clsx('space-y-3', deemphasized && 'opacity-[0.92]')}>
+      {deemphasized ? (
+        <p className="rounded-xl border border-slate-200 bg-slate-100/80 px-3.5 py-2.5 text-xs text-slate-700 leading-relaxed">
+          <span className="font-semibold text-slate-900">참고:</span> 템플릿 모드에서는 업로드해도 견적 생성에 스타일이 반영되지 않습니다. 보관·전환 후 사용을 위해 올리는 경우에만 이용해 주세요.
+        </p>
+      ) : null}
       <input
         ref={fileRef}
         type="file"
@@ -418,7 +476,8 @@ function UploadBox({ uploading, onUpload }: { uploading: boolean; onUpload: (f: 
         className={clsx(
           'rounded-2xl border-2 border-dashed px-4 py-8 text-center transition-colors',
           dragActive ? 'border-primary-400 bg-primary-50/60' : 'border-gray-200 bg-gray-50/80 hover:border-gray-300',
-          uploading && 'pointer-events-none opacity-60'
+          uploading && 'pointer-events-none opacity-60',
+          deemphasized && !dragActive && 'border-dashed border-slate-200 bg-slate-50/60'
         )}
       >
         <p className="text-sm font-medium text-gray-800">파일을 여기에 놓거나 버튼으로 선택</p>
@@ -440,10 +499,11 @@ function UploadBox({ uploading, onUpload }: { uploading: boolean; onUpload: (f: 
         </Btn>
       </div>
 
-      <details className="rounded-xl border border-gray-100 bg-white text-sm text-gray-600 open:shadow-sm">
-        <summary className="cursor-pointer list-none px-4 py-3 font-medium text-gray-800 [&::-webkit-details-marker]:hidden flex items-center justify-between">
+      <details className="group rounded-xl border border-gray-100 bg-white text-sm text-gray-600 open:shadow-sm">
+        <summary className="cursor-pointer list-none px-4 py-3 font-medium text-gray-800 [&::-webkit-details-marker]:hidden flex items-center justify-between gap-3 min-h-11">
           <span>업로드와 활성화가 다릅니다</span>
-          <span className="text-xs font-normal text-gray-500">자세히</span>
+          <span className="shrink-0 text-sm font-semibold text-primary-700 tabular-nums group-open:hidden">▼ 자세히</span>
+          <span className="shrink-0 text-sm font-semibold text-primary-700 tabular-nums hidden group-open:inline">▲ 접기</span>
         </summary>
         <div className="px-4 pb-4 pt-0 leading-relaxed border-t border-gray-50">
           업로드만으로는 견적 생성에 바로 반영되지 않을 수 있습니다. 사용자 학습 스타일을 쓰려면 목록에서 해당 파일에 대해{' '}
