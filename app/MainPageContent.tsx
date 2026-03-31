@@ -183,11 +183,11 @@ export async function MainPageContent() {
             이제는 바로 만들어 바로 보냅니다
           </h1>
           <p className="mx-auto mt-5 max-w-3xl text-[15px] leading-7 text-slate-600 sm:text-[18px]">
-            견적서, 기획안, 프로그램 제안서, 시나리오, 큐시트까지.
+            견적서, 기획안, 프로그램 제안서, 시나리오, 사회자 멘트, 큐시트, 과업지시서 요약까지.
             핵심 정보만 입력하면 현업에서 바로 수정하고 고객에게 공유할 수 있는 문서 초안을 빠르게 만듭니다.
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-sm font-medium text-slate-600">
-            <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5">문서 5종 통합 생성</span>
+            <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5">문서 7종 통합 생성</span>
             <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5">엑셀/PDF 바로 저장</span>
             <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5">가입 후 무료 시작</span>
           </div>
