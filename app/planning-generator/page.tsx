@@ -4,10 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
 import { Input, Textarea, Toast } from '@/components/ui'
-import SimpleGeneratorWizard, {
-  type WizardCoreFieldProgress,
-  type WizardHighlight,
-} from '@/components/generators/SimpleGeneratorWizard'
+import SimpleGeneratorWizard, { type WizardHighlight } from '@/components/generators/SimpleGeneratorWizard'
 import type { CompanySettings, HistoryRecord, PriceCategory, QuoteDoc, TaskOrderDoc } from '@/lib/types'
 import { apiFetch, apiGenerateStream } from '@/lib/api/client'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
@@ -223,22 +220,6 @@ export default function PlanningGeneratorPage() {
     return null
   }, [generateDisabled, sourceMode, topic, goal, selectedTaskOrderBaseId, selectedEstimateId, doc])
 
-  const coreFieldsProgress = useMemo((): WizardCoreFieldProgress[] | undefined => {
-    if (sourceMode === 'fromTopic') {
-      return [
-        { label: '이벤트 주제', done: !!topic.trim() },
-        { label: '목표', done: !!goal.trim() },
-      ]
-    }
-    if (sourceMode === 'fromEstimate') {
-      return [{ label: '견적 선택', done: !!(selectedEstimateId && doc) }]
-    }
-    if (sourceMode === 'fromTaskOrder') {
-      return [{ label: '과업지시서', done: !!(selectedTaskOrderBaseId && doc) }]
-    }
-    return undefined
-  }, [sourceMode, topic, goal, selectedEstimateId, selectedTaskOrderBaseId, doc])
-
   const topicInvalid = sourceMode === 'fromTopic' && generateDisabled && !topic.trim()
   const goalInvalid = sourceMode === 'fromTopic' && generateDisabled && !goal.trim()
 
@@ -259,7 +240,6 @@ export default function PlanningGeneratorPage() {
             subtitle="실행 계획과 산출물 기준이 보이도록, 내부 검토와 고객 공유 둘 다 가능한 초안으로 작성합니다."
             highlights={wizardHighlights}
             collapsibleHighlights
-            coreFieldsProgress={coreFieldsProgress}
             modes={[
               { id: 'fromTopic', title: '주제만 입력', desc: '행사 목적과 메시지를 중심으로 기획안을 씁니다.' },
               { id: 'fromEstimate', title: '견적서 기준', desc: '기존 행사 정보와 견적 문맥을 이어서 기획합니다.' },
@@ -322,9 +302,6 @@ export default function PlanningGeneratorPage() {
                 </select>
               ) : (
                 <div className="space-y-3">
-                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-600">
-                    목표와 메모를 구체적으로 적으면 운영 범위, 체크리스트, 리스크 대응 문장이 더 실무형으로 정리됩니다.
-                  </div>
                   <Input
                     label="이벤트 주제"
                     showRequiredMark

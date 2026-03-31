@@ -4,11 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
-import SimpleGeneratorWizard, {
-  type WizardCoreFieldProgress,
-  type WizardHighlight,
-  type WizardMode,
-} from '@/components/generators/SimpleGeneratorWizard'
+import SimpleGeneratorWizard, { type WizardHighlight, type WizardMode } from '@/components/generators/SimpleGeneratorWizard'
 import { Input, Textarea, Toast } from '@/components/ui'
 import type { CompanySettings, HistoryRecord, PriceCategory, QuoteDoc, ReferenceDoc, TaskOrderDoc } from '@/lib/types'
 import { apiFetch, apiGenerateStream } from '@/lib/api/client'
@@ -359,30 +355,6 @@ export default function EstimateGeneratorPage() {
     (sourceMode === 'fromTopic' && generateDisabled && !topic.trim()) ||
     (sourceMode === 'fromReferenceStyle' && !!activeReference && generateDisabled && !topic.trim())
 
-  const coreFieldsProgress = useMemo((): WizardCoreFieldProgress[] | undefined => {
-    if (sourceMode === 'fromTopic') {
-      return [{ label: '이벤트 주제', done: !!topic.trim() }]
-    }
-    if (sourceMode === 'fromReferenceStyle') {
-      return [
-        { label: '참고 견적', done: !!activeReference },
-        { label: '이벤트 주제', done: !!topic.trim() },
-      ]
-    }
-    if (sourceMode === 'fromTaskOrder') {
-      return [{ label: '과업지시서', done: !!(selectedTaskOrderId && selectedTaskOrder) }]
-    }
-    return [{ label: '견적 선택', done: !!(selectedEstimateId && selectedHistoryDoc) }]
-  }, [
-    sourceMode,
-    topic,
-    activeReference,
-    selectedTaskOrderId,
-    selectedTaskOrder,
-    selectedEstimateId,
-    selectedHistoryDoc,
-  ])
-
   const topicInputs = (
     <div className="space-y-4">
       <details className="rounded-2xl border border-sky-100 bg-sky-50/90 px-4 py-3 text-sm text-slate-700 open:border-sky-200">
@@ -476,7 +448,6 @@ export default function EstimateGeneratorPage() {
             subtitle="입력량은 최소화하고, 결과는 바로 저장·다운로드할 수 있게 구성했습니다."
             highlights={wizardHighlights}
             collapsibleHighlights
-            coreFieldsProgress={coreFieldsProgress}
             preStepContent={
               <div className="space-y-2">
                 <div className="text-base font-semibold text-slate-900">스타일·참고 견적</div>

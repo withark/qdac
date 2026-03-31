@@ -22,11 +22,6 @@ export type WizardHighlight = {
   value: string
 }
 
-export type WizardCoreFieldProgress = {
-  label: string
-  done: boolean
-}
-
 function getScrollParent(el: HTMLElement | null): HTMLElement | null {
   if (!el) return null
   for (let p: HTMLElement | null = el.parentElement; p; p = p.parentElement) {
@@ -57,8 +52,6 @@ export default function SimpleGeneratorWizard({
   collapsibleHighlights = false,
   /** collapsibleHighlights일 때 기본 펼침 여부 (기본: 접힘) */
   highlightsDefaultOpen = false,
-  /** 2단계 상단에 필수 입력 충족 여부 체크리스트 */
-  coreFieldsProgress,
 }: {
   title: string
   subtitle?: string
@@ -77,7 +70,6 @@ export default function SimpleGeneratorWizard({
   showValidationBanner?: boolean
   collapsibleHighlights?: boolean
   highlightsDefaultOpen?: boolean
-  coreFieldsProgress?: WizardCoreFieldProgress[]
 }) {
   const inFlightRef = useRef(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -327,27 +319,7 @@ export default function SimpleGeneratorWizard({
               선택한 기준: <span className="font-semibold text-slate-900">{selectedMode.title}</span>
             </p>
           ) : null}
-          <div className="rounded-3xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
-            {coreFieldsProgress?.length ? (
-              <ul className="mb-4 flex flex-wrap gap-2" aria-label="필수 입력 진행 상태">
-                {coreFieldsProgress.map((row) => (
-                  <li
-                    key={row.label}
-                    className={clsx(
-                      'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold',
-                      row.done ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-slate-200 bg-white text-slate-600',
-                    )}
-                  >
-                    <span className={row.done ? 'text-emerald-600' : 'text-slate-400'} aria-hidden>
-                      {row.done ? '✓' : '○'}
-                    </span>
-                    {row.label}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            {requiredInput}
-          </div>
+          <div className="rounded-3xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5">{requiredInput}</div>
         </section>
 
         <section ref={step3Ref} id="wizard-step-3" className="scroll-mt-4">

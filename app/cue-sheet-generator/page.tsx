@@ -3,11 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
-import SimpleGeneratorWizard, {
-  type WizardCoreFieldProgress,
-  type WizardHighlight,
-  type WizardMode,
-} from '@/components/generators/SimpleGeneratorWizard'
+import SimpleGeneratorWizard, { type WizardHighlight, type WizardMode } from '@/components/generators/SimpleGeneratorWizard'
 import { Input, Textarea, Toast } from '@/components/ui'
 import type { CompanySettings, PriceCategory, QuoteDoc } from '@/lib/types'
 import type { PlanType } from '@/lib/plans'
@@ -214,19 +210,6 @@ export default function CueSheetGeneratorPage() {
     return null
   }, [generateDisabled, sourceMode, topic, goal, selectedScenarioId, selectedProgramId, contextDoc])
 
-  const coreFieldsProgress = useMemo((): WizardCoreFieldProgress[] | undefined => {
-    if (sourceMode === 'fromTopic') {
-      return [
-        { label: '이벤트 주제', done: !!topic.trim() },
-        { label: '목표', done: !!goal.trim() },
-      ]
-    }
-    if (sourceMode === 'fromScenario') {
-      return [{ label: '시나리오', done: !!(selectedScenarioId && contextDoc) }]
-    }
-    return [{ label: '프로그램 제안', done: !!(selectedProgramId && contextDoc) }]
-  }, [sourceMode, topic, goal, selectedScenarioId, selectedProgramId, contextDoc])
-
   const topicInvalid = sourceMode === 'fromTopic' && generateDisabled && !topic.trim()
   const goalInvalid = sourceMode === 'fromTopic' && generateDisabled && !goal.trim()
 
@@ -250,7 +233,6 @@ export default function CueSheetGeneratorPage() {
             subtitle="시간, 담당자, 준비물, 멘트 큐를 한 번에 정리해 바로 현장 공유가 가능하도록 구성했습니다."
             highlights={wizardHighlights}
             collapsibleHighlights
-            coreFieldsProgress={coreFieldsProgress}
             modes={modes}
             modeId={sourceMode}
             onModeChange={(id) => {
@@ -308,9 +290,6 @@ export default function CueSheetGeneratorPage() {
                 </select>
               ) : (
                 <div className="space-y-3">
-                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-600">
-                    대기 위치, 장비 큐, 돌발 대응 메모를 넣으면 현장용 완성도가 크게 올라갑니다.
-                  </div>
                   <Input
                     label="이벤트 주제"
                     showRequiredMark
