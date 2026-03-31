@@ -1,7 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import clsx from 'clsx'
 import { GNB } from '@/components/GNB'
 import { Btn, Toast } from '@/components/ui'
 import type { ReferenceDoc } from '@/lib/types'
@@ -145,96 +146,107 @@ export default function ReferenceEstimatePage() {
     <div className="flex h-screen overflow-hidden bg-gray-50/50">
       <GNB />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="flex items-center justify-between px-6 h-14 border-b border-gray-100 bg-white/90 flex-shrink-0">
+        <header className="flex items-center justify-between px-6 min-h-14 py-3 border-b border-gray-100 bg-white/90 flex-shrink-0">
           <div>
-            <h1 className="text-base font-semibold text-gray-900">참고 자료</h1>
-            <p className="text-xs text-gray-500 mt-0.5">사용자 스타일 학습 또는 플래닉 표준 템플릿을 선택합니다.</p>
+            <h1 className="text-lg font-semibold text-gray-900 tracking-tight">참고 자료</h1>
+            <p className="text-sm text-gray-500 mt-0.5">사용자 스타일 학습 또는 플래닉 표준 템플릿을 선택합니다.</p>
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-card">
             <div className="text-sm font-semibold text-gray-900">참고 자료 메뉴 안내</div>
-            <div className="text-xs text-gray-500 mt-1">업로드 목적에 맞는 메뉴를 선택해 주세요.</div>
-            <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="text-sm text-gray-500 mt-1">업로드 목적에 맞는 메뉴를 선택해 주세요.</div>
+            <div className="mt-4 -mx-1 px-1 flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory sm:grid sm:grid-cols-3 sm:overflow-visible">
               <Link
                 href="/reference-estimate"
-                className="rounded-xl border border-primary-200 bg-primary-50 px-3 py-2 text-xs font-semibold text-primary-700"
+                className="snap-start shrink-0 min-w-[min(100%,11rem)] sm:min-w-0 rounded-xl border border-primary-200 bg-primary-50 px-3 py-2.5 text-sm font-semibold text-primary-700 text-center"
               >
                 견적 참고자료(현재)
               </Link>
               <Link
                 href="/task-order-summary"
-                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                className="snap-start shrink-0 min-w-[min(100%,11rem)] sm:min-w-0 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 text-center"
               >
                 과업지시서 / 기획안 요약
               </Link>
               <Link
                 href="/scenario-reference"
-                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                className="snap-start shrink-0 min-w-[min(100%,11rem)] sm:min-w-0 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 text-center"
               >
                 시나리오 참고자료 업로드
               </Link>
             </div>
           </section>
 
-          <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-card">
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div>
-                <div className="text-sm font-semibold text-gray-900">활성화 상태</div>
-                <div className="text-xs text-gray-500 mt-1">
-                  {activeRef ? (
-                    <>
-                      현재 적용: <b className="text-gray-800">{activeRef.filename}</b>
-                      {' · '}업로드 {new Date(activeRef.uploadedAt).toLocaleString('ko-KR')}
-                    </>
-                  ) : (
-                    '현재 견적 생성에 반영 중인 참고 견적서가 없습니다.'
-                  )}
-                </div>
-              </div>
-              <div className="flex gap-2">
-                {activeRef ? (
-                  <Btn size="sm" variant="danger" onClick={() => void activateRef(null)}>
-                    반영 해제
-                  </Btn>
-                ) : null}
-              </div>
-            </div>
-          </section>
+          <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-card">
+            <div className="text-base font-semibold text-gray-900">견적 생성에 쓰이는 설정</div>
+            <p className="text-sm text-gray-600 mt-1">
+              <span className="font-medium text-gray-800">한눈에:</span>{' '}
+              {styleMode === 'aiTemplate'
+                ? '표준 템플릿으로 생성합니다. 업로드한 문서는 이 모드에선 반영되지 않습니다.'
+                : activeRef
+                  ? `업로드 문서 스타일 반영 중 — ${activeRef.filename}`
+                  : '학습 모드이지만, 아직 견적 생성에 반영 중인 파일이 없습니다. 아래에서 업로드한 뒤 목록에서 「견적 생성에 반영」을 눌러 주세요.'}
+            </p>
 
-          <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-card">
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div>
-                <div className="text-sm font-semibold text-gray-900">스타일 모드</div>
-                <div className="text-xs text-gray-500 mt-1">{inputRefModeText}</div>
-              </div>
-              <div className="min-w-[240px]">
+            <ol className="mt-5 grid gap-4 sm:grid-cols-2">
+              <li className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
+                <div className="text-xs font-bold uppercase tracking-wide text-primary-600">1 · 스타일 모드</div>
+                <p className="text-sm text-gray-600 mt-2">{inputRefModeText}</p>
+                <label className="sr-only" htmlFor="estimate-style-mode">
+                  스타일 모드 선택
+                </label>
                 <select
+                  id="estimate-style-mode"
                   value={styleMode}
                   onChange={(e) => void saveMode(e.target.value as StyleMode)}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-100"
+                  className="mt-3 w-full max-w-xs px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
                 >
                   <option value="userStyle">사용자 학습 스타일</option>
                   <option value="aiTemplate">인공지능 추천 템플릿 모드</option>
                 </select>
-              </div>
-            </div>
+              </li>
+              <li className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
+                <div className="text-xs font-bold uppercase tracking-wide text-primary-600">2 · 활성 참고 견적</div>
+                <p className="text-sm text-gray-700 mt-2">
+                  {activeRef ? (
+                    <>
+                      <span className="font-semibold text-gray-900">{activeRef.filename}</span>
+                      <span className="block text-xs text-gray-500 mt-1">
+                        업로드 {new Date(activeRef.uploadedAt).toLocaleString('ko-KR')}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-gray-600">견적 생성에 반영 중인 참고 견적서가 없습니다.</span>
+                  )}
+                </p>
+                {activeRef ? (
+                  <Btn size="sm" variant="danger" className="mt-3" onClick={() => void activateRef(null)}>
+                    반영 해제
+                  </Btn>
+                ) : null}
+              </li>
+            </ol>
           </section>
 
           <section className="rounded-2xl border border-gray-100 bg-white shadow-card overflow-hidden">
             {styleMode === 'aiTemplate' ? (
-              <div className="p-4 border-b border-gray-100 bg-primary-50/30">
-                <div className="text-sm font-semibold text-primary-800">인공지능 추천 템플릿 모드 사용 중</div>
-                <div className="text-xs text-gray-600 mt-1">
-                  현재는 사용자 참고(활성 참고 견적서) 대신 인공지능 표준 템플릿으로 생성합니다. 스타일 모드를 사용자 학습 스타일로 바꾸면 활성 참고 견적서가 반영됩니다.
+              <details className="group border-b border-gray-100 bg-primary-50/40 open:bg-primary-50/60">
+                <summary className="cursor-pointer list-none px-5 py-3 flex items-center justify-between gap-2 text-sm font-semibold text-primary-900 [&::-webkit-details-marker]:hidden">
+                  <span>템플릿 모드 안내</span>
+                  <span className="text-xs font-normal text-primary-700/80 group-open:hidden">자세히</span>
+                  <span className="text-xs font-normal text-primary-700/80 hidden group-open:inline">접기</span>
+                </summary>
+                <div className="px-5 pb-4 text-sm text-gray-700 leading-relaxed">
+                  사용자 참고(활성 참고 견적서) 대신 플래닉 표준 포맷으로 생성합니다. 업로드한 문서를 반영하려면 위에서 스타일 모드를 「사용자 학습 스타일」로 바꾼 뒤, 목록에서 파일을 활성화하세요.
                 </div>
-              </div>
+              </details>
             ) : null}
-            <div className="p-4 border-b border-gray-100 bg-slate-50/50">
-              <div className="text-sm font-semibold text-gray-900">사용자 견적서 업로드</div>
-              <div className="text-xs text-gray-500 mt-1">
-                업로드한 견적서로 항목명/카테고리 구조/문체 경향을 학습합니다. 큐시트/시나리오 업로드는 이 메뉴에서 하지 않습니다.
+            <div className="p-5 border-b border-gray-100 bg-slate-50/50">
+              <div className="text-base font-semibold text-gray-900">3 · 참고 견적서 업로드</div>
+              <div className="text-sm text-gray-600 mt-1">
+                항목명·카테고리 구성·문체 경향을 학습합니다. 큐시트·시나리오는 다른 메뉴에서 올려 주세요.
               </div>
             </div>
 
@@ -242,8 +254,15 @@ export default function ReferenceEstimatePage() {
               <UploadBox uploading={uploading} onUpload={upload} />
 
               {refs.length === 0 ? (
-                <div className="text-sm text-gray-500 py-10 rounded-2xl border border-dashed border-gray-200 bg-gray-50 text-center">
-                  아직 등록된 참고 견적서가 없습니다. 파일을 업로드해 주세요.
+                <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-gradient-to-b from-gray-50 to-white px-6 py-12 text-center">
+                  <p className="text-base font-semibold text-gray-800">등록된 참고 견적서가 없습니다</p>
+                  <p className="text-sm text-gray-600 mt-2 max-w-md mx-auto">
+                    위 영역에 파일을 끌어 놓거나 「참고 견적서 업로드」로 선택하세요. 업로드 후 목록에서 「견적 생성에 반영」을 눌러야 학습 스타일이 적용됩니다.
+                  </p>
+                  <ul className="mt-4 text-xs text-gray-500 text-left max-w-sm mx-auto space-y-1 list-disc list-inside">
+                    <li>지원: txt, csv, md, pdf, xlsx, ppt, pptx, doc, docx</li>
+                    <li>크기 {formatUploadLimitText()} 이하</li>
+                  </ul>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -344,24 +363,93 @@ export default function ReferenceEstimatePage() {
 }
 
 function UploadBox({ uploading, onUpload }: { uploading: boolean; onUpload: (f: File) => Promise<void> }) {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [dragActive, setDragActive] = useState(false)
+
+  const pickFile = useCallback(() => {
+    fileRef.current?.click()
+  }, [])
+
+  const handleFiles = useCallback(
+    (list: FileList | null) => {
+      const f = list?.[0]
+      if (f) void onUpload(f)
+    },
+    [onUpload]
+  )
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <input
+        ref={fileRef}
         type="file"
+        className="sr-only"
         accept=".txt,.csv,.md,.pdf,.xlsx,.ppt,.pptx,.doc,.docx"
         disabled={uploading}
         onChange={(e) => {
-          const f = e.target.files?.[0]
-          if (f) void onUpload(f)
+          handleFiles(e.target.files)
           e.target.value = ''
         }}
       />
-      <div className="text-[11px] text-gray-500">
-        지원 형식: txt/csv/md/pdf/xlsx/ppt/pptx/doc/docx · 파일 크기 {formatUploadLimitText()} 이하
+      <div
+        onClick={() => pickFile()}
+        onDragEnter={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          setDragActive(true)
+        }}
+        onDragOver={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          setDragActive(true)
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          if (e.currentTarget.contains(e.relatedTarget as Node)) return
+          setDragActive(false)
+        }}
+        onDrop={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          setDragActive(false)
+          handleFiles(e.dataTransfer.files)
+        }}
+        className={clsx(
+          'rounded-2xl border-2 border-dashed px-4 py-8 text-center transition-colors',
+          dragActive ? 'border-primary-400 bg-primary-50/60' : 'border-gray-200 bg-gray-50/80 hover:border-gray-300',
+          uploading && 'pointer-events-none opacity-60'
+        )}
+      >
+        <p className="text-sm font-medium text-gray-800">파일을 여기에 놓거나 버튼으로 선택</p>
+        <p className="text-xs text-gray-500 mt-1">
+          txt · csv · md · pdf · xlsx · ppt · pptx · doc · docx · {formatUploadLimitText()} 이하
+        </p>
+        <Btn
+          type="button"
+          size="md"
+          variant="primary"
+          className="mt-4"
+          disabled={uploading}
+          onClick={(e) => {
+            e.stopPropagation()
+            pickFile()
+          }}
+        >
+          {uploading ? '업로드 중…' : '참고 견적서 업로드'}
+        </Btn>
       </div>
-      <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-xs text-gray-600">
-        참고 견적서 업로드와 별개로, <b>활성화된 참고 견적서</b>가 있어야 사용자 학습 스타일이 적용됩니다.
-      </div>
+
+      <details className="rounded-xl border border-gray-100 bg-white text-sm text-gray-600 open:shadow-sm">
+        <summary className="cursor-pointer list-none px-4 py-3 font-medium text-gray-800 [&::-webkit-details-marker]:hidden flex items-center justify-between">
+          <span>업로드와 활성화가 다릅니다</span>
+          <span className="text-xs font-normal text-gray-500">자세히</span>
+        </summary>
+        <div className="px-4 pb-4 pt-0 leading-relaxed border-t border-gray-50">
+          업로드만으로는 견적 생성에 바로 반영되지 않을 수 있습니다. 사용자 학습 스타일을 쓰려면 목록에서 해당 파일에 대해{' '}
+          <b className="text-gray-800">견적 생성에 반영</b>을 눌러 활성화해 주세요.
+        </div>
+      </details>
     </div>
   )
 }
