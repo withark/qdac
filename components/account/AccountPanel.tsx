@@ -70,6 +70,7 @@ export function AccountPanel({
       <button
         ref={btnRef}
         type="button"
+        title={email ?? undefined}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={openId}
