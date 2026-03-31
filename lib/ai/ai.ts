@@ -67,6 +67,9 @@ export type GenerateTimingMeta = {
   documentTarget?: GenerateInput['documentTarget']
   stageBrief?: StageBrief
   stageStructurePlan?: StageStructurePlan
+  /** strict 품질 기준 미충족 시, 500 대신 반환한 여부(장애 복구용) */
+  strictQualityBypassed?: boolean
+  strictQualityIssuesTop?: string[]
 }
 
 function shouldUseHeuristicFallback(): boolean {
@@ -2418,6 +2421,7 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
   let qualityIssues = listQualityIssues(doc, input)
   const qualityIssueCountBefore = qualityIssues.length
   const qualityScoreBefore = scoreQualityIssues(qualityIssues)
+  let strictQualityBypassed = false
   let repairAttempts = 0
   const repairFocusHistory: RepairFocus[] = []
   const generationProfile = input.generationProfile ?? 'realtime'
@@ -2503,7 +2507,13 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
   }
 
   if (strictQualityTarget && qualityIssues.length > 0) {
-    throw new Error(`문서 품질 기준을 충족하지 못했습니다: ${qualityIssues.slice(0, 3).join(' / ')}`)
+    strictQualityBypassed = true
+    logInfo('ai.quality.strict_unmet', {
+      target: input.documentTarget,
+      issueCount: qualityIssues.length,
+      topIssues: qualityIssues.slice(0, 5),
+      action: 'bypass_throw_return_best_doc',
+    })
   }
 
   // program 등 비-estimate 타깃은 AI가 quoteItems를 깨뜨리면 calcTotals 등에서 실패할 수 있어,
@@ -2596,6 +2606,8 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
       documentTarget: input.documentTarget,
       stageBrief,
       stageStructurePlan,
+      strictQualityBypassed,
+      strictQualityIssuesTop: strictQualityBypassed ? prioritizeQualityIssues(qualityIssues).slice(0, 3) : [],
     },
   }
 }
