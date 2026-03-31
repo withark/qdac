@@ -1,6 +1,6 @@
 import type { QuoteDoc, QuoteLineItem, PlanningDoc, ScenarioDoc } from '@/lib/types'
 
-export type TopicSeedTarget = 'program' | 'planning' | 'scenario' | 'cuesheet'
+export type TopicSeedTarget = 'program' | 'planning' | 'scenario' | 'cuesheet' | 'emcee'
 
 type TopicSeedInput = {
   topic: string
@@ -121,7 +121,8 @@ export function buildTopicSeedDoc(input: TopicSeedInput): QuoteDoc {
     eventDuration: '3시간',
     venue,
     headcount,
-    eventType: input.documentTarget === 'scenario' ? '시나리오' : '기획',
+    eventType:
+      input.documentTarget === 'scenario' ? '시나리오' : input.documentTarget === 'emcee' ? '사회·진행' : '기획',
     quoteItems: [
       { category: '문서 기획', items },
       {

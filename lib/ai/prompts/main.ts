@@ -3,8 +3,10 @@
 // 모든 행사 유형(sports·corporate·festival·wedding·conference·launch·school·general)
 
 import type { GenerateInput } from '../types'
+import type { QuoteDoc } from '@/lib/types'
 import { getEnvDrivenPromptPolicyFragment } from '../config'
 import { taskOrderSummaryPromptFragment } from './taskOrderSummaryPrompt'
+import { formatExistingQuoteDocForPrompt } from './existing-doc-context'
 
 // ─────────────────────────────────────────────────────────────
 //  행사 유형 감지
@@ -45,7 +47,25 @@ function extractPromptAnchors(input: GenerateInput): string[] {
     ...splitBriefAnchors(input.briefGoal),
     ...splitBriefAnchors(input.briefNotes),
   ]
-  return Array.from(new Set(anchors)).slice(0, 6)
+  const doc = input.existingDoc as QuoteDoc | undefined
+  if (doc) {
+    anchors.push(...splitBriefAnchors(doc.notes))
+    if (doc.planning) {
+      anchors.push(...splitBriefAnchors(doc.planning.overview))
+      anchors.push(...splitBriefAnchors(doc.planning.scope))
+      anchors.push(...splitBriefAnchors(doc.planning.operationPlan))
+    }
+    if (doc.scenario) {
+      anchors.push(...splitBriefAnchors(doc.scenario.summaryTop))
+      anchors.push(...splitBriefAnchors(doc.scenario.opening))
+    }
+    if (doc.program?.concept) anchors.push(...splitBriefAnchors(doc.program.concept))
+    for (const r of doc.program?.programRows?.slice(0, 8) ?? []) {
+      anchors.push(...splitBriefAnchors(r.content))
+      anchors.push(...splitBriefAnchors(r.notes))
+    }
+  }
+  return Array.from(new Set(anchors)).slice(0, 10)
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -574,22 +594,18 @@ function buildTimelineContext(input: GenerateInput): string {
 
 function buildExistingDocContext(input: GenerateInput): string {
   if (!input.existingDoc) return ''
+  const target = input.documentTarget ?? 'estimate'
   try {
-    const doc = input.existingDoc as any
-    const parts: string[] = ['=== 기존 문서 (이어서 작성) ===']
-    if (doc.program?.timeline?.length) {
-      parts.push(`기존 타임라인 ${doc.program.timeline.length}행 — 시간 연속성 유지`)
-    }
-    if (doc.quoteItems?.length) {
-      parts.push(`기존 견적 카테고리: ${doc.quoteItems.map((c: any) => c.category).join(', ')}`)
-    }
-    if (doc.program?.programRows?.length) parts.push(`기존 프로그램 구성: ${doc.program.programRows.length}개`)
-    if (doc.program?.cueRows?.length) parts.push(`기존 큐시트 행: ${doc.program.cueRows.length}개`)
-    if (doc.planning?.overview) parts.push(`기존 기획 방향 요약: ${String(doc.planning.overview).slice(0, 120)}`)
-    if (doc.scenario?.summaryTop) parts.push(`기존 시나리오 한 줄 요약: ${String(doc.scenario.summaryTop).slice(0, 120)}`)
-    if (doc.eventName) parts.push(`기존 행사명: ${doc.eventName}`)
-    return parts.join('\n')
-  } catch { return '' }
+    const detail = formatExistingQuoteDocForPrompt(input.existingDoc as QuoteDoc, target)
+    if (!detail.trim()) return ''
+    const title =
+      target === 'estimate'
+        ? '기존 견적서 (재작성·유사 유형 생성의 기준)'
+        : '기존 문서 (이어쓰기·변환의 소스)'
+    return `\n=== ${title} ===\n아래 원문을 근거로 새 문서를 작성하세요. 사용자 브리프·요청사항이 있으면 그것을 우선하고, 그 외 명칭·수치·제약·진행 순서는 원문과 모순되지 않게 맞춥니다.\n\n${detail}\n`
+  } catch {
+    return ''
+  }
 }
 
 function buildBriefContext(input: GenerateInput): string {
@@ -743,6 +759,7 @@ export function buildGeneratePrompt(input: GenerateInput): string {
     `행사명: ${input.eventName || ''}`,
     `행사 유형: ${input.eventType || ''}`,
     `의뢰처: ${input.clientName || ''}${input.clientManager ? ` (담당자: ${input.clientManager})` : ''}`,
+    input.clientTel?.trim() ? `연락처: ${input.clientTel.trim()}` : '',
     `견적일: ${input.quoteDate || ''}`,
     `행사 일자: ${input.eventDate || ''}`,
     `장소: ${input.venue || ''}`,
@@ -759,7 +776,9 @@ export function buildGeneratePrompt(input: GenerateInput): string {
   const categoryGuide = getCategoryGuide(category, headcount)
   const programFlowGuide = getProgramFlowGuide(category, input)
   const briefCtx = buildBriefContext(input)
-  const programItemsHint = (['estimate', 'program', 'timetable'] as const).includes(target as any)
+  const programItemsHint = (
+    ['estimate', 'program', 'timetable', 'scenario', 'cuesheet', 'emceeScript'] as const
+  ).includes(target as any)
     ? getProgramItemsHint(input.requirements || '', input.programs)
     : ''
 
@@ -768,7 +787,7 @@ export function buildGeneratePrompt(input: GenerateInput): string {
   const taskOrderCtx = buildTaskOrderContext(input)
   const scenarioRefCtx = target === 'scenario' ? buildScenarioRefContext(input) : ''
   const cuesheetCtx = target === 'cuesheet' ? buildCuesheetSampleContext(input) : ''
-  const existingDocCtx = target !== 'estimate' ? buildExistingDocContext(input) : ''
+  const existingDocCtx = input.existingDoc ? buildExistingDocContext(input) : ''
   const engineQualityCtx = buildEngineQualityContext(input)
   const traceabilityCtx = buildTraceabilityContext(input, target)
   const stageBriefCtx = buildStageBriefContext(input)
@@ -894,6 +913,7 @@ ${issues.map((issue, index) => `${index + 1}. ${issue}`).join('\n')}
 행사 일자: ${input.eventDate || ''}
 장소: ${input.venue || ''}
 인원: ${input.headcount || ''}
+연락처: ${input.clientTel || ''}
 요청사항: ${input.requirements || ''}
 핵심 목표: ${input.briefGoal || ''}
 중요 메모: ${input.briefNotes || ''}

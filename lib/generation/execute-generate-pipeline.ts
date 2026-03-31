@@ -28,6 +28,7 @@ import { clampEngineMaxTokens } from '@/lib/ai/generate-config'
 import { logError, logInfo } from '@/lib/utils/logger'
 import { parseBudgetCeilingKRW } from '@/lib/budget'
 import { enforceBudgetHardConstraint } from '@/lib/quote/budget-enforcer'
+import { deriveProgramHintsFromQuoteDoc } from '@/lib/ai/prompts/existing-doc-context'
 
 export class GeneratePipelineError extends Error {
   constructor(
@@ -66,6 +67,8 @@ export type GeneratePipelineBody = {
   cuesheetSampleIds?: string[]
   /** estimate 최초 생성 시 견적 레이아웃(하이브리드 Opus 라우팅용) */
   quoteTemplate?: string
+  /** 프로그램/견적 힌트(종목·키워드) — 비어 있으면 existingDoc에서 유도 */
+  programs?: string[]
 }
 
 export type ExecuteGeneratePipelineArgs = {
@@ -331,8 +334,13 @@ export async function executeGeneratePipeline(
   delete bodyWithoutScenarioRefIds.cuesheetSampleIds
   delete bodyWithoutScenarioRefIds.streamProgress
 
+  const programsFromBody = Array.isArray(body.programs) ? body.programs.filter(Boolean) : []
+  const programsForPrompt =
+    programsFromBody.length > 0 ? programsFromBody : deriveProgramHintsFromQuoteDoc(existingDoc)
+
   const input: GenerateInput = {
     ...bodyWithoutScenarioRefIds,
+    programs: programsForPrompt,
     prices: pricesForPrompt,
     settings,
     references: referencesForPrompt,

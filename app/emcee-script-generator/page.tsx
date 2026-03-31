@@ -11,6 +11,7 @@ import { toUserMessage } from '@/lib/errors/toUserMessage'
 import { exportToExcel } from '@/lib/exportExcel'
 import { exportToPdf } from '@/lib/exportPdf'
 import type { PlanType } from '@/lib/plans'
+import { buildTopicSeedDoc } from '@/lib/topic-seed-doc'
 
 type MeLite = {
   subscription: { planType: PlanType }
@@ -28,67 +29,6 @@ type GeneratedDocListRow = {
 }
 
 type SourceMode = 'fromTopic' | 'fromProgram' | 'fromScenario'
-
-function todayStr() {
-  return new Date().toISOString().slice(0, 10)
-}
-
-function makeDummyEmceeBaseDoc({
-  topic,
-  headcount,
-  venue,
-}: {
-  topic: string
-  headcount: string
-  venue: string
-}): QuoteDoc {
-  const quoteDate = todayStr()
-  return {
-    eventName: topic,
-    clientName: '',
-    clientManager: '',
-    clientTel: '',
-    quoteDate,
-    eventDate: '',
-    eventDuration: '',
-    venue: venue.trim(),
-    headcount: headcount.trim(),
-    eventType: '기타',
-    quoteItems: [
-      {
-        category: '기타',
-        items: [
-          {
-            name: '기본 컨텍스트',
-            spec: '',
-            qty: 1,
-            unit: '식',
-            unitPrice: 0,
-            total: 0,
-            note: '',
-            kind: '필수',
-          },
-        ],
-      },
-    ],
-    expenseRate: 0,
-    profitRate: 0,
-    cutAmount: 0,
-    notes: '',
-    paymentTerms: '',
-    validDays: 7,
-    program: {
-      concept: '',
-      programRows: [],
-      timeline: [],
-      staffing: [],
-      tips: [],
-      cueRows: [],
-      cueSummary: '',
-    },
-    quoteTemplate: 'default',
-  } as QuoteDoc
-}
 
 export default function EmceeScriptGeneratorPage() {
   const [toast, setToast] = useState<string | null>(null)
@@ -175,7 +115,15 @@ export default function EmceeScriptGeneratorPage() {
   const handleGenerate = useCallback(async () => {
     const docForGenerate =
       sourceMode === 'fromTopic'
-        ? doc ?? makeDummyEmceeBaseDoc({ topic: topic.trim() || '행사', headcount, venue })
+        ? doc ??
+          buildTopicSeedDoc({
+            topic: topic.trim() || '행사',
+            headcount,
+            venue,
+            goal,
+            notes,
+            documentTarget: 'emcee',
+          })
         : doc
     if (!docForGenerate) {
       showToast('생성에 필요한 문서 컨텍스트가 없습니다. 소스 문서를 선택했는지 확인해 주세요.')
@@ -190,6 +138,8 @@ export default function EmceeScriptGeneratorPage() {
       const data = await apiGenerateStream(
         {
           ...baseBody,
+          briefGoal: sourceMode === 'fromTopic' ? goal.trim() : '',
+          briefNotes: sourceMode === 'fromTopic' ? notes.trim() : '',
           documentTarget: 'emceeScript',
           existingDoc: docForGenerate,
         },

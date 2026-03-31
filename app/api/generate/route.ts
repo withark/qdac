@@ -54,6 +54,8 @@ const GenerateRequestSchema = z.object({
   streamProgress: z.boolean().optional().default(false),
   /** 견적 레이아웃(프로·프리미엄 템플릿 Opus 라우팅) — 최초 생성 시에도 전달 가능 */
   quoteTemplate: z.string().optional().default(''),
+  /** 프로그램/종목 힌트(비어 있으면 서버가 existingDoc에서 유도) */
+  programs: z.array(z.string()).optional().default([]),
 })
 
 export async function POST(req: NextRequest) {
