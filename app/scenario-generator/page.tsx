@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
-import SimpleGeneratorWizard, { type WizardHighlight } from '@/components/generators/SimpleGeneratorWizard'
+import SimpleGeneratorWizard, {
+  type WizardCoreFieldProgress,
+  type WizardHighlight,
+} from '@/components/generators/SimpleGeneratorWizard'
 import { Input, Textarea, Toast } from '@/components/ui'
 import type { CompanySettings, PriceCategory, QuoteDoc } from '@/lib/types'
 import { apiFetch, apiGenerateStream } from '@/lib/api/client'
@@ -203,6 +206,20 @@ export default function ScenarioGeneratorPage() {
     return null
   }, [generateDisabled, sourceMode, topic, goal, selectedBaseDocId, doc])
 
+  const coreFieldsProgress = useMemo((): WizardCoreFieldProgress[] | undefined => {
+    if (sourceMode === 'fromTopic') {
+      return [
+        { label: '이벤트 주제', done: !!topic.trim() },
+        { label: '목표', done: !!goal.trim() },
+      ]
+    }
+    const docLabel = sourceMode === 'fromPlanning' ? '기획 문서' : '프로그램 제안서'
+    return [{ label: docLabel, done: !!(selectedBaseDocId && doc) }]
+  }, [sourceMode, topic, goal, selectedBaseDocId, doc])
+
+  const topicInvalid = sourceMode === 'fromTopic' && generateDisabled && !topic.trim()
+  const goalInvalid = sourceMode === 'fromTopic' && generateDisabled && !goal.trim()
+
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50/50">
       <GNB />
@@ -224,6 +241,8 @@ export default function ScenarioGeneratorPage() {
             title="시나리오 만들기"
             subtitle="연출 흐름과 진행 멘트를 같이 정리해 바로 리허설 문서로 쓸 수 있게 구성합니다."
             highlights={wizardHighlights}
+            collapsibleHighlights
+            coreFieldsProgress={coreFieldsProgress}
             modes={[
               { id: 'fromTopic', title: '주제만 입력', desc: '행사 목표와 연출 메모만으로 초안을 만듭니다.' },
               { id: 'fromPlanning', title: '기획안 기준', desc: '기획 구조를 바탕으로 연출/멘트 흐름을 구체화합니다.' },
@@ -268,12 +287,16 @@ export default function ScenarioGeneratorPage() {
                   </div>
                   <Input
                     label="이벤트 주제"
+                    showRequiredMark
+                    invalid={topicInvalid}
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
                     placeholder="예) 기업 워크숍 / 신제품 론칭"
                   />
                   <Textarea
                     label="목표"
+                    showRequiredMark
+                    invalid={goalInvalid}
                     value={goal}
                     onChange={(e) => setGoal(e.target.value)}
                     placeholder="예) 참가자들이 핵심 메시지를 이해하고 행동까지 이어지게"

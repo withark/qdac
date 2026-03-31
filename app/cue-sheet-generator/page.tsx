@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
-import SimpleGeneratorWizard, { type WizardHighlight, type WizardMode } from '@/components/generators/SimpleGeneratorWizard'
+import SimpleGeneratorWizard, {
+  type WizardCoreFieldProgress,
+  type WizardHighlight,
+  type WizardMode,
+} from '@/components/generators/SimpleGeneratorWizard'
 import { Input, Textarea, Toast } from '@/components/ui'
 import type { CompanySettings, PriceCategory, QuoteDoc } from '@/lib/types'
 import type { PlanType } from '@/lib/plans'
@@ -210,6 +214,22 @@ export default function CueSheetGeneratorPage() {
     return null
   }, [generateDisabled, sourceMode, topic, goal, selectedScenarioId, selectedProgramId, contextDoc])
 
+  const coreFieldsProgress = useMemo((): WizardCoreFieldProgress[] | undefined => {
+    if (sourceMode === 'fromTopic') {
+      return [
+        { label: '이벤트 주제', done: !!topic.trim() },
+        { label: '목표', done: !!goal.trim() },
+      ]
+    }
+    if (sourceMode === 'fromScenario') {
+      return [{ label: '시나리오', done: !!(selectedScenarioId && contextDoc) }]
+    }
+    return [{ label: '프로그램 제안', done: !!(selectedProgramId && contextDoc) }]
+  }, [sourceMode, topic, goal, selectedScenarioId, selectedProgramId, contextDoc])
+
+  const topicInvalid = sourceMode === 'fromTopic' && generateDisabled && !topic.trim()
+  const goalInvalid = sourceMode === 'fromTopic' && generateDisabled && !goal.trim()
+
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50/50">
       <GNB />
@@ -229,6 +249,8 @@ export default function CueSheetGeneratorPage() {
             title="큐시트 만들기"
             subtitle="시간, 담당자, 준비물, 멘트 큐를 한 번에 정리해 바로 현장 공유가 가능하도록 구성했습니다."
             highlights={wizardHighlights}
+            collapsibleHighlights
+            coreFieldsProgress={coreFieldsProgress}
             modes={modes}
             modeId={sourceMode}
             onModeChange={(id) => {
@@ -291,12 +313,16 @@ export default function CueSheetGeneratorPage() {
                   </div>
                   <Input
                     label="이벤트 주제"
+                    showRequiredMark
+                    invalid={topicInvalid}
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
                     placeholder="예) 기업 워크숍 현장 운영 흐름"
                   />
                   <Textarea
                     label="목표"
+                    showRequiredMark
+                    invalid={goalInvalid}
                     value={goal}
                     onChange={(e) => setGoal(e.target.value)}
                     placeholder="예) 참가자들이 끝까지 몰입하고 행동까지 이어지게"

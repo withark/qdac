@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { Fragment, useRef } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 import { Button } from '@/components/ui'
 
@@ -22,6 +22,22 @@ export type WizardHighlight = {
   value: string
 }
 
+export type WizardCoreFieldProgress = {
+  label: string
+  done: boolean
+}
+
+function getScrollParent(el: HTMLElement | null): HTMLElement | null {
+  if (!el) return null
+  for (let p: HTMLElement | null = el.parentElement; p; p = p.parentElement) {
+    const { overflowY } = getComputedStyle(p)
+    if (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') {
+      return p
+    }
+  }
+  return null
+}
+
 export default function SimpleGeneratorWizard({
   title,
   subtitle,
@@ -39,6 +55,10 @@ export default function SimpleGeneratorWizard({
   preStepContent,
   showValidationBanner = true,
   collapsibleHighlights = false,
+  /** collapsibleHighlights일 때 기본 펼침 여부 (기본: 접힘) */
+  highlightsDefaultOpen = false,
+  /** 2단계 상단에 필수 입력 충족 여부 체크리스트 */
+  coreFieldsProgress,
 }: {
   title: string
   subtitle?: string
@@ -51,20 +71,71 @@ export default function SimpleGeneratorWizard({
   onGenerate: () => void | Promise<void>
   generating?: boolean
   generateDisabled?: boolean
-  /** 생성 중 서버 단계(NDJSON) — 있으면 버튼 위에 표시 */
   generationProgressLabel?: string | null
-  /** 생성 버튼이 비활성일 때, 부족한 입력을 한눈에 설명 */
   validationMessage?: string | null
-  /** 1단계 위에 배치(예: 스타일·참고 견적 안내) */
   preStepContent?: ReactNode
-  /** false이면 노란 검증 박스를 숨김(인라인 검증 등과 병행할 때) */
   showValidationBanner?: boolean
-  /** true이면 요약 카드를 접을 수 있는 영역으로 표시 */
   collapsibleHighlights?: boolean
+  highlightsDefaultOpen?: boolean
+  coreFieldsProgress?: WizardCoreFieldProgress[]
 }) {
-  // 부모 컴포넌트의 `generating` 상태 업데이트가 렌더되기 전
-  // 아주 빠른 더블 클릭에서 `onGenerate`가 2번 호출되는 것을 방지합니다.
   const inFlightRef = useRef(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const step1Ref = useRef<HTMLElement>(null)
+  const step2Ref = useRef<HTMLElement>(null)
+  const step3Ref = useRef<HTMLElement>(null)
+  const prevModeIdRef = useRef(modeId)
+
+  const [activeStep, setActiveStep] = useState<1 | 2 | 3>(1)
+  const [highlightsOpen, setHighlightsOpen] = useState(highlightsDefaultOpen)
+
+  const scrollToStep = useCallback((n: 1 | 2 | 3) => {
+    const ref = n === 1 ? step1Ref : n === 2 ? step2Ref : step3Ref
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [])
+
+  useEffect(() => {
+    const root = rootRef.current
+    if (!root) return
+    const scrollRoot = getScrollParent(root)
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting && e.intersectionRatio > 0)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)
+        const top = visible[0]
+        if (!top?.target) return
+        const id = top.target.id
+        if (id === 'wizard-step-1') setActiveStep(1)
+        else if (id === 'wizard-step-2') setActiveStep(2)
+        else if (id === 'wizard-step-3') setActiveStep(3)
+      },
+      {
+        root: scrollRoot,
+        rootMargin: '-12% 0px -45% 0px',
+        threshold: [0, 0.1, 0.25, 0.5, 0.75, 1],
+      },
+    )
+
+    ;[step1Ref.current, step2Ref.current, step3Ref.current].forEach((el) => {
+      if (el) obs.observe(el)
+    })
+
+    return () => obs.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (prevModeIdRef.current === modeId) return
+    prevModeIdRef.current = modeId
+    const sec = step2Ref.current
+    if (!sec) return
+    requestAnimationFrame(() => {
+      const focusable = sec.querySelector<HTMLElement>(
+        'input:not([type="hidden"]), select, textarea, button:not([disabled])',
+      )
+      focusable?.focus()
+    })
+  }, [modeId])
 
   const handleGenerateClick = async () => {
     if (generateDisabled || generating) return
@@ -77,6 +148,10 @@ export default function SimpleGeneratorWizard({
     }
   }
 
+  const step1Done = true
+  const step2Done = !generateDisabled
+  const stepDone = (n: 1 | 2 | 3) => (n === 1 ? step1Done : n === 2 ? step2Done : false)
+
   const highlightGrid = (
     <div className="grid gap-3 md:grid-cols-3">
       {highlights.map((item) => (
@@ -88,8 +163,42 @@ export default function SimpleGeneratorWizard({
     </div>
   )
 
+  const selectedMode = modes.find((m) => m.id === modeId)
+
+  const generateSection = (
+    <>
+      {generating && generationProgressLabel ? (
+        <div
+          className="mb-3 rounded-2xl border border-primary-200 bg-gradient-to-r from-primary-50 to-white px-4 py-3 text-sm font-medium text-primary-900"
+          role="status"
+          aria-live="polite"
+        >
+          {generationProgressLabel}
+        </div>
+      ) : null}
+      {generateDisabled && validationMessage && showValidationBanner ? (
+        <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+          <p className="text-sm font-medium text-amber-950">{validationMessage}</p>
+        </div>
+      ) : null}
+      <div className="flex flex-col items-stretch sm:items-start gap-2">
+        <Button
+          variant="primary"
+          className="w-full justify-center py-4 text-[15px] sm:w-auto sm:min-w-[min(100%,280px)] sm:px-10"
+          disabled={generateDisabled || generating}
+          onClick={() => void handleGenerateClick()}
+        >
+          {generating ? `${generateLabel}...` : generateLabel}
+        </Button>
+        {generateDisabled && !generating ? (
+          <p className="max-w-md text-xs leading-5 text-slate-500">필수 항목을 채우면 버튼이 활성화됩니다.</p>
+        ) : null}
+      </div>
+    </>
+  )
+
   return (
-    <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-card sm:p-7">
+    <div ref={rootRef} className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-card sm:p-7">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-3xl">
           <div className="text-xs font-semibold tracking-wide text-primary-700">바로 전달 가능한 문서 생성</div>
@@ -98,27 +207,53 @@ export default function SimpleGeneratorWizard({
         </div>
       </div>
 
-      <nav className="mt-5 flex flex-wrap items-center gap-x-1 gap-y-2" aria-label="견적 작성 단계">
-        {WIZARD_STEPS.map((s, i) => (
-          <Fragment key={s.n}>
-            <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50/80 px-3 py-1.5 text-xs font-semibold text-slate-800 sm:text-sm">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[11px] text-white sm:text-xs">
-                {s.n}
-              </span>
-              {s.label}
-            </div>
-            {i < WIZARD_STEPS.length - 1 ? (
-              <span className="hidden text-slate-300 sm:inline" aria-hidden="true">
-                —
-              </span>
-            ) : null}
-          </Fragment>
-        ))}
+      <nav className="mt-5 flex flex-wrap items-center gap-x-1 gap-y-2" aria-label="문서 생성 단계">
+        {WIZARD_STEPS.map((s, i) => {
+          const isActive = activeStep === s.n
+          const done = stepDone(s.n)
+          return (
+            <Fragment key={s.n}>
+              <button
+                type="button"
+                onClick={() => scrollToStep(s.n)}
+                className={clsx(
+                  'flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors sm:text-sm',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2',
+                  isActive && 'border-primary-300 bg-primary-50 text-primary-900 ring-2 ring-primary-500/25',
+                  !isActive && done && 'border-emerald-200 bg-emerald-50/80 text-emerald-900',
+                  !isActive && !done && 'border-slate-200 bg-slate-50/80 text-slate-800 hover:border-slate-300',
+                )}
+                aria-current={isActive ? 'step' : undefined}
+              >
+                <span
+                  className={clsx(
+                    'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] text-white sm:text-xs',
+                    isActive && 'bg-primary-600',
+                    !isActive && done && 'bg-emerald-600',
+                    !isActive && !done && 'bg-slate-600',
+                  )}
+                >
+                  {done && !isActive ? '✓' : s.n}
+                </span>
+                {s.label}
+              </button>
+              {i < WIZARD_STEPS.length - 1 ? (
+                <span className="hidden text-slate-300 sm:inline" aria-hidden="true">
+                  —
+                </span>
+              ) : null}
+            </Fragment>
+          )
+        })}
       </nav>
 
       {highlights.length ? (
         collapsibleHighlights ? (
-          <details className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/40 px-4 py-3">
+          <details
+            className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/40 px-4 py-3"
+            open={highlightsOpen}
+            onToggle={(e) => setHighlightsOpen(e.currentTarget.open)}
+          >
             <summary className="cursor-pointer text-sm font-semibold text-slate-800 outline-none marker:text-primary-600">
               입력 요약 보기 (필수·권장·결과물)
             </summary>
@@ -132,7 +267,7 @@ export default function SimpleGeneratorWizard({
       <div className="mt-6 space-y-5">
         {preStepContent ? <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 sm:p-5">{preStepContent}</div> : null}
 
-        <section>
+        <section ref={step1Ref} id="wizard-step-1" className="scroll-mt-4">
           <div className="mb-3 flex items-center gap-2">
             <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-slate-900 px-2 text-xs font-semibold text-white">1</span>
             <div className="text-[17px] font-semibold text-slate-900">기준 선택</div>
@@ -173,47 +308,55 @@ export default function SimpleGeneratorWizard({
           </div>
         </section>
 
-        <section>
-          <div className="mb-3 flex items-center gap-2">
-            <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-slate-900 px-2 text-xs font-semibold text-white">2</span>
-            <div className="text-[17px] font-semibold text-slate-900">핵심 정보 입력</div>
+        <section ref={step2Ref} id="wizard-step-2" className="scroll-mt-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-slate-900 px-2 text-xs font-semibold text-white">2</span>
+              <div className="text-[17px] font-semibold text-slate-900">핵심 정보 입력</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => scrollToStep(3)}
+              className="text-sm font-semibold text-primary-700 hover:text-primary-800 hover:underline"
+            >
+              생성 단계로 이동 →
+            </button>
           </div>
+          {selectedMode ? (
+            <p className="mb-3 text-sm text-slate-600">
+              선택한 기준: <span className="font-semibold text-slate-900">{selectedMode.title}</span>
+            </p>
+          ) : null}
           <div className="rounded-3xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
+            {coreFieldsProgress?.length ? (
+              <ul className="mb-4 flex flex-wrap gap-2" aria-label="필수 입력 진행 상태">
+                {coreFieldsProgress.map((row) => (
+                  <li
+                    key={row.label}
+                    className={clsx(
+                      'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold',
+                      row.done ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-slate-200 bg-white text-slate-600',
+                    )}
+                  >
+                    <span className={row.done ? 'text-emerald-600' : 'text-slate-400'} aria-hidden>
+                      {row.done ? '✓' : '○'}
+                    </span>
+                    {row.label}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             {requiredInput}
           </div>
         </section>
 
-        <section>
+        <section ref={step3Ref} id="wizard-step-3" className="scroll-mt-4">
           <div className="mb-3 flex items-center gap-2">
             <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-slate-900 px-2 text-xs font-semibold text-white">3</span>
             <div className="text-[17px] font-semibold text-slate-900">생성 및 확인</div>
           </div>
-          {generating && generationProgressLabel ? (
-            <div
-              className="mb-3 rounded-2xl border border-primary-200 bg-gradient-to-r from-primary-50 to-white px-4 py-3 text-sm font-medium text-primary-900"
-              role="status"
-              aria-live="polite"
-            >
-              {generationProgressLabel}
-            </div>
-          ) : null}
-          {generateDisabled && validationMessage && showValidationBanner ? (
-            <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
-              <p className="text-sm font-medium text-amber-950">{validationMessage}</p>
-            </div>
-          ) : null}
-          <div className="flex flex-col items-stretch sm:items-start">
-            <Button
-              variant="primary"
-              className="w-full justify-center py-4 text-[15px] sm:w-auto sm:min-w-[min(100%,280px)] sm:px-10"
-              disabled={generateDisabled || generating}
-              onClick={() => void handleGenerateClick()}
-            >
-              {generating ? `${generateLabel}...` : generateLabel}
-            </Button>
-            {generateDisabled && !generating ? (
-              <p className="mt-2 max-w-md text-xs leading-5 text-slate-500">필수 항목을 채우면 버튼이 활성화됩니다.</p>
-            ) : null}
+          <div className="sticky bottom-0 z-10 -mx-5 mt-1 border-t border-slate-200 bg-white/95 px-5 py-4 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] backdrop-blur-sm sm:-mx-7 sm:px-7">
+            {generateSection}
           </div>
         </section>
       </div>

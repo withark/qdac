@@ -4,7 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
 import { Input, Textarea, Toast } from '@/components/ui'
-import SimpleGeneratorWizard, { type WizardHighlight } from '@/components/generators/SimpleGeneratorWizard'
+import SimpleGeneratorWizard, {
+  type WizardCoreFieldProgress,
+  type WizardHighlight,
+} from '@/components/generators/SimpleGeneratorWizard'
 import type { CompanySettings, HistoryRecord, PriceCategory, QuoteDoc, TaskOrderDoc } from '@/lib/types'
 import { apiFetch, apiGenerateStream } from '@/lib/api/client'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
@@ -225,6 +228,25 @@ export default function ProgramProposalGeneratorPage() {
     return null
   }, [generateDisabled, sourceMode, topic, goal, selectedTaskOrderBaseId, selectedEstimateId, doc])
 
+  const coreFieldsProgress = useMemo((): WizardCoreFieldProgress[] | undefined => {
+    if (sourceMode === 'fromTopic') {
+      return [
+        { label: '이벤트 주제', done: !!topic.trim() },
+        { label: '목표', done: !!goal.trim() },
+      ]
+    }
+    if (sourceMode === 'fromEstimate') {
+      return [{ label: '견적 선택', done: !!(selectedEstimateId && doc) }]
+    }
+    if (sourceMode === 'fromTaskOrder') {
+      return [{ label: '과업지시서', done: !!(selectedTaskOrderBaseId && doc) }]
+    }
+    return undefined
+  }, [sourceMode, topic, goal, selectedEstimateId, selectedTaskOrderBaseId, doc])
+
+  const topicInvalid = sourceMode === 'fromTopic' && generateDisabled && !topic.trim()
+  const goalInvalid = sourceMode === 'fromTopic' && generateDisabled && !goal.trim()
+
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50/50">
       <GNB />
@@ -246,6 +268,8 @@ export default function ProgramProposalGeneratorPage() {
             title="프로그램 제안서 만들기"
             subtitle="고객에게 보여줄 구성안 중심으로 작성하고, 생성 후 바로 편집할 수 있습니다."
             highlights={wizardHighlights}
+            collapsibleHighlights
+            coreFieldsProgress={coreFieldsProgress}
             modes={[
               { id: 'fromTopic', title: '주제만 입력', desc: '핵심 목표만 넣고 제안서를 빠르게 만듭니다.' },
               { id: 'fromEstimate', title: '견적서 기준', desc: '기존 견적 문맥을 이어서 제안 흐름을 만듭니다.' },
@@ -313,12 +337,16 @@ export default function ProgramProposalGeneratorPage() {
                   </div>
                   <Input
                     label="이벤트 주제"
+                    showRequiredMark
+                    invalid={topicInvalid}
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
                     placeholder="예) 기업 워크숍 프로그램 흐름/콘셉트"
                   />
                   <Textarea
                     label="목표"
+                    showRequiredMark
+                    invalid={goalInvalid}
                     value={goal}
                     onChange={(e) => setGoal(e.target.value)}
                     placeholder="예) 참여자들이 끝까지 몰입하고 행동까지 이어지게"

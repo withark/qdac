@@ -39,9 +39,13 @@ export const Btn = Button
 /* ── Input ────────────────────────────────── */
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: ReactNode
+  /** 라벨 옆에 필수 표시(별표) */
+  showRequiredMark?: boolean
+  /** 검증 실패 시 테두리 강조 */
+  invalid?: boolean
 }
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, className, id, ...props }, ref) => {
+  ({ label, showRequiredMark, invalid, className, id, ...props }, ref) => {
     const generatedId = useId()
     const inputId = id ?? generatedId
 
@@ -50,15 +54,22 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label htmlFor={inputId} className="text-sm font-semibold text-slate-700">
             {label}
+            {showRequiredMark ? (
+              <abbr title="필수" className="ml-0.5 font-bold text-red-600 no-underline">
+                *
+              </abbr>
+            ) : null}
           </label>
         )}
         <input
           ref={ref}
           id={inputId}
+          aria-invalid={invalid || undefined}
           {...props}
           className={clsx(
             'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm',
             'placeholder:text-slate-500 focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70 transition-colors',
+            invalid && 'border-red-300 focus:border-red-400 focus:ring-red-100/70',
             className
           )}
         />
@@ -101,8 +112,10 @@ export function Select({ label, className, children, ...props }: SelectProps) {
 /* ── Textarea ─────────────────────────────── */
 interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string
+  showRequiredMark?: boolean
+  invalid?: boolean
 }
-export function Textarea({ label, className, ...props }: TextareaProps) {
+export function Textarea({ label, showRequiredMark, invalid, className, ...props }: TextareaProps) {
   const generatedId = useId()
   const textareaId = props.id ?? generatedId
 
@@ -111,14 +124,21 @@ export function Textarea({ label, className, ...props }: TextareaProps) {
       {label && (
         <label htmlFor={textareaId} className="text-sm font-semibold text-slate-700">
           {label}
+          {showRequiredMark ? (
+            <abbr title="필수" className="ml-0.5 font-bold text-red-600 no-underline">
+              *
+            </abbr>
+          ) : null}
         </label>
       )}
       <textarea
         {...props}
         id={textareaId}
+        aria-invalid={invalid || undefined}
         className={clsx(
           'w-full resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm',
           'placeholder:text-slate-500 focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70 transition-colors',
+          invalid && 'border-red-300 focus:border-red-400 focus:ring-red-100/70',
           className
         )}
       />

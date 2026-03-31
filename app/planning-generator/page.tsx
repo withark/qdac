@@ -4,7 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
 import { Input, Textarea, Toast } from '@/components/ui'
-import SimpleGeneratorWizard, { type WizardHighlight } from '@/components/generators/SimpleGeneratorWizard'
+import SimpleGeneratorWizard, {
+  type WizardCoreFieldProgress,
+  type WizardHighlight,
+} from '@/components/generators/SimpleGeneratorWizard'
 import type { CompanySettings, HistoryRecord, PriceCategory, QuoteDoc, TaskOrderDoc } from '@/lib/types'
 import { apiFetch, apiGenerateStream } from '@/lib/api/client'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
@@ -220,6 +223,25 @@ export default function PlanningGeneratorPage() {
     return null
   }, [generateDisabled, sourceMode, topic, goal, selectedTaskOrderBaseId, selectedEstimateId, doc])
 
+  const coreFieldsProgress = useMemo((): WizardCoreFieldProgress[] | undefined => {
+    if (sourceMode === 'fromTopic') {
+      return [
+        { label: '이벤트 주제', done: !!topic.trim() },
+        { label: '목표', done: !!goal.trim() },
+      ]
+    }
+    if (sourceMode === 'fromEstimate') {
+      return [{ label: '견적 선택', done: !!(selectedEstimateId && doc) }]
+    }
+    if (sourceMode === 'fromTaskOrder') {
+      return [{ label: '과업지시서', done: !!(selectedTaskOrderBaseId && doc) }]
+    }
+    return undefined
+  }, [sourceMode, topic, goal, selectedEstimateId, selectedTaskOrderBaseId, doc])
+
+  const topicInvalid = sourceMode === 'fromTopic' && generateDisabled && !topic.trim()
+  const goalInvalid = sourceMode === 'fromTopic' && generateDisabled && !goal.trim()
+
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50/50">
       <GNB />
@@ -236,6 +258,8 @@ export default function PlanningGeneratorPage() {
             title="기획안 만들기"
             subtitle="실행 계획과 산출물 기준이 보이도록, 내부 검토와 고객 공유 둘 다 가능한 초안으로 작성합니다."
             highlights={wizardHighlights}
+            collapsibleHighlights
+            coreFieldsProgress={coreFieldsProgress}
             modes={[
               { id: 'fromTopic', title: '주제만 입력', desc: '행사 목적과 메시지를 중심으로 기획안을 씁니다.' },
               { id: 'fromEstimate', title: '견적서 기준', desc: '기존 행사 정보와 견적 문맥을 이어서 기획합니다.' },
@@ -303,12 +327,16 @@ export default function PlanningGeneratorPage() {
                   </div>
                   <Input
                     label="이벤트 주제"
+                    showRequiredMark
+                    invalid={topicInvalid}
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
                     placeholder="예) 기업 워크숍 운영/산출물 계획"
                   />
                   <Textarea
                     label="목표"
+                    showRequiredMark
+                    invalid={goalInvalid}
                     value={goal}
                     onChange={(e) => setGoal(e.target.value)}
                     placeholder="예) 참석자들이 핵심 메시지를 이해하고 행동까지 이어지게"

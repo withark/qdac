@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
-import SimpleGeneratorWizard from '@/components/generators/SimpleGeneratorWizard'
+import SimpleGeneratorWizard, { type WizardCoreFieldProgress } from '@/components/generators/SimpleGeneratorWizard'
 import { Input, Textarea, Toast } from '@/components/ui'
 import type { CompanySettings, PriceCategory, QuoteDoc } from '@/lib/types'
 import { apiFetch, apiGenerateStream } from '@/lib/api/client'
@@ -245,6 +245,20 @@ export default function EmceeScriptGeneratorPage() {
     return null
   }, [generateDisabled, sourceMode, topic, goal, selectedBaseDocId, doc])
 
+  const coreFieldsProgress = useMemo((): WizardCoreFieldProgress[] | undefined => {
+    if (sourceMode === 'fromTopic') {
+      return [
+        { label: '행사 주제', done: !!topic.trim() },
+        { label: '멘트 목표·톤', done: !!goal.trim() },
+      ]
+    }
+    const label = sourceMode === 'fromProgram' ? '프로그램 제안서' : '시나리오'
+    return [{ label, done: !!(selectedBaseDocId && doc) }]
+  }, [sourceMode, topic, goal, selectedBaseDocId, doc])
+
+  const topicInvalid = sourceMode === 'fromTopic' && generateDisabled && !topic.trim()
+  const goalInvalid = sourceMode === 'fromTopic' && generateDisabled && !goal.trim()
+
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50/50">
       <GNB />
@@ -265,6 +279,7 @@ export default function EmceeScriptGeneratorPage() {
           <SimpleGeneratorWizard
             title="사회자 멘트 만들기"
             subtitle=""
+            coreFieldsProgress={coreFieldsProgress}
             modes={[
               { id: 'fromTopic', title: '주제만 입력' },
               { id: 'fromProgram', title: '프로그램 제안서 기준' },
@@ -309,12 +324,16 @@ export default function EmceeScriptGeneratorPage() {
                   </div>
                   <Input
                     label="행사 주제"
+                    showRequiredMark
+                    invalid={topicInvalid}
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
                     placeholder="예) 기업 체육대회 / 신제품 론칭"
                   />
                   <Textarea
                     label="멘트 목표·톤"
+                    showRequiredMark
+                    invalid={goalInvalid}
                     value={goal}
                     onChange={(e) => setGoal(e.target.value)}
                     placeholder="예) 격식 있게, VIP 인사 직후 바로 본행사로 넘어가게"

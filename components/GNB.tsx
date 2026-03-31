@@ -116,6 +116,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                 href={n.href}
                 onClick={onNavigate}
                 title={n.text}
+                aria-current={path.startsWith(n.href) ? 'page' : undefined}
                 className={clsx(
                   'group flex items-center gap-3 rounded-xl px-2.5 py-2 text-[13px] font-semibold transition-colors',
                   path.startsWith(n.href)
