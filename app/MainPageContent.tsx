@@ -422,10 +422,11 @@ export async function MainPageContent() {
         </div>
       </section>
 
-      <section className="w-full px-4 pb-16 pt-4 sm:px-8 lg:px-12">
-        <div className="mx-auto max-w-5xl overflow-hidden rounded-[2rem] bg-gradient-to-br from-slate-900 via-primary-800 to-indigo-950 px-8 py-14 text-center shadow-2xl shadow-slate-900/30 sm:px-12 sm:py-16">
-          <h2 className="text-[22px] font-bold text-white sm:text-[30px]">완성본 문서, 지금 바로 만들어 보세요</h2>
-          <p className="mx-auto mt-4 max-w-lg text-sm leading-relaxed text-primary-100 sm:text-[15px]">
+      <section className="w-full px-4 pb-16 pt-6 sm:px-8 lg:px-12">
+        <div className="mx-auto max-w-5xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white px-8 py-14 text-center shadow-[0_22px_48px_-28px_rgba(15,23,42,0.35)] sm:px-12 sm:py-16">
+          <div className="mx-auto mb-5 h-1.5 w-16 rounded-full bg-primary-500/70" />
+          <h2 className="text-[22px] font-bold text-slate-900 sm:text-[30px]">완성본 문서, 지금 바로 만들어 보세요</h2>
+          <p className="mx-auto mt-4 max-w-lg text-sm leading-relaxed text-slate-600 sm:text-[15px]">
             무료 플랜으로 월 {freeMonthlyGenerations}회까지 완성본 생성을 직접 써 보세요. 규모가 커지면 유료 플랜으로 자연스럽게
             늘리면 됩니다.
           </p>
@@ -434,20 +435,20 @@ export async function MainPageContent() {
             <StartNowLink
               variant="cta"
               initialHref={initialStartHref}
-              className="inline-flex min-w-[220px] items-center justify-center rounded-2xl bg-white px-8 py-3.5 text-sm font-semibold text-primary-800 shadow-lg transition-colors hover:bg-primary-50"
+              className="inline-flex min-w-[220px] items-center justify-center rounded-2xl bg-primary-600 px-8 py-3.5 text-sm font-semibold text-white shadow-md shadow-primary-600/20 transition-colors hover:bg-primary-700"
             >
               무료로 시작하기
             </StartNowLink>
             <Link
               href="mailto:sisimtree2017@naver.com"
-              className="inline-flex min-w-[220px] items-center justify-center rounded-2xl border-2 border-white/35 bg-white/10 px-8 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition-colors hover:bg-white/20"
+              className="inline-flex min-w-[220px] items-center justify-center rounded-2xl border border-slate-200 bg-white px-8 py-3.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
             >
               문의하기
             </Link>
           </div>
-          <p className="mt-6 text-xs text-primary-200/90">
+          <p className="mt-6 text-xs text-slate-500">
             문의 메일{' '}
-            <a href="mailto:sisimtree2017@naver.com" className="font-semibold text-white underline-offset-2 hover:underline">
+            <a href="mailto:sisimtree2017@naver.com" className="font-semibold text-primary-700 underline-offset-2 hover:underline">
               sisimtree2017@naver.com
             </a>
           </p>
