@@ -3,7 +3,7 @@ import { requireAdmin } from '@/lib/admin-auth'
 import { okResponse, errorResponse } from '@/lib/api/response'
 import { getEnv } from '@/lib/env'
 import { getEffectiveEngineConfig } from '@/lib/ai/client'
-import { isAiModeMockRaw, isMockGenerationEnabled, isProductionRuntime } from '@/lib/ai/mode'
+import { isAiModeMockRaw, isEffectiveMockAi, isMockGenerationEnabled, isProductionRuntime } from '@/lib/ai/mode'
 import { resolveAnthropicFinalModel } from '@/lib/ai/config'
 import { clampEngineMaxTokens } from '@/lib/ai/generate-config'
 
@@ -47,6 +47,7 @@ export async function GET(req: NextRequest) {
             maxTokens: clampEngineMaxTokens(Math.min(effRaw.maxTokens, realtimeTokenCap)),
           }
     const mockOn = isMockGenerationEnabled()
+    const effectiveMock = isEffectiveMockAi()
     const mockRaw = isAiModeMockRaw()
     const prod = isProductionRuntime()
     const hasKey = !!env.ANTHROPIC_API_KEY || !!env.OPENAI_API_KEY
@@ -54,7 +55,7 @@ export async function GET(req: NextRequest) {
     const aiModeEnv = (process.env.AI_MODE || '').trim() || null
 
     let verdict: 'mock' | 'real' | 'no_keys'
-    if (mockOn) verdict = 'mock'
+    if (effectiveMock) verdict = 'mock'
     else if (!hasKey) verdict = 'no_keys'
     else verdict = 'real'
 
@@ -63,8 +64,9 @@ export async function GET(req: NextRequest) {
 
     let summaryKo: string
     if (verdict === 'mock') {
-      summaryKo =
-        '지금 이 서버에서는 모의 생성만 사용합니다. `AI_MODE=mock`이 켜져 있고 비운영 환경이라 실제 LLM API는 호출되지 않습니다. 표에 보이는 모델명은 적용 예정 설정일 뿐입니다.'
+      summaryKo = mockOn
+        ? '지금 이 서버에서는 모의 생성만 사용합니다. `AI_MODE=mock`이 켜져 있고 비운영 환경이라 실제 LLM API는 호출되지 않습니다. 표에 보이는 모델명은 적용 예정 설정일 뿐입니다.'
+        : '비운영 환경에서 Anthropic/OpenAI API 키가 없어 `/api/generate`는 모의 생성으로 동작합니다. 키를 넣으면 표시된 엔진으로 실연동됩니다.'
     } else if (verdict === 'no_keys') {
       summaryKo =
         '모의 생성은 꺼져 있으나 Anthropic/OpenAI API 키가 없습니다. `/api/generate`는 키가 있어야 실연동으로 동작합니다.'
@@ -76,6 +78,7 @@ export async function GET(req: NextRequest) {
       verdict,
       llmWillInvoke: verdict === 'real',
       mockGenerationEnabled: mockOn,
+      effectiveMockAi: effectiveMock,
       aiModeEnv,
       aiModeIsMockRaw: mockRaw,
       productionRuntime: prod,

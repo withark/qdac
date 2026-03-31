@@ -2,7 +2,7 @@ import type { GenerateInput, QuoteDoc, PriceCategory } from './types'
 import { callLLM, callLLMWithUsage, getEffectiveEngineConfig, type LLMUsage } from './client'
 import { buildGeneratePrompt, buildRepairPrompt } from './prompts'
 import { getEnv, readEnvBool } from '../env'
-import { isMockGenerationEnabled } from './mode'
+import { isEffectiveMockAi, isMockGenerationEnabled } from './mode'
 import { parseBudgetCeilingKRW } from '@/lib/budget'
 import {
   extractQuoteJson,
@@ -2089,7 +2089,8 @@ export const __test__ = {
 
 export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc: QuoteDoc; meta: GenerateTimingMeta }> {
   const totalStart = Date.now()
-  const mock = isMockGenerationEnabled()
+  /** 라우트 `isMockAi`(autoMockFallback 포함)와 동일해야 키 없는 로컬/프리뷰에서 LLM 미호출 */
+  const mock = isEffectiveMockAi()
   if (mock) {
     const start = input.eventStartHHmm || '19:00'
     const end = input.eventEndHHmm || '21:00'

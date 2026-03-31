@@ -10,7 +10,7 @@ import { assertEstimateGenerationAllowed, EntitlementError } from '@/lib/entitle
 import { shouldUsePremiumRefineModel } from '@/lib/ai/config'
 import type { PlanType } from '@/lib/plans'
 import { PLAN_LIMITS } from '@/lib/plans'
-import { isAiModeMockRaw, isMockGenerationEnabled, isProductionRuntime } from '@/lib/ai/mode'
+import { isAiModeMockRaw, isEffectiveMockAi, isProductionRuntime } from '@/lib/ai/mode'
 import {
   executeGeneratePipeline,
   GeneratePipelineError,
@@ -88,8 +88,7 @@ export async function POST(req: NextRequest) {
     const aiModeRawMock = isAiModeMockRaw()
     const hasAnthropic = !!env.ANTHROPIC_API_KEY
     const hasOpenAI = !!env.OPENAI_API_KEY
-    const autoMockFallback = !hasAnthropic && !hasOpenAI && !isProductionRuntime()
-    const isMockAi = isMockGenerationEnabled() || autoMockFallback
+    const isMockAi = isEffectiveMockAi()
     const mockBlockedInProduction = aiModeRawMock && isProductionRuntime() && !isMockAi
     if (!isMockAi && !hasAnthropic && !hasOpenAI) {
       return errorResponse(
