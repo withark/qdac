@@ -26,19 +26,39 @@ const NAV_LINKS: readonly NavLink[] = [
   { href: '/plans', label: '요금제', activePaths: ['/plans'] },
 ]
 
-function desktopLinkClass(isActive: boolean) {
-  return `whitespace-nowrap rounded-full px-3 py-1.5 leading-none transition-colors ${
-    isActive
-      ? 'border border-primary-200 bg-primary-50 text-primary-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]'
-      : 'text-slate-600 hover:text-primary-600'
-  }`
+function isPlansNav(href: string) {
+  return href === '/plans'
 }
 
-function mobileLinkClass(isActive: boolean) {
-  return `block w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition-colors ${
+function desktopLinkClass(isActive: boolean, cta: boolean) {
+  const focus =
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/35 focus-visible:ring-offset-2'
+  if (cta) {
+    return `whitespace-nowrap rounded-full border px-3.5 py-2 text-sm font-semibold leading-none transition-colors ${focus} ${
+      isActive
+        ? 'border-primary-300 bg-primary-100 text-primary-800 shadow-sm'
+        : 'border-primary-200/90 bg-primary-50 text-primary-700 hover:border-primary-300 hover:bg-primary-100'
+    }`
+  }
+  return `whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-medium leading-none transition-colors ${focus} ${
     isActive
-      ? 'border border-primary-200 bg-primary-50 text-primary-700'
-      : 'text-slate-700 hover:bg-slate-50'
+      ? 'text-primary-700'
+      : 'text-slate-700 decoration-primary-400/0 underline-offset-4 hover:text-primary-600 hover:underline hover:decoration-primary-400/60'
+  } ${isActive ? 'font-semibold' : ''}`
+}
+
+function mobileLinkClass(isActive: boolean, cta: boolean) {
+  const focus =
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/35 focus-visible:ring-offset-2 focus-visible:ring-offset-white'
+  if (cta) {
+    return `block w-full rounded-xl border px-4 py-3 text-left text-sm font-semibold transition-colors ${focus} ${
+      isActive
+        ? 'border-primary-300 bg-primary-100 text-primary-800'
+        : 'border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100'
+    }`
+  }
+  return `block w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition-colors ${focus} ${
+    isActive ? 'bg-primary-50 text-primary-800' : 'text-slate-700 hover:bg-slate-50'
   }`
 }
 
@@ -119,13 +139,14 @@ export function PublicSiteHeader({
         </Link>
 
         <nav
-          className="ml-3 mr-3 hidden min-w-0 flex-1 items-center justify-center gap-1 overflow-x-auto text-[13px] font-medium text-slate-600 md:flex md:gap-3 md:text-sm"
+          className="ml-3 mr-3 hidden min-w-0 flex-1 items-center justify-center gap-1 overflow-x-auto md:flex md:gap-5"
           aria-label="공개 사이트 메뉴"
         >
           {NAV_LINKS.map((item) => {
             const isActive = item.activePaths.includes(normalizedPath)
+            const cta = isPlansNav(item.href)
             return (
-              <Link key={item.href} href={item.href} className={desktopLinkClass(isActive)}>
+              <Link key={item.href} href={item.href} className={desktopLinkClass(isActive, cta)}>
                 {item.label}
               </Link>
             )
@@ -182,12 +203,13 @@ export function PublicSiteHeader({
             <nav aria-label="공개 사이트 메뉴 모바일">
               {NAV_LINKS.map((item, index) => {
                 const isActive = item.activePaths.includes(normalizedPath)
+                const cta = isPlansNav(item.href)
                 return (
                   <Link
                     key={item.href}
                     ref={index === 0 ? firstMobileLinkRef : undefined}
                     href={item.href}
-                    className={mobileLinkClass(isActive)}
+                    className={mobileLinkClass(isActive, cta)}
                     onClick={() => setMobileOpen(false)}
                   >
                     {item.label}

@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { HelpFaqAccordion } from '@/components/public/HelpFaqAccordion'
+import { PublicPageCrossLinks } from '@/components/public/PublicPageCrossLinks'
 import { PublicPageShell } from '@/components/public/PublicPageShell'
 import { SUPPORT_EMAIL, supportMailtoHref } from '@/lib/support-contact'
 
@@ -18,10 +20,25 @@ export default function HelpPage() {
     <PublicPageShell>
       <article className="mx-auto max-w-[760px] space-y-8">
         <header className="max-w-2xl">
-          <h1 className="text-[28px] font-bold tracking-tight text-slate-900 sm:text-[32px]">도움말</h1>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-primary-600">플래닉 안내</p>
+          <h1 className="mt-1.5 text-[28px] font-bold tracking-tight text-slate-900 sm:text-[32px]">도움말</h1>
           <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-[15px]">
             자주 묻는 질문을 먼저 확인해 보세요. 추가 문의는 아래 이메일로 보내 주시면 순차적으로 안내해 드립니다.
           </p>
+          <nav aria-label="이 페이지 안에서 이동" className="mt-5 flex flex-wrap gap-2">
+            <Link
+              href="#faq"
+              className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:border-primary-200 hover:bg-primary-50/60 hover:text-primary-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:ring-offset-2 sm:text-[13px]"
+            >
+              자주 묻는 질문
+            </Link>
+            <Link
+              href="#contact"
+              className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:border-primary-200 hover:bg-primary-50/60 hover:text-primary-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:ring-offset-2 sm:text-[13px]"
+            >
+              문의하기
+            </Link>
+          </nav>
         </header>
 
         <h2 id="faq" className="text-[17px] font-semibold text-slate-900 scroll-mt-24">
@@ -30,9 +47,9 @@ export default function HelpPage() {
 
         <HelpFaqAccordion />
 
-        <section className="border-t border-slate-200 pt-6">
+        <section id="contact" className="scroll-mt-24 border-t border-slate-200 pt-6">
           <h2 className="text-[17px] font-semibold text-slate-900">문의 방법</h2>
-          <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
+          <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-sm leading-relaxed text-slate-600">
               이용 중 불편한 점이나 문의 사항은 이메일로 남겨 주세요. 전화 상담은 제공하지 않습니다.
             </p>
@@ -61,6 +78,14 @@ export default function HelpPage() {
             </a>
           </div>
         </section>
+
+        <PublicPageCrossLinks
+          items={[
+            { href: '/guide', label: '사용 방법' },
+            { href: '/features', label: '기능 소개' },
+            { href: '/plans', label: '요금제 안내' },
+          ]}
+        />
       </article>
     </PublicPageShell>
   )

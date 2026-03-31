@@ -3,6 +3,7 @@ import Link from 'next/link'
 import clsx from 'clsx'
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { PublicPageCrossLinks } from '@/components/public/PublicPageCrossLinks'
 import { PublicPageShell } from '@/components/public/PublicPageShell'
 import { apiFetch } from '@/lib/api/client'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
@@ -112,7 +113,8 @@ function PlansContent() {
     <PublicPageShell>
       <section className="mx-auto max-w-[960px]">
         <div className="mx-auto mb-8 max-w-3xl">
-          <h1 className="text-[28px] font-bold tracking-tight text-slate-900 sm:text-[32px]">요금제</h1>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-primary-600">플래닉 안내</p>
+          <h1 className="mt-1.5 text-[28px] font-bold tracking-tight text-slate-900 sm:text-[32px]">요금제</h1>
           <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-[15px]">
             무료 플랜도 표준 하이브리드 품질을 유지합니다. 유료 가치는 생성 규모, 속도, 프리미엄 템플릿·Opus 정제에서 제공됩니다.
           </p>
@@ -296,8 +298,8 @@ function PlansContent() {
                         {c.badge}
                       </span>
                     )}
-                    <h2 className="text-lg font-bold text-gray-900">{c.title}</h2>
-                    <p className="text-sm text-slate-500 mt-0.5">{c.desc}</p>
+                    <h2 className="text-lg font-bold text-slate-900">{c.title}</h2>
+                    <p className="mt-0.5 text-sm text-slate-500">{c.desc}</p>
                   </div>
                   {isCurrent && (
                     <span className="text-[11px] font-semibold text-primary-700 bg-primary-50 border border-primary-100 px-2 py-1 rounded-full">
@@ -307,8 +309,8 @@ function PlansContent() {
                 </div>
 
                 <div className="mt-5 flex items-baseline gap-1">
-                  <span className="text-3xl font-bold text-gray-900">{fmtKRW(price)}</span>
-                  <span className="text-gray-500">{c.plan === 'FREE' ? '원' : `원${unit}`}</span>
+                  <span className="text-3xl font-bold text-slate-900">{fmtKRW(price)}</span>
+                  <span className="text-slate-500">{c.plan === 'FREE' ? '원' : `원${unit}`}</span>
                 </div>
                 {c.plan !== 'FREE' && cycle === 'annual' && (
                   <p className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2">
@@ -416,22 +418,22 @@ function PlansContent() {
                   {c.plan === 'FREE' ? (
                     <Link
                       href="/dashboard"
-                      className="w-full inline-flex items-center justify-center py-3 rounded-xl text-sm font-semibold border border-slate-200 text-gray-700 hover:bg-slate-50"
+                      className="w-full inline-flex items-center justify-center rounded-xl border border-slate-200 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                     >
                       무료로 시작하기
                     </Link>
                   ) : isCurrent ? (
                     <Link
                       href="/dashboard"
-                      className="w-full inline-flex items-center justify-center py-3 rounded-xl text-sm font-semibold border border-slate-200 text-gray-700 hover:bg-slate-50"
+                      className="w-full inline-flex items-center justify-center rounded-xl border border-slate-200 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                     >
                       대시보드로 이동
                     </Link>
                   ) : authStatus !== 'authenticated' ? (
                     <Link
                       href={`/auth?callbackUrl=${encodeURIComponent('/plans')}&reason=login_required`}
-                      className={`w-full inline-flex items-center justify-center py-3 rounded-xl text-sm font-semibold transition-colors ${
-                        c.highlight ? 'bg-primary-600 text-white hover:bg-primary-700' : 'border border-slate-200 text-gray-700 hover:bg-slate-50'
+                      className={`w-full inline-flex items-center justify-center rounded-xl py-3 text-sm font-semibold transition-colors ${
+                        c.highlight ? 'bg-primary-600 text-white hover:bg-primary-700' : 'border border-slate-200 text-slate-700 hover:bg-slate-50'
                       }`}
                     >
                       로그인 후 플랜 선택
@@ -441,8 +443,8 @@ function PlansContent() {
                       type="button"
                       disabled={loading}
                       onClick={() => subscribe(c.plan)}
-                      className={`w-full inline-flex items-center justify-center py-3 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60 ${
-                        c.highlight ? 'bg-primary-600 text-white hover:bg-primary-700' : 'border border-slate-200 text-gray-700 hover:bg-slate-50'
+                      className={`w-full inline-flex items-center justify-center rounded-xl py-3 text-sm font-semibold transition-colors disabled:opacity-60 ${
+                        c.highlight ? 'bg-primary-600 text-white hover:bg-primary-700' : 'border border-slate-200 text-slate-700 hover:bg-slate-50'
                       }`}
                     >
                       {loading ? '처리 중...' : ctaLabelForPlan(c.plan)}
@@ -454,11 +456,21 @@ function PlansContent() {
           })}
         </div>
 
-        <div className="mx-auto mt-4 flex max-w-5xl items-center justify-between text-xs text-slate-500">
+        <div className="mx-auto mt-4 flex max-w-5xl flex-col gap-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
           <p>* 위 상품의 최대 이용기간은 1년입니다.</p>
           <Link href="/refund" className="inline-flex items-center gap-1 font-semibold text-primary-700 hover:underline">
             환불 규정 안내 <span aria-hidden="true">›</span>
           </Link>
+        </div>
+
+        <div className="mx-auto mt-10 max-w-[960px]">
+          <PublicPageCrossLinks
+            items={[
+              { href: '/features', label: '기능 소개' },
+              { href: '/guide', label: '사용 방법' },
+              { href: '/help', label: '도움말 · FAQ' },
+            ]}
+          />
         </div>
 
       </section>

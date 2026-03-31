@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { PublicPageCrossLinks } from '@/components/public/PublicPageCrossLinks'
 import { PublicPageShell } from '@/components/public/PublicPageShell'
 
 const title = '사용 방법 · 플래닉 Planic'
@@ -44,27 +45,52 @@ export default function GuidePage() {
     <PublicPageShell>
       <article className="mx-auto max-w-[860px] space-y-8">
         <header className="max-w-2xl">
-          <h1 className="text-[28px] font-bold tracking-tight text-slate-900 sm:text-[32px]">사용 방법</h1>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-primary-600">플래닉 안내</p>
+          <h1 className="mt-1.5 text-[28px] font-bold tracking-tight text-slate-900 sm:text-[32px]">사용 방법</h1>
           <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-[15px]">
             플래닉은 단계 흐름에 맞춰 문서를 하나씩 만드는 방식입니다. 짧은 입력으로 시작해 저장/수정까지 이어집니다.
           </p>
         </header>
 
-        <h2 className="text-[17px] font-semibold text-slate-900">문서 생성 단계</h2>
+        <section aria-labelledby="guide-steps-heading">
+          <h2 id="guide-steps-heading" className="text-[17px] font-semibold text-slate-900">
+            문서 생성 단계
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">위에서 아래로 진행하면서 각 단계를 완료해 보세요.</p>
 
-        <section className="space-y-3.5">
-          {steps.map((step) => (
-            <article key={step.n} className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 sm:px-6 sm:py-5">
-              <p className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-600 text-sm font-semibold text-white">
-                {step.n}
-              </p>
-              <div>
-                <h2 className="text-[16px] font-semibold text-slate-900 sm:text-[17px]">{step.title}</h2>
-                <p className="mt-2 text-sm leading-relaxed text-slate-600">{step.description}</p>
-              </div>
-            </article>
-          ))}
+          <ol className="mt-6 space-y-0">
+            {steps.map((step, index) => {
+              const last = index === steps.length - 1
+              return (
+                <li key={step.n} className="flex gap-4">
+                  <div className="flex w-9 shrink-0 flex-col items-center">
+                    <span
+                      className="relative z-[1] inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-600 text-sm font-semibold text-white shadow-sm ring-4 ring-[rgb(var(--app-surface))]"
+                      aria-hidden
+                    >
+                      {step.n}
+                    </span>
+                    {!last ? (
+                      <span className="mt-2 w-px flex-1 min-h-[1.25rem] bg-slate-200" aria-hidden />
+                    ) : null}
+                  </div>
+                  <article className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm transition-[border-color,box-shadow] hover:border-slate-300/90 hover:shadow-md sm:px-6 sm:py-5">
+                    <h3 className="text-[16px] font-semibold text-slate-900 sm:text-[17px]">{step.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-600">{step.description}</p>
+                  </article>
+                </li>
+              )
+            })}
+          </ol>
         </section>
+
+        <PublicPageCrossLinks
+          items={[
+            { href: '/features', label: '기능 소개' },
+            { href: '/help', label: '도움말 · FAQ' },
+            { href: '/plans', label: '요금제 안내' },
+          ]}
+        />
       </article>
     </PublicPageShell>
   )

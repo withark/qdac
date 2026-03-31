@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { PublicPageCrossLinks } from '@/components/public/PublicPageCrossLinks'
 import { PublicPageShell } from '@/components/public/PublicPageShell'
 
 const title = '기능 소개 · 플래닉 Planic'
@@ -47,7 +48,8 @@ export default function FeaturesPage() {
     <PublicPageShell>
       <article className="mx-auto max-w-[860px] space-y-10">
         <header className="max-w-2xl">
-          <h1 className="text-[28px] font-bold tracking-tight text-slate-900 sm:text-[32px]">기능 소개</h1>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-primary-600">플래닉 안내</p>
+          <h1 className="mt-1.5 text-[28px] font-bold tracking-tight text-slate-900 sm:text-[32px]">기능 소개</h1>
           <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-[15px]">
             플래닉은 행사 문서를 하나씩 빠르게 만드는 데 집중합니다. 시작은 단순하게, 결과는 실무에 맞게 정교화합니다.
           </p>
@@ -55,7 +57,10 @@ export default function FeaturesPage() {
 
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {features.map((feature) => (
-            <article key={feature.title} className="rounded-2xl border border-slate-200 bg-white p-5">
+            <article
+              key={feature.title}
+              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-[border-color,box-shadow] hover:border-slate-300/90 hover:shadow-md"
+            >
               <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-700">
                 {feature.icon}
               </div>
@@ -67,34 +72,34 @@ export default function FeaturesPage() {
           ))}
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <h2 className="text-[17px] font-semibold text-slate-900">플래닉이 만들 수 있는 문서 종류</h2>
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 transition-colors hover:border-slate-200 hover:bg-slate-50/80">
               <p className="text-sm font-semibold text-slate-900">견적서</p>
               <p className="mt-1 text-sm text-slate-600">행사 예산·항목·금액 기준을 빠르게 정리해야 할 때</p>
             </div>
-            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 transition-colors hover:border-slate-200 hover:bg-slate-50/80">
               <p className="text-sm font-semibold text-slate-900">기획안</p>
               <p className="mt-1 text-sm text-slate-600">행사 목적과 구성 흐름을 문서로 정리해야 할 때</p>
             </div>
-            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 transition-colors hover:border-slate-200 hover:bg-slate-50/80">
               <p className="text-sm font-semibold text-slate-900">프로그램 제안서</p>
               <p className="mt-1 text-sm text-slate-600">세션·순서 중심의 프로그램 구성을 제안해야 할 때</p>
             </div>
-            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 transition-colors hover:border-slate-200 hover:bg-slate-50/80">
               <p className="text-sm font-semibold text-slate-900">시나리오</p>
               <p className="mt-1 text-sm text-slate-600">시간 흐름과 진행 멘트까지 포함한 실행안이 필요할 때</p>
             </div>
-            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 transition-colors hover:border-slate-200 hover:bg-slate-50/80">
               <p className="text-sm font-semibold text-slate-900">사회자 멘트</p>
               <p className="mt-1 text-sm text-slate-600">행사 흐름에 맞춘 MC 대본(구간별 멘트)이 필요할 때</p>
             </div>
-            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 transition-colors hover:border-slate-200 hover:bg-slate-50/80">
               <p className="text-sm font-semibold text-slate-900">큐시트</p>
               <p className="mt-1 text-sm text-slate-600">현장 운영 순서와 역할 분담을 시간축으로 맞출 때</p>
             </div>
-            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 transition-colors hover:border-slate-200 hover:bg-slate-50/80">
               <p className="text-sm font-semibold text-slate-900">과업지시서 요약</p>
               <p className="mt-1 text-sm text-slate-600">긴 요구사항 문서에서 핵심만 빠르게 추려야 할 때</p>
             </div>
@@ -111,6 +116,14 @@ export default function FeaturesPage() {
             </p>
           </div>
         </section>
+
+        <PublicPageCrossLinks
+          items={[
+            { href: '/guide', label: '사용 방법 보기' },
+            { href: '/help', label: '도움말 · FAQ' },
+            { href: '/plans', label: '요금제 안내' },
+          ]}
+        />
       </article>
     </PublicPageShell>
   )
