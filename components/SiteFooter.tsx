@@ -95,7 +95,7 @@ export function SiteFooter({ compact = false }: SiteFooterProps) {
                 대표 연락처:{' '}
                 <a
                   href="tel:07086661112"
-                  className="font-medium text-primary-700 underline-offset-2 transition-colors hover:text-primary-800 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 rounded-sm"
+                  className="rounded-sm font-medium text-slate-600 underline-offset-2 transition-colors hover:text-slate-800 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2"
                 >
                   070-8666-1112
                 </a>
