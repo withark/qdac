@@ -8,6 +8,8 @@ import { ensureFreeSubscription, getActiveSubscription } from '@/lib/db/subscrip
 import { listTaskOrderRefs } from '@/lib/db/task-order-refs-db'
 import { documentAccessMessage, isDocumentAllowedForPlan } from '@/lib/plan-access'
 
+export const dynamic = 'force-dynamic'
+
 const BodySchema = z.object({
   id: z.string().min(1),
 })

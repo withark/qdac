@@ -24,6 +24,14 @@ const PROTECTED_PREFIXES = [
   '/billing',
 ]
 
+const FREE_RESTRICTED_PREFIXES = [
+  '/scenario-generator',
+  '/cue-sheet-generator',
+  '/task-order-summary',
+  '/prices',
+  '/scenario-reference',
+]
+
 /**
  * /admin 이하 경로는 관리자 쿠키가 있을 때만 접근 허용.
  * /admin (정확히) 은 로그인 페이지이므로 항상 통과.
@@ -69,7 +77,31 @@ export function proxy(request: NextRequest) {
           secret,
           secureCookie: process.env.NODE_ENV === 'production',
         })
-    if (token) return NextResponse.next()
+    if (token) {
+      const freeRestricted = FREE_RESTRICTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'))
+      if (!freeRestricted) return NextResponse.next()
+
+      try {
+        const meRes = await fetch(new URL('/api/me', request.url), {
+          headers: { cookie: request.headers.get('cookie') ?? '' },
+          cache: 'no-store',
+        })
+        if (meRes.ok) {
+          const json = (await meRes.json()) as { ok?: boolean; data?: { subscription?: { planType?: string } } }
+          const planType = json?.data?.subscription?.planType
+          if (planType === 'FREE') {
+            const url = request.nextUrl.clone()
+            url.pathname = '/plans'
+            url.searchParams.set('reason', 'plan_upgrade_required')
+            url.searchParams.set('from', pathname)
+            return NextResponse.redirect(url)
+          }
+        }
+      } catch {
+        // 플랜 조회 실패 시에는 API/페이지 자체 가드가 최종 보호막으로 동작합니다.
+      }
+      return NextResponse.next()
+    }
 
     const url = request.nextUrl.clone()
     const callbackUrl = request.nextUrl.pathname + request.nextUrl.search

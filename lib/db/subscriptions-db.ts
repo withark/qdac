@@ -1,7 +1,7 @@
 import { getDb, hasDatabase, initDb } from '@/lib/db/client'
 import { runWithDbFallback } from '@/lib/db/db-fallback'
 import { uid } from '@/lib/calc'
-import type { BillingCycle, PlanType } from '@/lib/plans'
+import { normalizePlanType, type BillingCycle, type PlanType } from '@/lib/plans'
 
 export type SubscriptionRow = {
   id: string
@@ -15,10 +15,6 @@ export type SubscriptionRow = {
   stripeSubscriptionId: string | null
   createdAt: string
   updatedAt: string
-}
-
-function toPlanType(v: unknown): PlanType {
-  return v === 'BASIC' || v === 'PREMIUM' ? v : 'FREE'
 }
 
 function toBillingCycle(v: unknown): BillingCycle {
@@ -74,7 +70,7 @@ export async function getActiveSubscription(userId: string): Promise<Subscriptio
       return {
         id: String(r.id),
         userId: String(r.user_id),
-        planType: toPlanType(r.plan_type),
+        planType: normalizePlanType(r.plan_type),
         billingCycle: toBillingCycle(r.billing_cycle),
         status: r.status as SubscriptionRow['status'],
         startedAt: r.started_at ? new Date(r.started_at as string).toISOString() : null,
@@ -186,7 +182,7 @@ export async function getSubscriptionByStripeSubscriptionId(stripeSubscriptionId
   return {
     id: String(r.id),
     userId: String(r.user_id),
-    planType: toPlanType(r.plan_type),
+    planType: normalizePlanType(r.plan_type),
     billingCycle: toBillingCycle(r.billing_cycle),
     status: r.status as SubscriptionRow['status'],
     startedAt: r.started_at ? new Date(r.started_at as string).toISOString() : null,

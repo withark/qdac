@@ -9,6 +9,7 @@ import { ensureFreeSubscription, getActiveSubscription } from '@/lib/db/subscrip
 import { featureAccessMessage, isFeatureAllowedForPlan } from '@/lib/plan-access'
 
 export const maxDuration = 300
+export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   try {

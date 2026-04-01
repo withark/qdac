@@ -179,9 +179,17 @@ function PlansContent() {
                 </tr>
                 <tr>
                   <th scope="row" className="px-4 py-3 font-medium text-slate-600 sm:px-5">
-                    시나리오 · 큐시트 · 과업지시서 요약
+                    고급 문서 워크플로우
                   </th>
-                  <td className="px-3 py-3 text-center text-slate-500 sm:px-4">베이직부터</td>
+                  <td className="px-3 py-3 text-center text-slate-500 sm:px-4">시나리오 · 큐시트 · 과업지시서 요약은 베이직부터</td>
+                  <td className="px-3 py-3 text-center sm:px-4">✓</td>
+                  <td className="px-3 py-3 text-center sm:px-4">✓</td>
+                </tr>
+                <tr>
+                  <th scope="row" className="px-4 py-3 font-medium text-slate-600 sm:px-5">
+                    운영 참고/단가 기능
+                  </th>
+                  <td className="px-3 py-3 text-center text-slate-500 sm:px-4">단가표 · 시나리오 참고자료 · 과업 참고자료 API는 베이직부터</td>
                   <td className="px-3 py-3 text-center sm:px-4">✓</td>
                   <td className="px-3 py-3 text-center sm:px-4">✓</td>
                 </tr>

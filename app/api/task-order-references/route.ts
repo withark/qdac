@@ -11,6 +11,8 @@ import { MAX_UPLOAD_BYTES, formatUploadLimitText } from '@/lib/upload-limits'
 import { toServerUserMessage } from '@/lib/errors/server-error-message'
 import { documentAccessMessage, isDocumentAllowedForPlan } from '@/lib/plan-access'
 
+export const dynamic = 'force-dynamic'
+
 function fallbackTaskOrderSummary(filename: string, rawText: string): string {
   const lines = (rawText || '')
     .split(/\n+/)

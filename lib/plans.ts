@@ -57,6 +57,15 @@ export function isPaidPlan(plan: PlanType): boolean {
   return plan === 'BASIC' || plan === 'PREMIUM'
 }
 
+export function normalizePlanType(value: unknown): PlanType {
+  if (value === 'BASIC' || value === 'PREMIUM' || value === 'FREE') return value
+  if (typeof value === 'string') {
+    const upper = value.toUpperCase()
+    if (upper === 'BASIC' || upper === 'PREMIUM' || upper === 'FREE') return upper
+  }
+  return 'FREE'
+}
+
 /** UI·요금표 표기용 (DB/Stripe plan_type 값 `PREMIUM` = 고객면 '프로') */
 export function planLabelKo(plan: PlanType): string {
   switch (plan) {

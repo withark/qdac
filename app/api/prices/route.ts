@@ -9,6 +9,8 @@ import { ensureFreeSubscription, getActiveSubscription } from '@/lib/db/subscrip
 import { getUserPrices, replaceUserPrices } from '@/lib/db/prices-db'
 import { featureAccessMessage, isFeatureAllowedForPlan } from '@/lib/plan-access'
 
+export const dynamic = 'force-dynamic'
+
 const PricesBodySchema = PricesSchema
 
 export async function GET() {

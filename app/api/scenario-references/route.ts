@@ -11,6 +11,8 @@ import { MAX_UPLOAD_BYTES, formatUploadLimitText } from '@/lib/upload-limits'
 import { toServerUserMessage } from '@/lib/errors/server-error-message'
 import { featureAccessMessage, isFeatureAllowedForPlan } from '@/lib/plan-access'
 
+export const dynamic = 'force-dynamic'
+
 function isUpstreamCreditError(input: unknown): boolean {
   const msg = input instanceof Error ? input.message : String(input || '')
   const lowered = msg.toLowerCase()

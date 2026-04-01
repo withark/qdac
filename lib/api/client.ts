@@ -35,7 +35,12 @@ async function parseResponsePayload(res: Response): Promise<unknown> {
  * - 실패: 사용자용 메시지로 ApiError throw
  */
 export async function apiFetch<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
-  const res = await fetch(input, init)
+  const requestInit: RequestInit = {
+    cache: 'no-store',
+    credentials: 'include',
+    ...init,
+  }
+  const res = await fetch(input, requestInit)
   const payload = await parseResponsePayload(res)
 
   if (res.ok) {

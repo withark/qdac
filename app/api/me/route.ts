@@ -2,9 +2,11 @@ import { okResponse, errorResponse } from '@/lib/api/response'
 import { getUserIdFromSession } from '@/lib/auth-server'
 import { ensureFreeSubscription, getActiveSubscription } from '@/lib/db/subscriptions-db'
 import { getOrCreateUsage } from '@/lib/db/usage-db'
-import { PLAN_LIMITS } from '@/lib/plans'
+import { normalizePlanType, PLAN_LIMITS } from '@/lib/plans'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
@@ -12,13 +14,13 @@ export async function GET() {
     if (!userId) return errorResponse(401, 'UNAUTHORIZED', '로그인이 필요합니다.')
     await ensureFreeSubscription(userId)
     const sub = await getActiveSubscription(userId)
-    const plan = sub?.planType ?? 'FREE'
+    const plan = normalizePlanType(sub?.planType)
     const usage = await getOrCreateUsage(userId)
     const session = await getServerSession(authOptions)
 
     const subscriptionPayload = sub
       ? {
-          planType: sub.planType,
+          planType: normalizePlanType(sub.planType),
           status: sub.status,
           billingCycle: sub.billingCycle,
           expiresAt: sub.expiresAt,
