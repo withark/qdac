@@ -194,6 +194,12 @@ export function QuoteResult({
   const [tab, setTab] = useState<DocTab>(initial)
   const [openPriceForKind, setOpenPriceForKind] = useState<QuoteItemKind | null>(null)
   const [timetableLayoutMode, setTimetableLayoutMode] = useState<'single' | 'split'>('single')
+  const [collapsedKinds, setCollapsedKinds] = useState<Record<QuoteItemKind, boolean>>({
+    인건비: false,
+    필수: false,
+    선택1: true,
+    선택2: true,
+  })
   const priceDropdownRef = useRef<HTMLDivElement>(null)
   const totals = calcTotals(doc)
   const budgetConstraint = doc.budgetConstraint
@@ -353,6 +359,28 @@ export function QuoteResult({
     else d2.quoteItems.push({ category: kind, items: [newItem] })
     onChange(d2)
     setOpenPriceForKind(null)
+  }
+
+  function toggleKindCollapse(kind: QuoteItemKind) {
+    setCollapsedKinds(prev => ({ ...prev, [kind]: !prev[kind] }))
+  }
+
+  function setAllKindsCollapsed(collapsed: boolean) {
+    setCollapsedKinds({
+      인건비: collapsed,
+      필수: collapsed,
+      선택1: collapsed,
+      선택2: collapsed,
+    })
+  }
+
+  function focusCoreKinds() {
+    setCollapsedKinds({
+      인건비: false,
+      필수: false,
+      선택1: true,
+      선택2: true,
+    })
   }
 
   const program = d.program
@@ -549,6 +577,8 @@ export function QuoteResult({
       <div className={clsx('p-4 pb-20', !disableInternalScroll && 'flex-1 overflow-y-auto')}>
         {tab === 'estimate' && (() => {
           const templateId = (doc.quoteTemplate || 'default') as QuoteTemplateId
+          const groupedByKind = groupByKind()
+          const kindSubtotals = subtotalsByKind(doc)
           return (
             <div className="quote-wrapper max-w-3xl mx-auto space-y-5 pb-8" data-quote-template={templateId}>
               {templateId === 'classic' && (
@@ -617,116 +647,183 @@ export function QuoteResult({
                 </div>
               </div>
               <table className="w-full text-xs border-collapse">
+                <caption className="caption-top mb-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    <p className="text-[11px] font-medium text-slate-600">섹션 표시 옵션</p>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setAllKindsCollapsed(false)}
+                        className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
+                      >
+                        전체 펼치기
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAllKindsCollapsed(true)}
+                        className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
+                      >
+                        전체 접기
+                      </button>
+                      <button
+                        type="button"
+                        onClick={focusCoreKinds}
+                        className="rounded-lg border border-primary-200 bg-primary-50 px-2 py-1 text-[11px] font-semibold text-primary-700 hover:bg-primary-100"
+                      >
+                        필수 중심 보기
+                      </button>
+                    </div>
+                  </div>
+                </caption>
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
-                    {['항목명', '규격/내용', '수량', '단위', '개당 단가', '합계', '비고', ''].map(h => (
-                      <th key={h} className="px-2 py-2 text-left font-medium text-gray-400 whitespace-nowrap">{h}</th>
-                    ))}
+                    <th className="px-2 py-2 text-left font-medium text-gray-400 whitespace-nowrap">항목명</th>
+                    <th className="px-2 py-2 text-left font-medium text-gray-400 whitespace-nowrap">규격/내용</th>
+                    <th className="px-2 py-2 text-right font-medium text-gray-400 whitespace-nowrap">수량</th>
+                    <th className="px-2 py-2 text-left font-medium text-gray-400 whitespace-nowrap">단위</th>
+                    <th className="px-2 py-2 text-right font-medium text-gray-400 whitespace-nowrap">개당 단가</th>
+                    <th className="px-2 py-2 text-right font-medium text-gray-400 whitespace-nowrap">합계</th>
+                    <th className="px-2 py-2 text-left font-medium text-gray-400 whitespace-nowrap">비고</th>
+                    <th className="px-2 py-2 text-left font-medium text-gray-400 whitespace-nowrap" />
                   </tr>
                 </thead>
                 <tbody>
                   {KIND_ORDER.map(kind => {
-                    const rows = groupByKind().get(kind)!
+                    const rows = groupedByKind.get(kind)!
+                    const isCollapsed = !!collapsedKinds[kind]
+                    const subtotal = kindSubtotals.get(kind) ?? 0
                     return (
                       <Fragment key={kind}>
                         <tr key={kind + '-h'} className="quote-section-row bg-primary-50/60 border-y border-primary-100">
-                          <td colSpan={8} className="px-2 py-2 font-semibold text-primary-700 tracking-wide">{kind}</td>
-                        </tr>
-                        {rows.map(({ ci, ii, item: it }) => {
-                          const rowTotal = Math.round((it.qty || 1) * (it.unitPrice || 0))
-                          return (
-                            <tr key={`${ci}-${ii}`} className="border-b border-gray-50 hover:bg-gray-50/50 group">
-                              <td className="px-2 py-1.5">
-                                <input
-                                  value={it.name}
-                                  onChange={e => updLine(ci, ii, 'name', e.target.value)}
-                                  className="w-full bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none"
-                                />
-                              </td>
-                              <td className="px-2 py-1.5 text-gray-400">
-                                <input
-                                  value={it.spec || ''}
-                                  onChange={e => updLine(ci, ii, 'spec', e.target.value)}
-                                  className="w-full bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none"
-                                />
-                              </td>
-                              <td className="px-2 py-1.5 text-right">
-                                <input
-                                  type="number"
-                                  min={1}
-                                  value={it.qty ?? 1}
-                                  onChange={e => updLine(ci, ii, 'qty', +e.target.value || 1)}
-                                  className="w-14 text-right bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none tabular-nums"
-                                />
-                              </td>
-                              <td className="px-2 py-1.5">
-                                <input
-                                  value={it.unit || '식'}
-                                  onChange={e => updLine(ci, ii, 'unit', e.target.value)}
-                                  className="w-12 bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none"
-                                />
-                              </td>
-                              <td className="px-2 py-1.5 text-right">
-                                <input type="number" min={0} step={100} value={it.unitPrice ?? 0} onChange={e => updLine(ci, ii, 'unitPrice', +(e.target.value || 0))} className="w-24 text-right bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none tabular-nums" />
-                              </td>
-                              <td className="px-2 py-1.5 text-right font-medium tabular-nums">{fmtKRW(rowTotal)}</td>
-                              <td className="px-2 py-1.5 text-gray-400">
-                                <input
-                                  value={it.note || ''}
-                                  onChange={e => updLine(ci, ii, 'note', e.target.value)}
-                                  className="w-full bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none"
-                                />
-                              </td>
-                              <td className="px-2 py-1.5">
-                                <span className="flex items-center gap-1">
-                                  <span className="opacity-0 group-hover:opacity-100 text-[10px] text-gray-500 whitespace-nowrap">
-                                    그룹 이동
-                                  </span>
-                                  <select
-                                    title="이 항목을 다른 그룹으로 이동"
-                                    aria-label="이 항목을 다른 그룹으로 이동"
-                                    value={it.kind || '필수'}
-                                    onChange={e => updLine(ci, ii, 'kind', e.target.value)}
-                                    className="opacity-0 group-hover:opacity-100 text-[10px] bg-white border border-gray-200 rounded px-1 py-0.5 min-w-0"
-                                  >
-                                    {KIND_ORDER.map(k => <option key={k} value={k}>{k}</option>)}
-                                  </select>
-                                  <button type="button" onClick={() => { const d2 = ensureProgramShape(structuredClone(doc)); d2.quoteItems[ci].items.splice(ii, 1); onChange(d2) }} className="opacity-0 group-hover:opacity-100 text-red-400 text-xs">✕</button>
+                          <td colSpan={8} className="px-2 py-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <button
+                                type="button"
+                                onClick={() => toggleKindCollapse(kind)}
+                                className="inline-flex items-center gap-2 text-primary-700 hover:text-primary-800"
+                              >
+                                <span className="text-xs">{isCollapsed ? '▶' : '▼'}</span>
+                                <span className="font-semibold tracking-wide">{kind}</span>
+                                <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-primary-700">
+                                  {rows.length}개 항목
                                 </span>
-                              </td>
-                            </tr>
-                          )
-                        })}
-                        <tr key={kind + '-a'}>
-                          <td colSpan={8} className="px-2 py-1.5 align-top">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <button type="button" onClick={() => addItemToKind(kind)} className="text-xs text-primary-600 font-medium">+ 빈 항목</button>
-                              {flatPriceItems.length > 0 && (
-                                <span ref={openPriceForKind === kind ? priceDropdownRef : undefined} className="relative inline-block">
-                                  <button type="button" onClick={() => setOpenPriceForKind(openPriceForKind === kind ? null : kind)} className="text-xs text-primary-600 font-medium border border-primary-200 rounded px-1.5 py-0.5">품목 선택</button>
-                                  {openPriceForKind === kind && (
-                                    <div className="absolute left-0 top-full mt-1 z-20 min-w-[300px] max-h-72 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg py-1">
-                                      {safePrices.map(cat => (
-                                        <div key={cat.id}>
-                                          <div className="px-2 py-1 text-[10px] font-semibold text-gray-400 bg-gray-50">{cat.name}</div>
-                                          {(cat.items || []).map(item => (
-                                            <button key={item.id} type="button" onClick={() => addItemFromPrice(kind, item)} className="w-full text-left px-2 py-1.5 hover:bg-primary-50 text-xs flex justify-between">
-                                              <span className="truncate">{item.name}</span>
-                                              <span className="tabular-nums">{fmtKRW(item.price)}</span>
-                                            </button>
-                                          ))}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </span>
-                              )}
+                              </button>
+                              <span className="text-xs font-semibold text-primary-800">소계 {fmtKRW(subtotal)}원</span>
                             </div>
                           </td>
                         </tr>
+                        {!isCollapsed ? (
+                          <>
+                            {rows.map(({ ci, ii, item: it }) => {
+                              const rowTotal = Math.round((it.qty || 1) * (it.unitPrice || 0))
+                              return (
+                                <tr key={`${ci}-${ii}`} className="border-b border-gray-50 hover:bg-gray-50/50 group">
+                                  <td className="px-2 py-1.5">
+                                    <input
+                                      value={it.name}
+                                      onChange={e => updLine(ci, ii, 'name', e.target.value)}
+                                      className="w-full bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-1.5 text-gray-400">
+                                    <input
+                                      value={it.spec || ''}
+                                      onChange={e => updLine(ci, ii, 'spec', e.target.value)}
+                                      className="w-full bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-1.5 text-right">
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      value={it.qty ?? 1}
+                                      onChange={e => updLine(ci, ii, 'qty', +e.target.value || 1)}
+                                      className="w-14 text-right bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none tabular-nums"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-1.5">
+                                    <input
+                                      value={it.unit || '식'}
+                                      onChange={e => updLine(ci, ii, 'unit', e.target.value)}
+                                      className="w-12 bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-1.5 text-right">
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      step={100}
+                                      value={it.unitPrice ?? 0}
+                                      onChange={e => updLine(ci, ii, 'unitPrice', +(e.target.value || 0))}
+                                      className="w-24 text-right bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none tabular-nums"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-1.5 text-right font-medium tabular-nums">{fmtKRW(rowTotal)}</td>
+                                  <td className="px-2 py-1.5 text-gray-400">
+                                    <input
+                                      value={it.note || ''}
+                                      onChange={e => updLine(ci, ii, 'note', e.target.value)}
+                                      className="w-full bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-1.5">
+                                    <span className="flex items-center gap-1">
+                                      <span className="opacity-0 group-hover:opacity-100 text-[10px] text-gray-500 whitespace-nowrap">
+                                        그룹 이동
+                                      </span>
+                                      <select
+                                        title="이 항목을 다른 그룹으로 이동"
+                                        aria-label="이 항목을 다른 그룹으로 이동"
+                                        value={it.kind || '필수'}
+                                        onChange={e => updLine(ci, ii, 'kind', e.target.value)}
+                                        className="opacity-0 group-hover:opacity-100 text-[10px] bg-white border border-gray-200 rounded px-1 py-0.5 min-w-0"
+                                      >
+                                        {KIND_ORDER.map(k => <option key={k} value={k}>{k}</option>)}
+                                      </select>
+                                      <button type="button" onClick={() => { const d2 = ensureProgramShape(structuredClone(doc)); d2.quoteItems[ci].items.splice(ii, 1); onChange(d2) }} className="opacity-0 group-hover:opacity-100 text-red-400 text-xs">✕</button>
+                                    </span>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                            <tr key={kind + '-a'}>
+                              <td colSpan={8} className="px-2 py-1.5 align-top">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <button type="button" onClick={() => addItemToKind(kind)} className="text-xs text-primary-600 font-medium">+ 빈 항목</button>
+                                  {flatPriceItems.length > 0 && (
+                                    <span ref={openPriceForKind === kind ? priceDropdownRef : undefined} className="relative inline-block">
+                                      <button type="button" onClick={() => setOpenPriceForKind(openPriceForKind === kind ? null : kind)} className="text-xs text-primary-600 font-medium border border-primary-200 rounded px-1.5 py-0.5">품목 선택</button>
+                                      {openPriceForKind === kind && (
+                                        <div className="absolute left-0 top-full mt-1 z-20 min-w-[300px] max-h-72 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg py-1">
+                                          {safePrices.map(cat => (
+                                            <div key={cat.id}>
+                                              <div className="px-2 py-1 text-[10px] font-semibold text-gray-400 bg-gray-50">{cat.name}</div>
+                                              {(cat.items || []).map(item => (
+                                                <button key={item.id} type="button" onClick={() => addItemFromPrice(kind, item)} className="w-full text-left px-2 py-1.5 hover:bg-primary-50 text-xs flex justify-between">
+                                                  <span className="truncate">{item.name}</span>
+                                                  <span className="tabular-nums">{fmtKRW(item.price)}</span>
+                                                </button>
+                                              ))}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          </>
+                        ) : (
+                          <tr className="border-b border-gray-100 bg-gray-50/50">
+                            <td colSpan={8} className="px-2 py-2 text-xs text-gray-500">
+                              접힌 상태입니다. 섹션명을 눌러 항목을 펼쳐서 편집하세요.
+                            </td>
+                          </tr>
+                        )}
                         <tr key={kind + '-s'} className="bg-gray-50/80 border-b border-gray-100">
                           <td colSpan={5} className="px-2 py-1.5 text-right text-gray-500 font-medium">소계</td>
-                          <td className="px-2 py-1.5 text-right font-medium tabular-nums text-gray-700">{fmtKRW(subtotalsByKind(doc).get(kind) ?? 0)}</td>
+                          <td className="px-2 py-1.5 text-right font-semibold tabular-nums text-gray-700">{fmtKRW(subtotal)}</td>
                           <td colSpan={2} />
                         </tr>
                       </Fragment>

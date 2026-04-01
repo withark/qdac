@@ -14,6 +14,7 @@ import { ESTIMATE_BUDGET_OPTIONS } from '@/lib/estimate-budget-options'
 import { exportToExcel } from '@/lib/exportExcel'
 import { exportToPdf } from '@/lib/exportPdf'
 import { isPaidPlan, type PlanType } from '@/lib/plans'
+import { calcTotals, fmtKRW } from '@/lib/calc'
 
 type MeLite = {
   user?: { id?: string | null; email?: string | null } | null
@@ -43,6 +44,13 @@ type TaskOrderSummaryParsed = {
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
+}
+
+function formatSavedAtLabel(savedAtIso: string | null): string {
+  if (!savedAtIso) return '아직 저장 기록 없음'
+  const d = new Date(savedAtIso)
+  if (Number.isNaN(d.getTime())) return '방금 저장됨'
+  return `마지막 임시저장 ${d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}`
 }
 
 function safeParseJson(v: string) {
@@ -87,6 +95,7 @@ function EstimateGeneratorContent() {
   const [venue, setVenue] = useState('')
   const [notes, setNotes] = useState('')
   const [budget, setBudget] = useState('미정')
+  const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null)
 
   const [doc, setDoc] = useState<QuoteDoc | null>(null)
   const [generatedDocId, setGeneratedDocId] = useState<string | null>(null)
@@ -181,6 +190,7 @@ function EstimateGeneratorContent() {
     if (typeof draft.venue === 'string') setVenue(draft.venue)
     if (typeof draft.notes === 'string') setNotes(draft.notes)
     if (typeof draft.budget === 'string') setBudget(draft.budget)
+    if (typeof draft.savedAt === 'string') setDraftSavedAt(draft.savedAt)
   }, [userDraftStorageKey])
 
   useEffect(() => {
@@ -199,6 +209,7 @@ function EstimateGeneratorContent() {
         savedAt,
       }
       window.localStorage.setItem(userDraftStorageKey, JSON.stringify(payload))
+      setDraftSavedAt(savedAt)
     }, 500)
     return () => {
       window.clearTimeout(timer)
@@ -455,6 +466,21 @@ function EstimateGeneratorContent() {
     }
     return '결과 문서를 검토하고 저장 또는 다운로드하세요.'
   }, [completion.step2Done, completion.step3Done, validationMessage])
+  const docSummary = useMemo(() => {
+    if (!doc) return null
+    const totals = calcTotals(doc)
+    const lineCount = doc.quoteItems.reduce((count, category) => count + (category.items?.length ?? 0), 0)
+    const optionalCount = doc.quoteItems.reduce(
+      (count, category) =>
+        count +
+        (category.items?.filter((item) => {
+          const kind = item.kind || category.category
+          return kind === '선택1' || kind === '선택2'
+        }).length ?? 0),
+      0,
+    )
+    return { totals, lineCount, optionalCount }
+  }, [doc])
 
   const topicInputs = (
     <div className="space-y-4">
@@ -667,6 +693,84 @@ function EstimateGeneratorContent() {
 
           {doc && generatedDocId ? (
             <section className="rounded-2xl border border-gray-100 bg-white shadow-card">
+              {docSummary ? (
+                <div className="sticky top-2 z-20 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
+                  <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <p className="text-[11px] font-semibold text-slate-500">총액</p>
+                      <p className="mt-1 text-base font-bold text-slate-900">{fmtKRW(docSummary.totals.grand)}원</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <p className="text-[11px] font-semibold text-slate-500">인원/행사일</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">{doc.headcount || '미정'}명</p>
+                      <p className="text-xs text-slate-600">{doc.eventDate || '행사일 미정'}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <p className="text-[11px] font-semibold text-slate-500">항목 수</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                        총 {docSummary.lineCount}개 · 선택 {docSummary.optionalCount}개
+                      </p>
+                      <p className="text-xs text-slate-600">필수/선택 구성 확인용</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <p className="text-[11px] font-semibold text-slate-500">저장 상태</p>
+                      <p className={`mt-1 text-sm font-semibold ${saving ? 'text-amber-700' : 'text-emerald-700'}`}>
+                        {saving ? '저장 중...' : '저장 가능'}
+                      </p>
+                      <p className="text-xs text-slate-600">{formatSavedAtLabel(draftSavedAt)}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleSaveDoc(doc)}
+                      disabled={saving}
+                      className="rounded-xl bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {saving ? '저장 중...' : '저장하기'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await exportToExcel(doc, companySettings ?? undefined, 'quote')
+                          showToast('엑셀 다운로드 완료!')
+                        } catch (e) {
+                          showToast(toUserMessage(e, '엑셀 다운로드 실패'))
+                        }
+                      }}
+                      className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      엑셀 다운로드
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (me?.subscription?.planType === 'FREE') {
+                          showToast('PDF 다운로드는 베이직 플랜부터 이용할 수 있어요.')
+                          return
+                        }
+                        try {
+                          await exportToPdf(doc, companySettings ?? undefined)
+                          showToast('PDF 저장 완료!')
+                        } catch (e) {
+                          showToast(toUserMessage(e, '저장 실패'))
+                        }
+                      }}
+                      className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      PDF 저장
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                      className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+                    >
+                      입력 수정으로 이동
+                    </button>
+                  </div>
+                </div>
+              ) : null}
               <div className="p-4 border-b border-gray-100 bg-slate-50/50">
                 <div className="text-base font-semibold text-gray-900">견적 결과</div>
                 <div className="text-sm text-gray-600 mt-1">생성 후 내용을 편집하고 저장하세요.</div>
