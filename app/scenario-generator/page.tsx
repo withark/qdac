@@ -346,6 +346,7 @@ export default function ScenarioGeneratorPage() {
                   planType={me?.subscription?.planType ?? 'FREE'}
                   onChange={setDoc}
                   generatingTabs={generatingTabs}
+                  generationProgressLabel={generationProgressLabel}
                   visibleTabs={['scenario']}
                   initialTab="scenario"
                   showTabButtons={false}

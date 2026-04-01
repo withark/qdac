@@ -50,6 +50,7 @@ interface Props {
   onLoadPrevious?: () => void
   onGenerateTab?: (tab: DocTab) => void | Promise<void>
   generatingTabs?: Partial<Record<DocTab, boolean>>
+  generationProgressLabel?: string | null
   /** 문서별 페이지에서 특정 탭만 보여주기 (예: estimate 페이지는 estimate만) */
   visibleTabs?: DocTab[]
   /** 탭 초기값 (visibleTabs에 없으면 'estimate'로 폴백) */
@@ -178,6 +179,7 @@ export function QuoteResult({
   onLoadPrevious,
   onGenerateTab,
   generatingTabs = {},
+  generationProgressLabel = null,
   visibleTabs = ['estimate', 'program', 'timetable', 'planning', 'scenario'],
   initialTab = 'estimate',
   showTabButtons = true,
@@ -202,6 +204,8 @@ export function QuoteResult({
   const scenarioReady = isScenarioReady(doc)
   const estimateReady = isEstimateReady(doc)
   const emceeScriptReady = isEmceeScriptReady(doc)
+  const isAnyGenerating = !!regenerating || Object.values(generatingTabs).some(Boolean)
+  const activeProgressLabel = generationProgressLabel || 'AI 작성 중'
 
   // 미생성 상태의 on-demand 생성 버튼을 카드 안쪽보다 상단의 주요 액션 영역에 모아 가시성을 높인다.
   const showTopGenerateActions =
@@ -456,6 +460,11 @@ export function QuoteResult({
       </p>
       {exportDisabled ? (
         <p className="flex-shrink-0 px-4 pb-3 text-xs font-medium text-amber-700">{exportDisabledReason}</p>
+      ) : null}
+      {isAnyGenerating ? (
+        <p className="flex-shrink-0 px-4 pb-3 text-xs font-semibold text-primary-800" role="status" aria-live="polite">
+          진행 중: {activeProgressLabel}...
+        </p>
       ) : null}
 
       {showTopGenerateActions && (

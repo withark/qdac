@@ -379,6 +379,7 @@ export default function ProgramProposalGeneratorPage() {
                   planType={me?.subscription?.planType ?? 'FREE'}
                   onChange={setDoc}
                   generatingTabs={generatingTabs}
+                  generationProgressLabel={generationProgressLabel}
                   visibleTabs={['program']}
                   initialTab="program"
                   showTabButtons={false}

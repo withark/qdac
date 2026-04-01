@@ -324,6 +324,7 @@ export default function EmceeScriptGeneratorPage() {
                   planType={me?.subscription?.planType ?? 'FREE'}
                   onChange={setDoc}
                   generatingTabs={generatingTabs}
+                  generationProgressLabel={generationProgressLabel}
                   visibleTabs={['emceeScript']}
                   initialTab="emceeScript"
                   showTabButtons={false}

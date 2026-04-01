@@ -676,6 +676,7 @@ function EstimateGeneratorContent() {
                   planType={me?.subscription?.planType ?? 'FREE'}
                   onChange={setDoc}
                   generatingTabs={generatingTabs}
+                  generationProgressLabel={generationProgressLabel}
                   visibleTabs={['estimate']}
                   initialTab="estimate"
                   showTabButtons={false}

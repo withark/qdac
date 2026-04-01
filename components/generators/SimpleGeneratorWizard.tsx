@@ -83,6 +83,7 @@ export default function SimpleGeneratorWizard({
   const [activeStep, setActiveStep] = useState<1 | 2 | 3>(1)
   const [highlightsOpen, setHighlightsOpen] = useState(highlightsDefaultOpen)
   const [generationElapsedSec, setGenerationElapsedSec] = useState(0)
+  const [generationPulse, setGenerationPulse] = useState(0)
 
   const scrollToStep = useCallback((n: 1 | 2 | 3) => {
     const ref = n === 1 ? step1Ref : n === 2 ? step2Ref : step3Ref
@@ -147,6 +148,19 @@ export default function SimpleGeneratorWizard({
     }
   }, [generating])
 
+  useEffect(() => {
+    if (!generating) {
+      setGenerationPulse(0)
+      return
+    }
+    const timer = window.setInterval(() => {
+      setGenerationPulse((prev) => (prev + 1) % 3)
+    }, 700)
+    return () => {
+      window.clearInterval(timer)
+    }
+  }, [generating])
+
   const handleGenerateClick = async () => {
     if (generateDisabled || generating) return
     if (inFlightRef.current) return
@@ -162,8 +176,9 @@ export default function SimpleGeneratorWizard({
   const step2Done = !generateDisabled
   const stepDone = (n: 1 | 2 | 3) => (n === 1 ? step1Done : n === 2 ? step2Done : false)
   const activeProgressLabel = generationProgressLabel || 'AI 작성 중'
+  const pulseSuffix = generating ? '.'.repeat(generationPulse + 1) : ''
   const progressText = generating
-    ? `${activeProgressLabel}${generationElapsedSec > 0 ? ` · ${generationElapsedSec}초 경과` : ''}`
+    ? `${activeProgressLabel}${pulseSuffix}${generationElapsedSec > 0 ? ` · ${generationElapsedSec}초 경과` : ''}`
     : null
 
   const highlightGrid = (

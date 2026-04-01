@@ -368,6 +368,7 @@ export default function PlanningGeneratorPage() {
                   planType={me?.subscription?.planType ?? 'FREE'}
                   onChange={setDoc}
                   generatingTabs={generatingTabs}
+                  generationProgressLabel={generationProgressLabel}
                   hideOnDemandGenerate
                   visibleTabs={['planning']}
                   initialTab="planning"
