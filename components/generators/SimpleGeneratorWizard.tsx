@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 import { Button } from '@/components/ui'
+import { getGenerationLoadingCopy } from '@/lib/generation/loading-copy'
 
 const WIZARD_STEPS = [
   { n: 1 as const, label: '기준 선택' },
@@ -177,8 +178,9 @@ export default function SimpleGeneratorWizard({
   const stepDone = (n: 1 | 2 | 3) => (n === 1 ? step1Done : n === 2 ? step2Done : false)
   const activeProgressLabel = generationProgressLabel || 'AI 작성 중'
   const pulseSuffix = generating ? '.'.repeat(generationPulse + 1) : ''
+  const loadingFlavorText = getGenerationLoadingCopy(activeProgressLabel, generationElapsedSec)
   const progressText = generating
-    ? `${activeProgressLabel}${pulseSuffix}${generationElapsedSec > 0 ? ` · ${generationElapsedSec}초 경과` : ''}`
+    ? `${activeProgressLabel}${pulseSuffix} · ${loadingFlavorText}`
     : null
 
   const highlightGrid = (

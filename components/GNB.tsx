@@ -10,6 +10,7 @@ import { AccountPanel } from '@/components/account/AccountPanel'
 type NavItem = {
   href: string
   text: string
+  matchPrefixes?: string[]
   icon: (props: { className?: string }) => React.ReactNode
 }
 
@@ -27,6 +28,15 @@ const NAVS: NavItem[] = [
   {
     href: '/create-documents',
     text: '문서 만들기',
+    matchPrefixes: [
+      '/estimate-generator',
+      '/program-proposal-generator',
+      '/planning-generator',
+      '/scenario-generator',
+      '/cue-sheet-generator',
+      '/emcee-script-generator',
+      '/task-order-summary',
+    ],
     icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
         <path d="M12 3.5h4.5L20 7v13.5A2 2 0 0 1 18 22.5H6A2 2 0 0 1 4 20.5V5.5A2 2 0 0 1 6 3.5h6Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -38,6 +48,7 @@ const NAVS: NavItem[] = [
   {
     href: '/reference-estimate',
     text: '참고 자료',
+    matchPrefixes: ['/scenario-reference'],
     icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
         <path d="M6.5 4.5h9A2.5 2.5 0 0 1 18 7v14.5H8.5A2.5 2.5 0 0 0 6 24V7A2.5 2.5 0 0 1 6.5 4.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
@@ -144,7 +155,10 @@ function SidebarContent({
       >
         <ul className="space-y-1">
           {NAVS.map((n) => {
-            const active = path === n.href || path.startsWith(`${n.href}/`)
+            const active =
+              path === n.href ||
+              path.startsWith(`${n.href}/`) ||
+              (n.matchPrefixes || []).some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
             return (
               <li key={n.href}>
                 <Link
