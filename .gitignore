@@ -20,3 +20,4 @@ blogbi/
 .vercel
 .env.verify-real
 .playwright-data/
+.env*.local

@@ -12,7 +12,7 @@ import type { PlanType } from '@/lib/plans'
 const DAUM_POSTCODE_SCRIPT = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js'
 
 /** 다음(카카오) 우편번호 API 로드 후 주소 검색 팝업 열기 */
-function openDaumPostcode(onComplete: (address: string) => void) {
+function openDaumPostcode(onComplete: (address: string) => void, onError: (message: string) => void) {
   const run = () => {
     const w = window as unknown as {
       kakao?: {
@@ -20,7 +20,10 @@ function openDaumPostcode(onComplete: (address: string) => void) {
       }
     }
     const kakao = w.kakao
-    if (!kakao?.Postcode) return
+    if (!kakao?.Postcode) {
+      onError('주소 검색 서비스를 불러올 수 없습니다. 직접 입력해주세요.')
+      return
+    }
     new kakao.Postcode({
       oncomplete(data: DaumPostcodeData) {
         let addr = data.userSelectedType === 'R' ? data.roadAddress : data.jibunAddress
@@ -44,6 +47,7 @@ function openDaumPostcode(onComplete: (address: string) => void) {
   script.src = DAUM_POSTCODE_SCRIPT
   script.async = true
   script.onload = run
+  script.onerror = () => onError('주소 검색 서비스를 불러올 수 없습니다. 직접 입력해주세요.')
   document.head.appendChild(script)
 }
 
@@ -87,6 +91,7 @@ function formatPhoneDisplay(value: string): string {
 export default function SettingsPage() {
   const [cfg,  setCfg]  = useState<CompanySettings>(DEFAULT_SETTINGS)
   const [toast, setToast] = useState('')
+  const [postcodeError, setPostcodeError] = useState('')
   const [me, setMe] = useState<{ subscription: { planType: PlanType }; usage: { companyProfileCount: number }; limits: { companyProfileLimit: number } } | null>(null)
 
   const showToast = useCallback((m: string) => {
@@ -177,11 +182,20 @@ export default function SettingsPage() {
                     variant="secondary"
                     size="sm"
                     className="flex-shrink-0 whitespace-nowrap"
-                    onClick={() => openDaumPostcode(addr => set('addr')(addr))}
+                    onClick={() =>
+                      openDaumPostcode(
+                        (addr) => {
+                          setPostcodeError('')
+                          set('addr')(addr)
+                        },
+                        (message) => setPostcodeError(message),
+                      )
+                    }
                   >
                     주소 찾기
                   </Button>
                 </div>
+                {postcodeError && <p className="mt-2 text-xs text-red-600">{postcodeError}</p>}
               </Field>
             </div>
           </section>

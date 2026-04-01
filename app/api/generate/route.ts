@@ -17,6 +17,7 @@ import {
   GeneratePipelineError,
 } from '@/lib/generation/execute-generate-pipeline'
 import { toServerUserMessage } from '@/lib/errors/server-error-message'
+import type { QuoteDoc } from '@/lib/types'
 
 /** Vercel 등 서버리스 기본 실행 시간보다 길면 AI 응답 전에 요청이 끊깁니다. Pro 등에서 최대 300초까지 허용. */
 export const maxDuration = 300
@@ -59,6 +60,52 @@ const GenerateRequestSchema = z.object({
   programs: z.array(z.string()).optional().default([]),
 })
 
+function buildNoKeyMockDoc(input: z.infer<typeof GenerateRequestSchema>): QuoteDoc {
+  return {
+    eventName: input.eventName,
+    clientName: input.clientName || '',
+    clientManager: input.clientManager || '',
+    clientTel: input.clientTel || '',
+    quoteDate: input.quoteDate,
+    eventDate: input.eventDate || '',
+    eventDuration: input.eventDuration || '',
+    venue: input.venue || '',
+    headcount: input.headcount || '',
+    eventType: input.eventType,
+    quoteItems: [
+      {
+        category: '기본 견적',
+        items: [
+          {
+            name: '행사 진행비',
+            spec: '',
+            qty: 1,
+            unit: '식',
+            unitPrice: 500000,
+            total: 500000,
+            note: '[테스트 견적]',
+          },
+        ],
+      },
+    ],
+    expenseRate: 0,
+    profitRate: 0,
+    cutAmount: 0,
+    notes: '[테스트 견적]',
+    paymentTerms: '협의',
+    validDays: 30,
+    program: {
+      concept: '테스트 견적입니다.',
+      programRows: [],
+      timeline: [],
+      staffing: [],
+      tips: [],
+      cueRows: [],
+      cueSummary: '',
+    },
+  }
+}
+
 export async function POST(req: NextRequest) {
   const reqStartedAt = Date.now()
   try {
@@ -94,6 +141,26 @@ export async function POST(req: NextRequest) {
     const hasOpenAI = !!env.OPENAI_API_KEY
     const isMockAi = isEffectiveMockAi()
     const mockBlockedInProduction = aiModeRawMock && isProductionRuntime() && !isMockAi
+    if (!hasAnthropic && !hasOpenAI && !isProductionRuntime()) {
+      const mockEstimate = {
+        items: [{ name: '행사 진행비', qty: 1, unit: '식', price: 500000 }],
+        total: 500000,
+        note: '[테스트 견적]',
+      }
+      return okResponse({
+        doc: buildNoKeyMockDoc(body),
+        totals: {
+          sub: 500000,
+          exp: 0,
+          prof: 0,
+          vat: 50000,
+          grand: 550000,
+        },
+        id: `mock-no-key-${Date.now()}`,
+        mockEstimate,
+      })
+    }
+
     if (!isMockAi && !hasAnthropic && !hasOpenAI) {
       return errorResponse(
         500,

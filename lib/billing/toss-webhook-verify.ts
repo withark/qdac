@@ -14,11 +14,26 @@ type TossPaymentLookup = {
   [k: string]: unknown
 }
 
+function isTruthyEnv(value: string | undefined): boolean {
+  const v = (value || '').trim().toLowerCase()
+  return v === '1' || v === 'true' || v === 'yes' || v === 'on'
+}
+
+export function shouldVerifyTossWebhook(): boolean {
+  const vercelEnv = (process.env.VERCEL_ENV || '').trim().toLowerCase()
+  if (vercelEnv === 'preview') return false
+  return isTruthyEnv(process.env.TOSS_PAYMENTS_WEBHOOK_VERIFY)
+}
+
 export async function verifyTossWebhookPayment(input: {
   paymentKey: string
   orderId: string
   status?: string
 }): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const hasSecretKey = !!process.env.TOSS_PAYMENTS_SECRET_KEY?.trim()
+  if (!hasSecretKey) {
+    return { ok: true }
+  }
   const secretKey = getTossSecretKey()
 
   const res = await fetch(`https://api.tosspayments.com/v1/payments/${encodeURIComponent(input.paymentKey)}`, {

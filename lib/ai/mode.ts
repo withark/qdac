@@ -5,10 +5,10 @@ export function isAiModeMockRaw(): boolean {
 }
 
 export function isProductionRuntime(): boolean {
-  // Vercel preview는 Next.js 빌드/런타임이 `NODE_ENV=production`인 경우가 많습니다.
-  // 이때 mock 생성이 비활성화되면(=실 API 키 없이) `/api/generate`가 즉시 실패할 수 있어
-  // `VERCEL_ENV`가 명시된 환경에서는 Vercel 분기 기준을 우선합니다.
-  if (process.env.VERCEL_ENV) return process.env.VERCEL_ENV === 'production'
+  // preview/로컬에서는 NODE_ENV=production 이어도 운영으로 간주하지 않습니다.
+  const vercelEnv = (process.env.VERCEL_ENV || '').trim().toLowerCase()
+  if (vercelEnv === 'production') return true
+  if (vercelEnv === 'preview' || vercelEnv === 'development') return false
   return process.env.NODE_ENV === 'production'
 }
 

@@ -32,6 +32,8 @@ const FREE_RESTRICTED_PREFIXES = [
   '/scenario-reference',
 ]
 
+const AUTH_BYPASS_PATHS = new Set(['/billing/success', '/billing/fail'])
+
 /**
  * /admin 이하 경로는 관리자 쿠키가 있을 때만 접근 허용.
  * /admin (정확히) 은 로그인 페이지이므로 항상 통과.
@@ -61,10 +63,17 @@ export function proxy(request: NextRequest) {
   }
 
   const needsAuth = PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'))
+  if (AUTH_BYPASS_PATHS.has(pathname)) return NextResponse.next()
   if (!needsAuth) return NextResponse.next()
 
   return (async () => {
-    const secret = resolveNextAuthSecret()
+    let secret: string
+    try {
+      secret = resolveNextAuthSecret()
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '인증 비밀키가 설정되지 않았습니다.'
+      return new NextResponse(msg, { status: 503 })
+    }
     const token = planicProductionSharedCookie()
       ? await getToken({
           req: request,

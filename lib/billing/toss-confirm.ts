@@ -5,6 +5,7 @@ import { tossBasicAuthHeader } from '@/lib/billing/toss-auth'
 import { getBillingOrderByOrderId, markBillingOrderApproved, markBillingOrderFailed } from '@/lib/billing/toss-orders-db'
 import { setActiveSubscription } from '@/lib/db/subscriptions-db'
 import { adminEventsAppend } from '@/lib/db/admin-events-db'
+import { trackEvent } from '@/lib/analytics'
 
 function addDaysIso(days: number): string {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
@@ -66,6 +67,14 @@ export async function confirmTossPayment(input: { paymentKey: string; orderId: s
     'billing',
     `결제 승인 orderId=${input.orderId} user=${order.userId.slice(0, 12)} plan=${order.planType} amount=${order.amount}`,
   ).catch(() => {})
+
+  trackEvent('billing.payment_succeeded', {
+    userId: order.userId,
+    orderId: input.orderId,
+    planType: order.planType,
+    billingCycle: order.billingCycle,
+    amountKRW: order.amount,
+  })
 
   return { ok: true as const, alreadyApproved: false as const }
 }

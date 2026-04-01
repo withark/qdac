@@ -5,6 +5,7 @@ import { getUserIdFromSession } from '@/lib/auth-server'
 import { confirmTossPayment } from '@/lib/billing/toss-confirm'
 import { getBillingOrderByOrderId } from '@/lib/billing/toss-orders-db'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
+import { TossConfigError } from '@/lib/billing/toss-config'
 
 const BodySchema = z.object({
   paymentKey: z.string().min(1),
@@ -32,6 +33,9 @@ export async function POST(req: NextRequest) {
     const result = await confirmTossPayment({ paymentKey, orderId, amount })
     return okResponse(result)
   } catch (e) {
+    if (e instanceof TossConfigError) {
+      return errorResponse(e.status, e.code, e.message)
+    }
     const msg = toUserMessage(e, '결제 승인에 실패했습니다.')
     return errorResponse(500, 'INTERNAL_ERROR', msg)
   }

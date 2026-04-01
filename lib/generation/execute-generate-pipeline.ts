@@ -29,6 +29,7 @@ import { logError, logInfo } from '@/lib/utils/logger'
 import { parseBudgetCeilingKRW } from '@/lib/budget'
 import { enforceBudgetHardConstraint } from '@/lib/quote/budget-enforcer'
 import { deriveProgramHintsFromQuoteDoc } from '@/lib/ai/prompts/existing-doc-context'
+import { trackEvent } from '@/lib/analytics'
 
 export class GeneratePipelineError extends Error {
   constructor(
@@ -534,6 +535,15 @@ export async function executeGeneratePipeline(
   await kvSet('generationRunsLast', { at: new Date().toISOString(), userId, ok: true }).catch((err) =>
     logError('generation_run.kvSet', err),
   )
+
+  trackEvent('document.generated', {
+    userId,
+    documentTarget,
+    quoteId,
+    totalKRW: totals.grand,
+    plan,
+    mockAi: isMockAi,
+  })
 
   return { doc, totals, id: quoteId, genMeta: genMeta! }
 }

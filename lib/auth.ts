@@ -7,7 +7,6 @@ import { upsertUser } from '@/lib/db/users-db'
 import { ensureFreeSubscription } from '@/lib/db/subscriptions-db'
 import { devAuthProvider, isDevAuthEnabled } from '@/lib/auth-dev'
 import { emailPasswordCredentialsProvider, isEmailPasswordAuthEnabled } from '@/lib/auth-email-password'
-import { resolveNextAuthSecret } from '@/lib/nextauth-secret'
 import { planicProductionSharedCookie, PLANIC_SESSION_COOKIE_NAME } from '@/lib/planic-auth-env'
 import { resolveEnabledSocialAuthProviders } from '@/lib/social-auth-providers'
 
@@ -133,5 +132,5 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60,
   },
-  secret: resolveNextAuthSecret(),
+  secret: (process.env.NEXTAUTH_SECRET || '').trim() || undefined,
 }

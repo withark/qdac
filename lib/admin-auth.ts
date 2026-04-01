@@ -4,7 +4,6 @@ import { getDb, hasDatabase, initDb } from '@/lib/db/client'
 const ADMIN_USER = 'admin'
 const COOKIE_NAME = 'planic_admin'
 const KV_KEY_ADMIN_HASH = 'admin_password_hash'
-const DEFAULT_PASSWORD = 'admin'
 const WEAK_ADMIN_PASSWORDS = new Set(['admin', 'password', '12345678', 'qwerty'])
 
 function isProductionRuntime(): boolean {
@@ -19,18 +18,15 @@ function isWeakAdminPassword(value: string): boolean {
 }
 
 function getSecret(): string {
-  return process.env.NEXTAUTH_SECRET || process.env.ADMIN_SECRET || 'dev-admin-secret-min-32-chars'
+  const adminSecret = (process.env.ADMIN_SECRET || '').trim()
+  if (!adminSecret) {
+    throw new Error('ADMIN_SECRET가 설정되지 않았습니다. 관리자 인증을 사용하려면 환경변수를 설정하세요.')
+  }
+  return adminSecret
 }
 
-function getEnvPassword(): string | null {
-  const configured = process.env.ADMIN_PASSWORD?.trim()
-  if (configured) {
-    if (isProductionRuntime() && isWeakAdminPassword(configured)) return null
-    return configured
-  }
-  // 운영에서는 기본 비밀번호(admin) fallback을 절대 허용하지 않습니다.
-  if (isProductionRuntime()) return null
-  return DEFAULT_PASSWORD
+if (!(process.env.ADMIN_SECRET || '').trim()) {
+  console.error('[admin-auth] ADMIN_SECRET가 비어 있습니다. 관리자 로그인은 차단됩니다.')
 }
 
 function hashPassword(password: string): string {
@@ -73,23 +69,13 @@ export async function setStoredAdminHash(hash: string): Promise<void> {
 export async function verifyAdmin(username: string, password: string): Promise<boolean> {
   if (username !== ADMIN_USER || !password) return false
   const stored = await getStoredAdminHash()
+  if (!stored) return false
   const isStoredMatch = stored ? verifyPassword(password, stored) : false
   if (isStoredMatch) {
     if (isProductionRuntime() && isWeakAdminPassword(password)) return false
     return true
   }
-  const envPassword = getEnvPassword()
-  if (!envPassword) return false
-  if (password !== envPassword) return false
-  // 저장 해시가 운영 중 오래된 값일 수 있으므로 env 비밀번호 인증 성공 시 최신 해시로 동기화합니다.
-  if (stored && hasDatabase()) {
-    try {
-      await setStoredAdminHash(hashPassword(envPassword))
-    } catch {
-      /* ignore */
-    }
-  }
-  return true
+  return false
 }
 
 function passwordRuleError(password: string): string | null {

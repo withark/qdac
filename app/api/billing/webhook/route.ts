@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { getBillingMode } from '@/lib/billing/mode'
 import { recordBillingWebhookEventIfNew } from '@/lib/billing/webhook-idempotency'
 import { logBillingWebhook } from '@/lib/billing/webhook-log'
-import { verifyTossWebhookPayment } from '@/lib/billing/toss-webhook-verify'
+import { shouldVerifyTossWebhook, verifyTossWebhookPayment } from '@/lib/billing/toss-webhook-verify'
 import {
   getBillingOrderByOrderId,
   markBillingOrderApproved,
@@ -13,11 +13,6 @@ import { cancelActiveSubscription, setActiveSubscription } from '@/lib/db/subscr
 import type { BillingCycle, PlanType } from '@/lib/plans'
 
 export const dynamic = 'force-dynamic'
-
-function isTossWebhookVerificationEnabled(): boolean {
-  const v = (process.env.TOSS_PAYMENTS_WEBHOOK_VERIFY ?? '').trim().toLowerCase()
-  return v === '1' || v === 'true' || v === 'yes' || v === 'on'
-}
 
 type TossPaymentStatusChangedData = {
   paymentKey?: string
@@ -104,7 +99,8 @@ export async function POST(req: NextRequest) {
   const eventType = payload?.eventType ?? ''
   const data = payload?.data ?? {}
 
-  if (isTossWebhookVerificationEnabled() && eventType === 'PAYMENT_STATUS_CHANGED') {
+  const hasSecretKey = !!process.env.TOSS_PAYMENTS_SECRET_KEY?.trim()
+  if (shouldVerifyTossWebhook() && hasSecretKey && eventType === 'PAYMENT_STATUS_CHANGED') {
     const paymentKey = typeof data.paymentKey === 'string' ? data.paymentKey : ''
     const orderId = typeof data.orderId === 'string' ? data.orderId : ''
     if (!paymentKey || !orderId) {
@@ -138,13 +134,17 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  await logBillingWebhook({
-    provider: 'toss',
-    eventType,
-    orderId: typeof data.orderId === 'string' ? data.orderId : undefined,
-    paymentKey: typeof data.paymentKey === 'string' ? data.paymentKey : undefined,
-    payload: payload,
-  })
+  try {
+    await logBillingWebhook({
+      provider: 'toss',
+      eventType,
+      orderId: typeof data.orderId === 'string' ? data.orderId : undefined,
+      paymentKey: typeof data.paymentKey === 'string' ? data.paymentKey : undefined,
+      payload: payload,
+    })
+  } catch (e) {
+    console.error('[billing.webhook.log]', e)
+  }
 
   if (eventType !== 'PAYMENT_STATUS_CHANGED') {
     return new Response(JSON.stringify({ received: true }), {
@@ -154,7 +154,13 @@ export async function POST(req: NextRequest) {
   }
 
   const eventId = `toss_${data.paymentKey ?? ''}_${data.orderId ?? ''}_${data.status ?? ''}_${payload?.createdAt ?? ''}`
-  const isNew = await recordBillingWebhookEventIfNew(eventId, 'toss')
+  let isNew = true
+  try {
+    isNew = await recordBillingWebhookEventIfNew(eventId, 'toss')
+  } catch (e) {
+    console.error('[billing.webhook.idempotency]', e)
+    isNew = true
+  }
   if (!isNew) {
     return new Response(JSON.stringify({ received: true }), {
       status: 200,

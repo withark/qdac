@@ -18,11 +18,6 @@ export async function POST(request: NextRequest) {
     if (!username || !password) {
       return NextResponse.json({ ok: false, error: '아이디와 비밀번호를 입력하세요.' }, { status: 400 })
     }
-    const isDefaultAdminPair =
-      username === 'admin' && (password || '').trim().toLowerCase() === 'admin'
-    if (process.env.NODE_ENV === 'production' && isDefaultAdminPair) {
-      return NextResponse.json({ ok: false, error: '아이디 또는 비밀번호가 올바르지 않습니다.' }, { status: 401 })
-    }
 
     const valid = await verifyAdmin(username, password)
     if (!valid) {

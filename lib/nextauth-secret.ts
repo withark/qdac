@@ -1,9 +1,6 @@
-export function resolveNextAuthSecret(): string | undefined {
+export function resolveNextAuthSecret(): string {
   const s = (process.env.NEXTAUTH_SECRET ?? '').trim()
   if (s) return s
-  // 개발 중에는 고정된 로컬 전용 secret으로 세션/토큰 검증을 안정화한다.
-  if (process.env.NODE_ENV !== 'production') return 'planic-dev-only-secret'
-  // 운영에서는 반드시 환경변수로 주입되어야 하므로 undefined 유지
-  return undefined
+  throw new Error('NEXTAUTH_SECRET가 설정되지 않았습니다. 인증 기능을 사용하려면 환경변수를 설정하세요.')
 }
 

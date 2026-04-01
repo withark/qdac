@@ -1,5 +1,20 @@
 import { PRICES_KRW, type BillingCycle, type PlanType } from '@/lib/plans'
 
+export class TossConfigError extends Error {
+  readonly status = 503
+  readonly code = 'BILLING_CONFIG_MISSING'
+
+  constructor(message: string) {
+    super(message)
+    this.name = 'TossConfigError'
+  }
+}
+
+const tossSecretKeyAtBoot = (process.env.TOSS_PAYMENTS_SECRET_KEY || '').trim()
+if (!tossSecretKeyAtBoot) {
+  console.warn('[billing] TOSS_PAYMENTS_SECRET_KEY가 설정되지 않았습니다. 결제 승인/웹훅 검증은 제한됩니다.')
+}
+
 export function getTossClientKey(): string {
   const k = process.env.NEXT_PUBLIC_TOSS_PAYMENTS_CLIENT_KEY
   if (!k || !k.trim()) throw new Error('NEXT_PUBLIC_TOSS_PAYMENTS_CLIENT_KEY가 설정되지 않았습니다.')
@@ -8,7 +23,9 @@ export function getTossClientKey(): string {
 
 export function getTossSecretKey(): string {
   const k = process.env.TOSS_PAYMENTS_SECRET_KEY
-  if (!k || !k.trim()) throw new Error('TOSS_PAYMENTS_SECRET_KEY가 설정되지 않았습니다.')
+  if (!k || !k.trim()) {
+    throw new TossConfigError('결제 서비스 설정이 준비되지 않았습니다. TOSS_PAYMENTS_SECRET_KEY를 설정한 뒤 다시 시도해주세요.')
+  }
   return k.trim()
 }
 
