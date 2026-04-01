@@ -27,6 +27,12 @@ type UsageRow = {
   atLimit: boolean
 }
 
+type DailyCount = {
+  key: string
+  label: string
+  count: number
+}
+
 function buildUsageRow(label: string, used: number, limit: number): UsageRow {
   const finite = Number.isFinite(limit)
   const pct = finite && limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0
@@ -74,6 +80,28 @@ function formatSavedAtLabel(savedAt: string): string {
   ).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')} 수정`
 }
 
+function buildRecentDailyCounts(records: HistoryRecord[], days = 7): DailyCount[] {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const keys: string[] = []
+  const labels: string[] = []
+  for (let i = days - 1; i >= 0; i -= 1) {
+    const d = new Date(start)
+    d.setDate(start.getDate() - i)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    keys.push(key)
+    labels.push(`${d.getMonth() + 1}/${d.getDate()}`)
+  }
+  const map = new Map<string, number>()
+  for (const r of records) {
+    const d = new Date(r.savedAt)
+    if (Number.isNaN(d.getTime())) continue
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    map.set(key, (map.get(key) ?? 0) + 1)
+  }
+  return keys.map((key, idx) => ({ key, label: labels[idx], count: map.get(key) ?? 0 }))
+}
+
 const DASHBOARD_DETAILS_STORAGE_KEY = 'planic_dashboard_show_details'
 
 function DashboardContent() {
@@ -83,6 +111,7 @@ function DashboardContent() {
   const [successToast, setSuccessToast] = useState('')
   const [showDetails, setShowDetails] = useState(false)
   const [recentHistory, setRecentHistory] = useState<HistoryRecord[] | null>(null)
+  const [allHistory, setAllHistory] = useState<HistoryRecord[] | null>(null)
   const [historyErr, setHistoryErr] = useState(false)
 
   useEffect(() => {
@@ -95,10 +124,12 @@ function DashboardContent() {
     apiFetch<HistoryRecord[]>('/api/history')
       .then((d) => {
         const newestFirst = [...d].reverse()
-        setRecentHistory(newestFirst.slice(0, 3))
+        setAllHistory(newestFirst)
+        setRecentHistory(newestFirst.slice(0, 4))
         setHistoryErr(false)
       })
       .catch(() => {
+        setAllHistory([])
         setRecentHistory([])
         setHistoryErr(true)
       })
@@ -139,15 +170,25 @@ function DashboardContent() {
   }, [me, plan])
 
   const anyAtLimit = lines.some((l) => l.atLimit)
+  const totalHistoryCount = allHistory?.length ?? 0
+  const hasHistory = totalHistoryCount > 0
+  const latestRecord = hasHistory ? allHistory?.[0] ?? null : null
+  const dailyCounts = useMemo(() => (allHistory ? buildRecentDailyCounts(allHistory, 7) : []), [allHistory])
+  const dailyMax = dailyCounts.reduce((max, d) => Math.max(max, d.count), 0)
+  const recent7DaysCount = dailyCounts.reduce((sum, d) => sum + d.count, 0)
+  const usagePercent = useMemo(() => {
+    if (lines.length === 0) return 0
+    return Math.round(lines.reduce((sum, row) => sum + row.pct, 0) / lines.length)
+  }, [lines])
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50/50">
       <GNB />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-6 py-5 border-b border-gray-100 bg-white/90 flex-shrink-0">
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-6 py-4 border-b border-gray-100 bg-white/90 flex-shrink-0">
           <div>
             <h1 className="text-lg font-bold tracking-tight text-gray-900">홈</h1>
-            <p className="text-sm text-slate-600 mt-1">필수 입력만으로 바로 시작하세요.</p>
+            <p className="text-sm text-slate-600 mt-1">현재 상태를 빠르게 확인하고 필요한 작업으로 이동하세요.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             <span className="text-xs text-gray-500">플랜</span>
@@ -160,38 +201,75 @@ function DashboardContent() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5 max-w-3xl mx-auto w-full">
+        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 max-w-4xl mx-auto w-full">
           {err && (
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{err}</div>
           )}
 
-          <section className="order-1 rounded-2xl border-2 border-primary-100 bg-white p-5 shadow-card ring-1 ring-primary-50/70">
+          {me && (
+            <section className="order-1 rounded-2xl border border-gray-200/90 bg-white p-5 shadow-card">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-base font-bold text-gray-900">현재 상황</h2>
+                <Link href="/history" className="text-xs font-semibold text-primary-700 hover:text-primary-800">
+                  전체 이력 보기 →
+                </Link>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                <Link href="/history" className="rounded-xl border border-gray-100 bg-slate-50/50 px-3 py-3 hover:border-primary-200">
+                  <p className="text-[11px] text-slate-500">총 작업</p>
+                  <p className="mt-1 text-xl font-bold text-gray-900 tabular-nums">{totalHistoryCount}</p>
+                </Link>
+                <Link href="/history" className="rounded-xl border border-gray-100 bg-slate-50/50 px-3 py-3 hover:border-primary-200">
+                  <p className="text-[11px] text-slate-500">최근 7일</p>
+                  <p className="mt-1 text-xl font-bold text-gray-900 tabular-nums">{recent7DaysCount}</p>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !showDetails
+                    setShowDetails(next)
+                    try {
+                      if (next) window.localStorage.setItem(DASHBOARD_DETAILS_STORAGE_KEY, '1')
+                      else window.localStorage.removeItem(DASHBOARD_DETAILS_STORAGE_KEY)
+                    } catch {
+                      /* ignore */
+                    }
+                  }}
+                  className="text-left rounded-xl border border-gray-100 bg-slate-50/50 px-3 py-3 hover:border-primary-200"
+                >
+                  <p className="text-[11px] text-slate-500">사용량 평균</p>
+                  <p className="mt-1 text-xl font-bold text-gray-900 tabular-nums">{usagePercent}%</p>
+                </button>
+                <Link href="/plans" className="rounded-xl border border-gray-100 bg-slate-50/50 px-3 py-3 hover:border-primary-200">
+                  <p className="text-[11px] text-slate-500">플랜 상태</p>
+                  <p className="mt-1 text-sm font-bold text-gray-900">{planLabelKo(plan)}</p>
+                </Link>
+              </div>
+            </section>
+          )}
+
+          <section className="order-5 rounded-2xl border-2 border-primary-100 bg-white p-5 shadow-card ring-1 ring-primary-50/70">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-base font-bold text-gray-900">바로 시작</h2>
-              <button
-                type="button"
-                onClick={() => {
-                  const next = !showDetails
-                  setShowDetails(next)
-                  try {
-                    if (next) window.localStorage.setItem(DASHBOARD_DETAILS_STORAGE_KEY, '1')
-                    else window.localStorage.removeItem(DASHBOARD_DETAILS_STORAGE_KEY)
-                  } catch {
-                    /* ignore */
-                  }
-                }}
-                className="text-xs font-semibold text-primary-700 hover:text-primary-800 underline underline-offset-2"
-              >
-                {showDetails ? '상세 정보 숨기기' : '상세 정보 보기'}
-              </button>
+              <Link href="/create-documents" className="text-xs font-semibold text-primary-700 hover:text-primary-800 underline underline-offset-2">
+                전체 문서 보기
+              </Link>
             </div>
-            <div className="mt-4 flex flex-col sm:flex-row gap-2">
+            <div className="mt-4 flex flex-col sm:flex-row sm:flex-wrap gap-2">
               <Link
                 href="/estimate-generator"
                 className="inline-flex items-center justify-center rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 transition-colors"
               >
-                견적서 만들기
+                새 견적서 만들기
               </Link>
+              {latestRecord ? (
+                <Link
+                  href={`/estimate-generator?estimate=${encodeURIComponent(latestRecord.id)}`}
+                  className="inline-flex items-center justify-center rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 text-sm font-semibold text-primary-800 hover:bg-primary-100 transition-colors"
+                >
+                  최근 작업 이어서
+                </Link>
+              ) : null}
               <Link
                 href="/create-documents"
                 className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 transition-colors"
@@ -203,7 +281,7 @@ function DashboardContent() {
 
           {showDetails && me && lines.length > 0 && (
             <section
-              className={`order-3 rounded-2xl border bg-white p-5 shadow-card space-y-4 ${
+              className={`order-4 rounded-2xl border bg-white p-5 shadow-card space-y-4 ${
                 anyAtLimit ? 'border-amber-200/90 ring-1 ring-amber-100/70' : 'border-gray-100'
               }`}
             >
@@ -246,9 +324,34 @@ function DashboardContent() {
             </section>
           )}
 
-          {showDetails && me && anyAtLimit && lines.length > 0 && (
+          {showDetails && dailyCounts.length > 0 && (
+            <section className="order-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-card">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-sm font-bold text-gray-900">최근 7일 작업 추이</h2>
+                <Link href="/history" className="text-xs font-semibold text-primary-700 hover:text-primary-800">
+                  상세 보기 →
+                </Link>
+              </div>
+              <ul className="mt-3 space-y-2">
+                {dailyCounts.map((d) => (
+                  <li key={d.key} className="flex items-center gap-2">
+                    <span className="w-11 shrink-0 text-xs text-slate-500 tabular-nums">{d.label}</span>
+                    <div className="h-2 flex-1 rounded-full bg-gray-100 overflow-hidden">
+                      <div
+                        className="h-full bg-primary-500"
+                        style={{ width: `${dailyMax > 0 ? (d.count / dailyMax) * 100 : 0}%` }}
+                      />
+                    </div>
+                    <span className="w-6 shrink-0 text-right text-xs font-semibold text-gray-700 tabular-nums">{d.count}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {(showDetails && me && anyAtLimit && lines.length > 0) || historyErr ? (
             <div
-              className="order-4 rounded-2xl border border-amber-200/90 bg-gradient-to-r from-amber-50 via-white to-white pl-4 pr-4 py-4 shadow-sm ring-1 ring-amber-100/80"
+              className="order-2 rounded-2xl border border-amber-200/90 bg-gradient-to-r from-amber-50 via-white to-white pl-4 pr-4 py-4 shadow-sm ring-1 ring-amber-100/80"
               role="status"
               aria-live="polite"
             >
@@ -261,29 +364,49 @@ function DashboardContent() {
                     !
                   </span>
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-amber-950">한도에 도달한 항목이 있어요</p>
-                    <ul className="mt-1.5 text-sm text-amber-900/90 list-disc pl-4 space-y-0.5">
-                      {lines
-                        .filter((l) => l.atLimit)
-                        .map((l) => (
-                          <li key={l.label}>{l.label}</li>
-                        ))}
-                    </ul>
-                    <p className="mt-2 text-xs text-amber-800/85">업그레이드하면 더 넉넉하게 쓸 수 있어요.</p>
+                    {showDetails && me && anyAtLimit && lines.length > 0 ? (
+                      <>
+                        <p className="text-sm font-bold text-amber-950">한도에 도달한 항목이 있어요</p>
+                        <ul className="mt-1.5 text-sm text-amber-900/90 list-disc pl-4 space-y-0.5">
+                          {lines
+                            .filter((l) => l.atLimit)
+                            .map((l) => (
+                              <li key={l.label}>{l.label}</li>
+                            ))}
+                        </ul>
+                        <p className="mt-2 text-xs text-amber-800/85">업그레이드하면 더 넉넉하게 쓸 수 있어요.</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm font-bold text-amber-950">확인이 필요한 항목이 있어요</p>
+                        <p className="mt-1.5 text-sm text-amber-900/90">
+                          최근 작업 이력을 불러오지 못했습니다. 이력 화면에서 다시 확인해 주세요.
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
-                <Link
-                  href="/plans"
-                  className="inline-flex shrink-0 items-center justify-center rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-amber-700 transition-colors sm:self-center"
-                >
-                  요금제 보기
-                </Link>
+                {showDetails && me && anyAtLimit && lines.length > 0 ? (
+                  <Link
+                    href="/plans"
+                    className="inline-flex shrink-0 items-center justify-center rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-amber-700 transition-colors sm:self-center"
+                  >
+                    요금제 보기
+                  </Link>
+                ) : (
+                  <Link
+                    href="/history"
+                    className="inline-flex shrink-0 items-center justify-center rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-amber-700 transition-colors sm:self-center"
+                  >
+                    작업 이력 보기
+                  </Link>
+                )}
               </div>
             </div>
-          )}
+          ) : null}
 
           {me && (
-            <section className="order-2 rounded-2xl border border-gray-200/90 bg-white p-5 shadow-card">
+            <section className="order-3 rounded-2xl border border-gray-200/90 bg-white p-5 shadow-card">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <h2 className="text-base font-bold text-gray-900">최근 작업 이어하기</h2>
                 <Link href="/history" className="text-sm font-semibold text-primary-700 hover:text-primary-800 shrink-0">
@@ -302,7 +425,7 @@ function DashboardContent() {
                 </p>
               ) : recentHistory.length === 0 ? (
                 <div className="mt-4 rounded-xl border-2 border-dashed border-primary-200/80 bg-primary-50/40 px-4 py-6 text-center">
-                  <p className="text-sm text-slate-700">아직 저장된 작업이 없어요. 견적서부터 시작해 보세요.</p>
+                  <p className="text-sm text-slate-700">처음이시군요. 첫 문서를 만들면 이곳에서 이어서 관리할 수 있어요.</p>
                   <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2 sm:gap-3">
                     <Link
                       href="/estimate-generator"
@@ -341,7 +464,7 @@ function DashboardContent() {
           )}
 
           {showDetails && me && plan === 'FREE' && (
-            <div className="order-5 rounded-2xl border border-primary-100 bg-white px-5 py-5 shadow-card ring-1 ring-primary-50">
+            <div className="order-6 rounded-2xl border border-primary-100 bg-white px-5 py-5 shadow-card ring-1 ring-primary-50">
               <p className="text-sm font-semibold text-gray-900">무료 플랜 이용 중이에요</p>
               <p className="mt-2 text-sm text-slate-600 leading-snug">
                 현재 플랜은 월 견적 생성과 기업정보 저장이 제한됩니다. 업그레이드하면 생성 한도와 프리미엄 정제 기능을 더 넉넉하게 사용할 수 있어요.
