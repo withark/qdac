@@ -592,7 +592,7 @@ function EstimateGeneratorContent() {
         </header>
 
         <div className="flex-1 overflow-y-auto p-6">
-          <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+          <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
             <section className="min-w-0">
               <SimpleGeneratorWizard
             title="견적서 생성하기"

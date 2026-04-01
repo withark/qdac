@@ -234,7 +234,7 @@ export default function ScenarioGeneratorPage() {
             />
           ) : null}
           {!isScenarioLocked ? (
-            <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+            <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
               <section className="min-w-0">
                 <SimpleGeneratorWizard
             title="시나리오 만들기"

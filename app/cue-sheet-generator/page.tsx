@@ -239,7 +239,7 @@ export default function CueSheetGeneratorPage() {
             />
           ) : null}
           {!isCuesheetLocked ? (
-            <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+            <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
               <section className="min-w-0">
                 <SimpleGeneratorWizard
             title="큐시트 만들기"
