@@ -16,6 +16,7 @@ import { exportToPdf } from '@/lib/exportPdf'
 import { isPaidPlan, type PlanType } from '@/lib/plans'
 
 type MeLite = {
+  user?: { id?: string | null; email?: string | null } | null
   subscription: { planType: PlanType }
   usage: { quoteGeneratedCount: number; premiumGeneratedCount: number }
   limits: { monthlyQuoteGenerateLimit: number; monthlyPremiumGenerationLimit: number }
@@ -95,6 +96,11 @@ function EstimateGeneratorContent() {
   const generatingTabs = useMemo(() => ({ estimate: generating }), [generating])
 
   const activeReference = useMemo(() => referenceDocs.find((r) => r.isActive) ?? null, [referenceDocs])
+  const userDraftStorageKey = useMemo(() => {
+    const userId = me?.user?.id
+    if (!userId) return null
+    return `${DRAFT_STORAGE_KEY}:${userId}`
+  }, [me?.user?.id])
 
   const selectedHistory = useMemo(
     () => (selectedEstimateId ? historyList.find((r) => r.id === selectedEstimateId) || null : null),
@@ -150,8 +156,8 @@ function EstimateGeneratorContent() {
   }, [])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const raw = window.localStorage.getItem(DRAFT_STORAGE_KEY)
+    if (typeof window === 'undefined' || !userDraftStorageKey) return
+    const raw = window.localStorage.getItem(userDraftStorageKey)
     if (!raw) return
     const parsed = safeParseJson(raw)
     if (!parsed || typeof parsed !== 'object') return
@@ -175,10 +181,10 @@ function EstimateGeneratorContent() {
     if (typeof draft.venue === 'string') setVenue(draft.venue)
     if (typeof draft.notes === 'string') setNotes(draft.notes)
     if (typeof draft.budget === 'string') setBudget(draft.budget)
-  }, [])
+  }, [userDraftStorageKey])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined' || !userDraftStorageKey) return
     const timer = window.setTimeout(() => {
       const savedAt = new Date().toISOString()
       const payload = {
@@ -192,12 +198,12 @@ function EstimateGeneratorContent() {
         budget,
         savedAt,
       }
-      window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(payload))
+      window.localStorage.setItem(userDraftStorageKey, JSON.stringify(payload))
     }, 500)
     return () => {
       window.clearTimeout(timer)
     }
-  }, [sourceMode, selectedEstimateId, selectedTaskOrderId, topic, headcount, venue, notes, budget])
+  }, [userDraftStorageKey, sourceMode, selectedEstimateId, selectedTaskOrderId, topic, headcount, venue, notes, budget])
 
   useEffect(() => {
     const q = searchParams.get('estimate')
