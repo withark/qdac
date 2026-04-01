@@ -14,6 +14,18 @@ function includesAny(haystack: string, needles: string[]): boolean {
   return needles.some((needle) => haystack.includes(needle))
 }
 
+function hasSafeUserFacingMessage(raw: string): boolean {
+  if (!raw || raw.length > 180 || raw.includes('\n')) return false
+  return includesAny(raw, [
+    'AI 크레딧이 부족',
+    '인증에 실패',
+    '응답 시간이 초과',
+    '요청이 많아 잠시 제한',
+    '필수 입력값이 누락',
+    '선택한 원본 문서를 찾을 수 없습니다',
+  ])
+}
+
 export function toServerUserMessage(
   input: unknown,
   fallback = '요청 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
@@ -21,7 +33,11 @@ export function toServerUserMessage(
   if (input instanceof EntitlementError) {
     return input.message
   }
-  const lowered = asText(input).toLowerCase()
+  const rawText = asText(input)
+  if (hasSafeUserFacingMessage(rawText)) {
+    return rawText
+  }
+  const lowered = rawText.toLowerCase()
 
   if (
     includesAny(lowered, [
@@ -31,6 +47,7 @@ export function toServerUserMessage(
       'quota exceeded',
       'quota',
       'billing',
+      '크레딧이 부족',
     ])
   ) {
     return 'AI 크레딧이 부족합니다. 결제/플랜에서 크레딧 상태를 확인한 뒤 다시 시도해 주세요.'
@@ -50,6 +67,7 @@ export function toServerUserMessage(
       'invalid_api_key',
       '401',
       '403',
+      '인증에 실패',
     ])
   ) {
     return 'AI 연동 인증에 실패했습니다. API 키와 결제 상태를 확인해 주세요.'

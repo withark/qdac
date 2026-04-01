@@ -33,6 +33,9 @@ type GenerationRunsPayload = {
   data?: {
     runs?: Array<{
       id?: string
+      createdAt?: string
+      errorMessage?: string
+      success?: boolean
       engineSnapshot?: Record<string, unknown>
     }>
   }
@@ -159,6 +162,40 @@ function assertAiRuntime(payload: AiRuntimePayload, expectProvider?: string): vo
   }
 }
 
+function assertRecentGenerationFailures(
+  payload: GenerationRunsPayload,
+  windowMinutes: number,
+): { checked: number; infraFailCount: number } {
+  const now = Date.now()
+  const thresholdMs = Math.max(1, windowMinutes) * 60_000
+  const runs = payload.data?.runs || []
+  const recent = runs.filter((r) => {
+    const at = Date.parse(String(r.createdAt || ''))
+    return Number.isFinite(at) && now - at <= thresholdMs
+  })
+  const infraFailureKeywords = [
+    'ai 크레딧이 부족',
+    '인증에 실패',
+    'api key',
+    'insufficient credit',
+    'insufficient_quota',
+    'quota exceeded',
+    'billing',
+  ]
+  const infraFailures = recent.filter((r) => {
+    if (r.success !== false) return false
+    const msg = String(r.errorMessage || '').toLowerCase()
+    return infraFailureKeywords.some((token) => msg.includes(token))
+  })
+  if (infraFailures.length > 0) {
+    const sample = String(infraFailures[0]?.errorMessage || 'unknown')
+    throw new Error(
+      `최근 ${windowMinutes}분 내 생성 인프라 실패 ${infraFailures.length}건 감지: ${sample}`,
+    )
+  }
+  return { checked: recent.length, infraFailCount: 0 }
+}
+
 async function main() {
   const baseUrl = (process.env.PLANIC_BASE_URL || 'https://www.planic.cloud').replace(/\/$/, '')
   const adminUsername = process.env.PLANIC_ADMIN_USERNAME || 'admin'
@@ -166,6 +203,11 @@ async function main() {
   const expectProvider = (process.env.PLANIC_EXPECT_PROVIDER || '').trim() || undefined
   const checkDefaultAdmin = process.env.PLANIC_CHECK_DEFAULT_ADMIN !== '0'
   const checkAdminQualityBundle = process.env.PLANIC_CHECK_ADMIN_QUALITY_BUNDLE !== '0'
+  const checkRecentGenerationFailures = process.env.PLANIC_CHECK_RECENT_GENERATION_FAILURES !== '0'
+  const generationFailureWindowMinutes = Number.parseInt(
+    process.env.PLANIC_GENERATION_FAILURE_WINDOW_MINUTES || '120',
+    10,
+  )
 
   console.log(`[verify-production-runtime] base=${baseUrl}`)
 
@@ -235,6 +277,15 @@ async function main() {
       return !!snapshot.quality
     }).length ?? 0
   console.log(`[verify-production-runtime] generation-runs ok (count=${runCount}, timings=${withTimings}, quality=${withQuality})`)
+
+  if (checkRecentGenerationFailures) {
+    const recent = assertRecentGenerationFailures(generationRuns.data, generationFailureWindowMinutes)
+    console.log(
+      `[verify-production-runtime] recent generation failures ok (window=${generationFailureWindowMinutes}m, checked=${recent.checked})`,
+    )
+  } else {
+    console.log('[verify-production-runtime] recent generation failures check skipped')
+  }
 
   if (checkAdminQualityBundle) {
     const bundle = await assertAdminGenerationLogsBundle(baseUrl, cookie)
