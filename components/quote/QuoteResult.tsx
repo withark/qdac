@@ -1227,30 +1227,119 @@ export function QuoteResult({
               (() => {
                 const p = doc.planning!
                 const update = (patch: Partial<typeof p>) => patchDoc(base => ({ ...base, planning: { ...(base.planning || p), ...patch } as any }))
+                const checklist = (p.checklist || []).filter(Boolean)
+                const topProgramRows = (doc.program?.programRows || []).slice(0, 8)
+                const actionPlanRows = checklist.slice(0, 6).map((item, idx) => {
+                  const labels = ['1단계', '2단계', '3단계', '4단계', '5단계', '6단계']
+                  const timeline = ['D-60', 'D-45', 'D-30', 'D-14', 'D-Day', 'D+7']
+                  return {
+                    step: labels[idx] || `${idx + 1}단계`,
+                    period: timeline[idx] || `D-${Math.max(0, 7 - idx)}`,
+                    task: item,
+                    owner: idx < 2 ? '총괄 PM' : idx < 4 ? '운영팀' : '현장 리더',
+                  }
+                })
                 return (
                   <>
-                    {[
-                      { key: 'overview', label: '개요', rows: 4, val: p.overview },
-                      { key: 'scope', label: '범위', rows: 5, val: p.scope },
-                      { key: 'approach', label: '접근/전략', rows: 5, val: p.approach },
-                      { key: 'operationPlan', label: '운영 계획', rows: 5, val: p.operationPlan },
-                      { key: 'deliverablesPlan', label: '산출물 계획', rows: 5, val: p.deliverablesPlan },
-                      { key: 'staffingConditions', label: '인력/운영 조건', rows: 5, val: p.staffingConditions },
-                      { key: 'risksAndCautions', label: '리스크/주의사항', rows: 5, val: p.risksAndCautions },
-                    ].map(sec => (
-                      <div key={sec.key} className="bg-gray-50 rounded-xl p-3">
-                        <div className="text-[10px] text-gray-500 font-semibold mb-1">{sec.label}</div>
-                        <textarea value={sec.val} rows={sec.rows} onChange={e => update({ [sec.key]: e.target.value } as any)} className="w-full bg-white border border-gray-200 rounded-lg p-2 text-xs resize-none" />
+                    <div className="rounded-2xl border border-slate-200 bg-white px-6 py-6 shadow-sm">
+                      <div className="border-b border-slate-200 pb-4 text-center">
+                        <p className="text-xs font-semibold tracking-[0.2em] text-slate-400">PROJECT PLANNING</p>
+                        <h4 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">{doc.eventName || '행사 기획안'}</h4>
+                        <p className="mt-1 text-sm text-slate-500">{doc.eventDate || '일정 미정'} · {doc.venue || '장소 미정'}</p>
                       </div>
-                    ))}
-                    <div className="bg-gray-50 rounded-xl p-3">
-                      <div className="text-[10px] text-gray-500 font-semibold mb-1">체크리스트</div>
-                      <textarea
-                        value={(p.checklist || []).join('\n')}
-                        rows={6}
-                        onChange={e => update({ checklist: e.target.value.split('\n').map(x => x.trim()).filter(Boolean) })}
-                        className="w-full bg-white border border-gray-200 rounded-lg p-2 text-xs resize-none"
-                      />
+
+                      <div className="mt-6 space-y-4">
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <p className="text-sm font-semibold text-slate-900">1. 배경 및 필요성</p>
+                          <textarea
+                            value={p.overview}
+                            rows={4}
+                            onChange={e => update({ overview: e.target.value })}
+                            className="mt-2 w-full resize-none rounded-lg border border-slate-200 bg-white p-2 text-xs leading-6"
+                          />
+                        </div>
+
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <p className="text-sm font-semibold text-slate-900">2. 프로그램 개요</p>
+                          <textarea
+                            value={p.scope}
+                            rows={4}
+                            onChange={e => update({ scope: e.target.value })}
+                            className="mt-2 w-full resize-none rounded-lg border border-slate-200 bg-white p-2 text-xs leading-6"
+                          />
+                        </div>
+
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <p className="text-sm font-semibold text-slate-900">3. 세부 액션 프로그램</p>
+                          <div className="mt-2 space-y-2">
+                            {topProgramRows.length > 0 ? (
+                              topProgramRows.map((row, idx) => (
+                                <div key={`${row.content}-${idx}`} className="rounded-lg border border-slate-200 bg-white p-3">
+                                  <p className="text-xs font-bold text-slate-800">{String(idx + 1).padStart(2, '0')}. {row.content || '프로그램 항목'}</p>
+                                  <p className="mt-1 text-xs text-slate-600">{row.notes || row.tone || '세부 운영 메모를 입력하세요.'}</p>
+                                  <p className="mt-1 text-[11px] text-slate-500">{row.time || '-'} · {row.audience || '전체 대상'}</p>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="rounded-lg border border-dashed border-slate-300 bg-white p-3 text-xs text-slate-500">
+                                프로그램 제안 탭 내용을 생성하면 여기 반영됩니다.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <p className="text-sm font-semibold text-slate-900">4. 액션 플랜 (Action Plan)</p>
+                          <div className="mt-2 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                            <table className="w-full min-w-[560px] text-xs">
+                              <thead className="bg-slate-800 text-white">
+                                <tr>
+                                  <th className="px-2 py-2 text-left">단계</th>
+                                  <th className="px-2 py-2 text-left">시기</th>
+                                  <th className="px-2 py-2 text-left">주요 내용</th>
+                                  <th className="px-2 py-2 text-left">담당</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {actionPlanRows.length > 0 ? (
+                                  actionPlanRows.map((row, idx) => (
+                                    <tr key={`${row.step}-${idx}`} className="border-t border-slate-100">
+                                      <td className="px-2 py-2 font-semibold text-slate-700">{row.step}</td>
+                                      <td className="px-2 py-2 text-slate-600">{row.period}</td>
+                                      <td className="px-2 py-2 text-slate-700">{row.task}</td>
+                                      <td className="px-2 py-2 text-slate-600">{row.owner}</td>
+                                    </tr>
+                                  ))
+                                ) : (
+                                  <tr>
+                                    <td colSpan={4} className="px-2 py-3 text-center text-slate-500">체크리스트를 입력하면 액션 플랜 표가 자동 구성됩니다.</td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <p className="text-sm font-semibold text-slate-900">5. 리스크 및 운영 포인트</p>
+                          <textarea
+                            value={p.risksAndCautions}
+                            rows={5}
+                            onChange={e => update({ risksAndCautions: e.target.value })}
+                            className="mt-2 w-full resize-none rounded-lg border border-slate-200 bg-white p-2 text-xs leading-6"
+                          />
+                        </div>
+
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <p className="text-sm font-semibold text-slate-900">체크리스트 (편집)</p>
+                          <textarea
+                            value={checklist.join('\n')}
+                            rows={8}
+                            onChange={e => update({ checklist: e.target.value.split('\n').map(x => x.trim()).filter(Boolean) })}
+                            className="mt-2 w-full resize-none rounded-lg border border-slate-200 bg-white p-2 text-xs leading-6"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </>
                 )
