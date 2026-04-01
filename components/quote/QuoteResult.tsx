@@ -254,6 +254,7 @@ export function QuoteResult({
   const flatPriceItems = safePrices.flatMap(cat =>
     (Array.isArray(cat.items) ? cat.items : []).map(item => ({ ...item, categoryName: cat.name })),
   )
+  const templatePlanLabel = (id: QuoteTemplateId) => (id === 'default' ? '전체 플랜' : 'BASIC+')
   const currentExcelView: ExcelExportView | null =
     tab === 'estimate'
       ? 'quote'
@@ -403,7 +404,9 @@ export function QuoteResult({
                 className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-200"
               >
                 {allowedQuoteTemplates(planType).map(id => (
-                  <option key={id} value={id}>{QUOTE_TEMPLATES[id].name}</option>
+                  <option key={id} value={id}>
+                    {`${QUOTE_TEMPLATES[id].name} · ${templatePlanLabel(id)}`}
+                  </option>
                 ))}
               </select>
               </span>

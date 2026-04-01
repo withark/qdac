@@ -29,8 +29,8 @@ export interface QuoteTemplateMeta {
 export const QUOTE_TEMPLATES: Record<QuoteTemplateId, QuoteTemplateMeta> = {
   default: {
     id: 'default',
-    name: '프리미엄',
-    description: '중앙 타이틀, 깔끔한 카드',
+    name: '기본',
+    description: '기본형 견적서 레이아웃',
     layout: 'default',
     pdf: {
       sectionBg: '#eef2ff',
