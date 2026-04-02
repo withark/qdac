@@ -5,6 +5,7 @@ import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
 import SimpleGeneratorWizard from '@/components/generators/SimpleGeneratorWizard'
 import { LoadSavedGeneratedDocModal } from '@/components/generators/LoadSavedGeneratedDocModal'
+import GenerationProgressPanel, { appendStageLine } from '@/components/generators/GenerationProgressPanel'
 import { Input, Textarea, Toast } from '@/components/ui'
 import type { CompanySettings, PriceCategory, QuoteDoc } from '@/lib/types'
 import { apiFetch, apiGenerateStream } from '@/lib/api/client'
@@ -56,6 +57,7 @@ export default function EmceeScriptGeneratorPage() {
   const [generatedDocId, setGeneratedDocId] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
   const [generationProgressLabel, setGenerationProgressLabel] = useState<string | null>(null)
+  const [generationStageLog, setGenerationStageLog] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [loadSavedOpen, setLoadSavedOpen] = useState(false)
   const generatingTabs = useMemo(() => ({ emceeScript: generating }), [generating])
@@ -132,6 +134,7 @@ export default function EmceeScriptGeneratorPage() {
       return
     }
     setGenerating(true)
+    setGenerationStageLog(['입력 확인 중'])
     setGenerationProgressLabel('입력 확인 중')
     try {
       const promptRequirements = [goal.trim(), notes.trim() ? `추가 메모: ${notes.trim()}` : ''].filter(Boolean).join('\n')
@@ -145,7 +148,12 @@ export default function EmceeScriptGeneratorPage() {
           documentTarget: 'emceeScript',
           existingDoc: docForGenerate,
         },
-        { onStage: ({ label }) => setGenerationProgressLabel(label) },
+        {
+          onStage: ({ label }) => {
+            setGenerationProgressLabel(label)
+            setGenerationStageLog((prev) => appendStageLine(prev, label))
+          },
+        },
       )
       setDoc(data.doc)
       setGeneratedDocId(data.id)
@@ -319,7 +327,9 @@ export default function EmceeScriptGeneratorPage() {
             validationMessage={validationMessage}
           />
 
-          {doc && generatedDocId ? (
+          {generating ? (
+            <GenerationProgressPanel title="사회자 멘트 생성 중" lines={generationStageLog} />
+          ) : doc && generatedDocId ? (
             <section className="rounded-2xl border border-gray-100 bg-white shadow-card overflow-hidden">
               <div className="p-4 border-b border-gray-100 bg-slate-50/50">
                 <div className="text-sm font-semibold text-gray-900">사회자 멘트 결과</div>

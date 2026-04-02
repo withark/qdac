@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
 import SimpleGeneratorWizard, { type WizardHighlight, type WizardMode } from '@/components/generators/SimpleGeneratorWizard'
+import GenerationProgressPanel, { appendStageLine } from '@/components/generators/GenerationProgressPanel'
 import { Input, Textarea, Toast } from '@/components/ui'
 import type { CompanySettings, HistoryRecord, PriceCategory, QuoteDoc, ReferenceDoc, TaskOrderDoc } from '@/lib/types'
 import { apiFetch, apiGenerateStream } from '@/lib/api/client'
@@ -101,6 +102,7 @@ function EstimateGeneratorContent() {
   const [generatedDocId, setGeneratedDocId] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
   const [generationProgressLabel, setGenerationProgressLabel] = useState<string | null>(null)
+  const [generationStageLog, setGenerationStageLog] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const generatingTabs = useMemo(() => ({ estimate: generating }), [generating])
 
@@ -352,10 +354,14 @@ function EstimateGeneratorContent() {
     }
 
     setGenerating(true)
+    setGenerationStageLog(['입력 확인 중'])
     setGenerationProgressLabel('입력 확인 중')
     try {
       const data = await apiGenerateStream(body, {
-        onStage: ({ label }) => setGenerationProgressLabel(label),
+        onStage: ({ label }) => {
+          setGenerationProgressLabel(label)
+          setGenerationStageLog((prev) => appendStageLine(prev, label))
+        },
       })
       setDoc(data.doc)
       setGeneratedDocId(data.id)
@@ -695,7 +701,9 @@ function EstimateGeneratorContent() {
               />
             </section>
 
-            {doc && generatedDocId ? (
+            {generating ? (
+              <GenerationProgressPanel title="견적서 생성 중" lines={generationStageLog} />
+            ) : doc && generatedDocId ? (
               <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-card">
               {docSummary ? (
                 <div className="sticky top-2 z-20 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">

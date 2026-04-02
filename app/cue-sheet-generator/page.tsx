@@ -5,6 +5,7 @@ import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
 import SimpleGeneratorWizard, { type WizardHighlight, type WizardMode } from '@/components/generators/SimpleGeneratorWizard'
 import { LoadSavedGeneratedDocModal } from '@/components/generators/LoadSavedGeneratedDocModal'
+import GenerationProgressPanel, { appendStageLine } from '@/components/generators/GenerationProgressPanel'
 import { Input, Textarea, Toast } from '@/components/ui'
 import type { CompanySettings, PriceCategory, QuoteDoc } from '@/lib/types'
 import type { PlanType } from '@/lib/plans'
@@ -64,6 +65,7 @@ export default function CueSheetGeneratorPage() {
 
   const [generating, setGenerating] = useState(false)
   const [generationProgressLabel, setGenerationProgressLabel] = useState<string | null>(null)
+  const [generationStageLog, setGenerationStageLog] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [loadSavedOpen, setLoadSavedOpen] = useState(false)
   const generatingTabs = useMemo(() => ({ program: generating }), [generating])
@@ -148,6 +150,7 @@ export default function CueSheetGeneratorPage() {
       return
     }
     setGenerating(true)
+    setGenerationStageLog(['입력 확인 중'])
     setGenerationProgressLabel('입력 확인 중')
     try {
       const promptRequirements = [goal.trim(), notes.trim() ? `추가 메모: ${notes.trim()}` : ''].filter(Boolean).join('\n')
@@ -162,7 +165,12 @@ export default function CueSheetGeneratorPage() {
           existingDoc: contextDocForGenerate,
           cuesheetSampleIds: [],
         },
-        { onStage: ({ label }) => setGenerationProgressLabel(label) },
+        {
+          onStage: ({ label }) => {
+            setGenerationProgressLabel(label)
+            setGenerationStageLog((prev) => appendStageLine(prev, label))
+          },
+        },
       )
       setDoc(data.doc)
       setGeneratedDocId(data.id)
@@ -368,7 +376,9 @@ export default function CueSheetGeneratorPage() {
                 />
               </section>
 
-              {doc && generatedDocId ? (
+              {generating ? (
+                <GenerationProgressPanel title="큐시트 생성 중" lines={generationStageLog} />
+              ) : doc && generatedDocId ? (
                 <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-card">
                   <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 bg-slate-50/50 p-4">
                     <div>

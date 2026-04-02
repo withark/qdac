@@ -6,6 +6,7 @@ import QuoteResult from '@/components/quote/QuoteResult'
 import { Input, Textarea, Toast } from '@/components/ui'
 import SimpleGeneratorWizard, { type WizardHighlight } from '@/components/generators/SimpleGeneratorWizard'
 import { LoadSavedGeneratedDocModal } from '@/components/generators/LoadSavedGeneratedDocModal'
+import GenerationProgressPanel, { appendStageLine } from '@/components/generators/GenerationProgressPanel'
 import type { CompanySettings, HistoryRecord, PriceCategory, QuoteDoc, TaskOrderDoc } from '@/lib/types'
 import { apiFetch, apiGenerateStream } from '@/lib/api/client'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
@@ -55,6 +56,7 @@ export default function ProgramProposalGeneratorPage() {
 
   const [generating, setGenerating] = useState(false)
   const [generationProgressLabel, setGenerationProgressLabel] = useState<string | null>(null)
+  const [generationStageLog, setGenerationStageLog] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [loadSavedOpen, setLoadSavedOpen] = useState(false)
   const generatingTabs = useMemo(() => ({ program: generating }), [generating])
@@ -152,6 +154,7 @@ export default function ProgramProposalGeneratorPage() {
       return
     }
     setGenerating(true)
+    setGenerationStageLog(['입력 확인 중'])
     setGenerationProgressLabel('입력 확인 중')
     try {
       const promptRequirements = [goal.trim(), notes.trim() ? `추가 메모: ${notes.trim()}` : ''].filter(Boolean).join('\n')
@@ -170,7 +173,12 @@ export default function ProgramProposalGeneratorPage() {
           documentTarget: 'program',
           existingDoc: docForGenerate,
         },
-        { onStage: ({ label }) => setGenerationProgressLabel(label) },
+        {
+          onStage: ({ label }) => {
+            setGenerationProgressLabel(label)
+            setGenerationStageLog((prev) => appendStageLine(prev, label))
+          },
+        },
       )
       setDoc(data.doc)
       setGeneratedDocId(data.id)
@@ -377,7 +385,9 @@ export default function ProgramProposalGeneratorPage() {
               />
             </section>
 
-            {doc && generatedDocId ? (
+            {generating ? (
+              <GenerationProgressPanel title="프로그램 제안 생성 중" lines={generationStageLog} />
+            ) : doc && generatedDocId ? (
               <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-card">
                 <div className="border-b border-gray-100 bg-slate-50/50 p-4">
                   <div className="text-sm font-semibold text-gray-900">프로그램 제안 결과</div>
