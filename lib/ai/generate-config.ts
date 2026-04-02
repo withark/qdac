@@ -1,11 +1,11 @@
 /**
  * 견적·기획안 JSON 생성은 길어서 출력 토큰 부족 시 잘림 → 최소 출력 한도.
  */
-export const GENERATE_QUOTE_OUTPUT_MIN = 6_000
+export const GENERATE_QUOTE_OUTPUT_MIN = 1_200
 
-export const ENGINE_MAX_TOKENS_MIN = 6_000
+export const ENGINE_MAX_TOKENS_MIN = 1_200
 export const ENGINE_MAX_TOKENS_MAX = 32_000
-export const ENGINE_MAX_TOKENS_DEFAULT = 6_144
+export const ENGINE_MAX_TOKENS_DEFAULT = 2_048
 
 export const GENERATE_OUTPUT_CAP: Record<'anthropic' | 'openai', number> = {
   anthropic: 16_384,
