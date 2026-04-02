@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
-import SimpleGeneratorWizard, { type WizardHighlight } from '@/components/generators/SimpleGeneratorWizard'
+import SimpleGeneratorWizard from '@/components/generators/SimpleGeneratorWizard'
 import { LoadSavedGeneratedDocModal } from '@/components/generators/LoadSavedGeneratedDocModal'
 import GenerationProgressPanel, { appendStageLine } from '@/components/generators/GenerationProgressPanel'
 import { Input, Textarea, Toast } from '@/components/ui'
@@ -66,14 +66,6 @@ export default function ScenarioGeneratorPage() {
   const [saving, setSaving] = useState(false)
   const [loadSavedOpen, setLoadSavedOpen] = useState(false)
   const generatingTabs = useMemo(() => ({ scenario: generating }), [generating])
-  const wizardHighlights: WizardHighlight[] = useMemo(
-    () => [
-      { label: '필수 입력', value: '주제, 목표' },
-      { label: '권장 입력', value: '인원, 장소, 연출 메모' },
-      { label: '결과물', value: '시나리오 + 엑셀/PDF' },
-    ],
-    [],
-  )
 
   useEffect(() => {
     apiFetch<MeLite>('/api/me').then(setMe).catch(() => {})
@@ -260,8 +252,6 @@ export default function ScenarioGeneratorPage() {
                 <SimpleGeneratorWizard
             title="시나리오 만들기"
             subtitle="연출 흐름과 진행 멘트를 같이 정리해 바로 리허설 문서로 쓸 수 있게 구성합니다."
-            highlights={wizardHighlights}
-            collapsibleHighlights
             modes={[
               { id: 'fromTopic', title: '주제만 입력', desc: '행사 목표와 연출 메모만으로 초안을 만듭니다.' },
               { id: 'fromPlanning', title: '기획안 기준', desc: '기획 구조를 바탕으로 연출/멘트 흐름을 구체화합니다.' },

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
-import SimpleGeneratorWizard, { type WizardHighlight, type WizardMode } from '@/components/generators/SimpleGeneratorWizard'
+import SimpleGeneratorWizard, { type WizardMode } from '@/components/generators/SimpleGeneratorWizard'
 import { LoadSavedGeneratedDocModal } from '@/components/generators/LoadSavedGeneratedDocModal'
 import GenerationProgressPanel, { appendStageLine } from '@/components/generators/GenerationProgressPanel'
 import { Input, Textarea, Toast } from '@/components/ui'
@@ -69,14 +69,6 @@ export default function CueSheetGeneratorPage() {
   const [saving, setSaving] = useState(false)
   const [loadSavedOpen, setLoadSavedOpen] = useState(false)
   const generatingTabs = useMemo(() => ({ program: generating }), [generating])
-  const wizardHighlights: WizardHighlight[] = useMemo(
-    () => [
-      { label: '필수 입력', value: '주제, 목표' },
-      { label: '권장 입력', value: '인원, 장소, 운영 메모' },
-      { label: '결과물', value: '큐시트 + 엑셀/PDF' },
-    ],
-    [],
-  )
 
   const modes: WizardMode[] = useMemo(
     () => [
@@ -266,8 +258,6 @@ export default function CueSheetGeneratorPage() {
                 <SimpleGeneratorWizard
             title="큐시트 만들기"
             subtitle="시간, 담당자, 준비물, 멘트 큐를 한 번에 정리해 바로 현장 공유가 가능하도록 구성했습니다."
-            highlights={wizardHighlights}
-            collapsibleHighlights
             modes={modes}
             modeId={sourceMode}
             onModeChange={(id) => {

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
 import { Input, Textarea, Toast } from '@/components/ui'
-import SimpleGeneratorWizard, { type WizardHighlight } from '@/components/generators/SimpleGeneratorWizard'
+import SimpleGeneratorWizard from '@/components/generators/SimpleGeneratorWizard'
 import { LoadSavedGeneratedDocModal } from '@/components/generators/LoadSavedGeneratedDocModal'
 import GenerationProgressPanel, { appendStageLine } from '@/components/generators/GenerationProgressPanel'
 import type { CompanySettings, HistoryRecord, PriceCategory, QuoteDoc, TaskOrderDoc } from '@/lib/types'
@@ -59,14 +59,6 @@ export default function PlanningGeneratorPage() {
   const [saving, setSaving] = useState(false)
   const [loadSavedOpen, setLoadSavedOpen] = useState(false)
   const generatingTabs = useMemo(() => ({ planning: generating }), [generating])
-  const wizardHighlights: WizardHighlight[] = useMemo(
-    () => [
-      { label: '필수 입력', value: '주제, 목표' },
-      { label: '권장 입력', value: '인원, 장소, 운영 메모' },
-      { label: '결과물', value: '기획안 + 엑셀/PDF' },
-    ],
-    [],
-  )
 
   useEffect(() => {
     apiFetch<MeLite>('/api/me').then(setMe).catch(() => {})
@@ -260,8 +252,6 @@ export default function PlanningGeneratorPage() {
               <SimpleGeneratorWizard
             title="기획안 만들기"
             subtitle="실행 계획과 산출물 기준이 보이도록, 내부 검토와 고객 공유 둘 다 가능한 초안으로 작성합니다."
-            highlights={wizardHighlights}
-            collapsibleHighlights
             modes={[
               { id: 'fromTopic', title: '주제만 입력', desc: '행사 목적과 메시지를 중심으로 기획안을 씁니다.' },
               { id: 'fromEstimate', title: '견적서 기준', desc: '기존 행사 정보와 견적 문맥을 이어서 기획합니다.' },

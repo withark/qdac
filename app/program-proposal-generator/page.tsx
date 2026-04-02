@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
 import { Input, Textarea, Toast } from '@/components/ui'
-import SimpleGeneratorWizard, { type WizardHighlight } from '@/components/generators/SimpleGeneratorWizard'
+import SimpleGeneratorWizard from '@/components/generators/SimpleGeneratorWizard'
 import { LoadSavedGeneratedDocModal } from '@/components/generators/LoadSavedGeneratedDocModal'
 import GenerationProgressPanel, { appendStageLine } from '@/components/generators/GenerationProgressPanel'
 import type { CompanySettings, HistoryRecord, PriceCategory, QuoteDoc, TaskOrderDoc } from '@/lib/types'
@@ -60,14 +60,6 @@ export default function ProgramProposalGeneratorPage() {
   const [saving, setSaving] = useState(false)
   const [loadSavedOpen, setLoadSavedOpen] = useState(false)
   const generatingTabs = useMemo(() => ({ program: generating }), [generating])
-  const wizardHighlights: WizardHighlight[] = useMemo(
-    () => [
-      { label: '필수 입력', value: '주제, 목표' },
-      { label: '권장 입력', value: '인원, 장소, 운영 메모' },
-      { label: '결과물', value: '프로그램 제안서 + 엑셀/PDF' },
-    ],
-    [],
-  )
 
   const fetchInit = useCallback(async () => {
     apiFetch<MeLite>('/api/me').then(setMe).catch(() => {})
@@ -270,8 +262,6 @@ export default function ProgramProposalGeneratorPage() {
               <SimpleGeneratorWizard
             title="프로그램 제안서 만들기"
             subtitle="고객에게 보여줄 구성안 중심으로 작성하고, 생성 후 바로 편집할 수 있습니다."
-            highlights={wizardHighlights}
-            collapsibleHighlights
             modes={[
               { id: 'fromTopic', title: '주제만 입력', desc: '핵심 목표만 넣고 제안서를 빠르게 만듭니다.' },
               { id: 'fromEstimate', title: '견적서 기준', desc: '기존 견적 문맥을 이어서 제안 흐름을 만듭니다.' },

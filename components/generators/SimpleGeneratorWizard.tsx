@@ -18,11 +18,6 @@ export type WizardMode = {
   desc?: string
 }
 
-export type WizardHighlight = {
-  label: string
-  value: string
-}
-
 function getScrollParent(el: HTMLElement | null): HTMLElement | null {
   if (!el) return null
   for (let p: HTMLElement | null = el.parentElement; p; p = p.parentElement) {
@@ -37,7 +32,6 @@ function getScrollParent(el: HTMLElement | null): HTMLElement | null {
 export default function SimpleGeneratorWizard({
   title,
   subtitle,
-  highlights = [],
   modes,
   modeId,
   onModeChange,
@@ -50,14 +44,10 @@ export default function SimpleGeneratorWizard({
   validationMessage,
   preStepContent,
   showValidationBanner = true,
-  collapsibleHighlights = false,
-  /** collapsibleHighlights일 때 기본 펼침 여부 (기본: 접힘) */
-  highlightsDefaultOpen = false,
   step2ActionLabel = '생성 단계로 이동',
 }: {
   title: string
   subtitle?: string
-  highlights?: WizardHighlight[]
   modes: WizardMode[]
   modeId: string
   onModeChange: (id: string) => void
@@ -70,8 +60,6 @@ export default function SimpleGeneratorWizard({
   validationMessage?: string | null
   preStepContent?: ReactNode
   showValidationBanner?: boolean
-  collapsibleHighlights?: boolean
-  highlightsDefaultOpen?: boolean
   step2ActionLabel?: string
 }) {
   const inFlightRef = useRef(false)
@@ -82,7 +70,6 @@ export default function SimpleGeneratorWizard({
   const prevModeIdRef = useRef(modeId)
 
   const [activeStep, setActiveStep] = useState<1 | 2 | 3>(1)
-  const [highlightsOpen, setHighlightsOpen] = useState(highlightsDefaultOpen)
   const [generationElapsedSec, setGenerationElapsedSec] = useState(0)
   const [generationPulse, setGenerationPulse] = useState(0)
 
@@ -183,24 +170,6 @@ export default function SimpleGeneratorWizard({
     ? `${activeProgressLabel}${pulseSuffix} · ${loadingFlavorText}`
     : null
 
-  const highlightGrid = (
-    <div className="grid gap-3 md:grid-cols-3">
-      {highlights.map((item) => (
-        <div key={`${item.label}-${item.value}`} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-          <div className="text-xs font-semibold tracking-wide text-slate-500">{item.label}</div>
-          <div className="mt-1 text-sm font-semibold leading-6 text-slate-900">{item.value}</div>
-        </div>
-      ))}
-    </div>
-  )
-
-  const modeGridClass =
-    modes.length >= 4
-      ? 'grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4'
-      : modes.length === 3
-        ? 'grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3'
-        : 'grid grid-cols-1 gap-3 sm:grid-cols-2'
-
   const generateSection = (
     <>
       {progressText ? (
@@ -288,23 +257,6 @@ export default function SimpleGeneratorWizard({
         })}
       </nav>
 
-      {highlights.length ? (
-        collapsibleHighlights ? (
-          <details
-            className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/40 px-4 py-3"
-            open={highlightsOpen}
-            onToggle={(e) => setHighlightsOpen(e.currentTarget.open)}
-          >
-            <summary className="cursor-pointer text-sm font-semibold text-slate-800 outline-none marker:text-primary-600">
-              입력 요약 보기 (필수·권장·결과물)
-            </summary>
-            <div className="mt-3">{highlightGrid}</div>
-          </details>
-        ) : (
-          <div className="mt-5">{highlightGrid}</div>
-        )
-      ) : null}
-
       <div className="mt-6 space-y-5">
         {preStepContent ? <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 sm:p-5">{preStepContent}</div> : null}
 
@@ -313,7 +265,7 @@ export default function SimpleGeneratorWizard({
             <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-slate-900 px-2 text-xs font-semibold text-white">1</span>
             <div className="text-[17px] font-semibold text-slate-900">기준 선택</div>
           </div>
-          <div className={modeGridClass}>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {modes.map((m) => {
               const active = m.id === modeId
               return (

@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
-import SimpleGeneratorWizard, { type WizardHighlight, type WizardMode } from '@/components/generators/SimpleGeneratorWizard'
+import SimpleGeneratorWizard, { type WizardMode } from '@/components/generators/SimpleGeneratorWizard'
 import GenerationProgressPanel, { appendStageLine } from '@/components/generators/GenerationProgressPanel'
 import { Input, Textarea, Toast } from '@/components/ui'
 import type { CompanySettings, HistoryRecord, PriceCategory, QuoteDoc, ReferenceDoc, TaskOrderDoc } from '@/lib/types'
@@ -137,7 +137,6 @@ function EstimateGeneratorContent() {
     ],
     [],
   )
-  const wizardHighlights: WizardHighlight[] = useMemo(() => [], [])
   const isAdvancedModeAvailable = useMemo(() => isPaidPlan(me?.subscription?.planType ?? 'FREE'), [me?.subscription?.planType])
   const planFeatureHint = isAdvancedModeAvailable
     ? '현재 플랜: 기본 + 고급 방식 사용 가능'
@@ -604,8 +603,6 @@ function EstimateGeneratorContent() {
               <SimpleGeneratorWizard
                 title="견적서 생성하기"
                 subtitle="필수 정보만 입력하고 바로 생성하세요."
-                highlights={wizardHighlights}
-                collapsibleHighlights
                 preStepContent={null}
                 modes={modesForWizard}
                 modeId={sourceMode}
