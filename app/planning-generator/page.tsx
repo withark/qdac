@@ -55,6 +55,7 @@ export default function PlanningGeneratorPage() {
   const [generationProgressLabel, setGenerationProgressLabel] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const generatingTabs = useMemo(() => ({ planning: generating }), [generating])
+  const [funLineIdx, setFunLineIdx] = useState(0)
   const wizardHighlights: WizardHighlight[] = useMemo(
     () => [
       { label: '필수 입력', value: '주제, 목표' },
@@ -222,6 +223,16 @@ export default function PlanningGeneratorPage() {
 
   const topicInvalid = sourceMode === 'fromTopic' && generateDisabled && !topic.trim()
   const goalInvalid = sourceMode === 'fromTopic' && generateDisabled && !goal.trim()
+  const funLines = useMemo(
+    () => [
+      '좋은 기획안은 멋진 문장보다 실행 순서가 먼저 보여야 해요.',
+      '운영팀이 바로 움직일 수 있는 문장으로 바꿔드릴게요.',
+      '리스크는 감추지 않고, 대응 시나리오까지 같이 적어야 진짜 문서예요.',
+      '고객 공유용 톤과 내부 실행용 디테일을 동시에 맞추는 중이에요.',
+      '액션 플랜 표는 “누가 언제 무엇을” 한 줄로 끝나야 강해요.',
+    ],
+    [],
+  )
   const readyChecklist = useMemo(
     () => [
       { label: '기준 선택', done: true },
@@ -238,6 +249,14 @@ export default function PlanningGeneratorPage() {
     ],
     [doc, generatedDocId, goal, selectedEstimateId, selectedTaskOrderBaseId, sourceMode, topic],
   )
+
+  useEffect(() => {
+    if (doc && generatedDocId) return
+    const timer = window.setInterval(() => {
+      setFunLineIdx((prev) => (prev + 1) % funLines.length)
+    }, 2600)
+    return () => window.clearInterval(timer)
+  }, [doc, generatedDocId, funLines.length])
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50/50">
@@ -418,47 +437,34 @@ export default function PlanningGeneratorPage() {
               </section>
             ) : (
               <section className="min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-sm font-semibold text-slate-900">입력 후 생성하면 이런 형태로 보입니다</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-600">
-                    문서 생성 전에는 미리보기와 준비 상태를 확인하고, 생성 후에는 동일 영역이 결과 편집 화면으로 전환됩니다.
-                  </p>
-                </div>
+                <div className="flex min-h-[420px] flex-col justify-between rounded-2xl border border-dashed border-slate-300 bg-gradient-to-b from-slate-50 to-white p-6">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {generating ? '기획 문서를 다듬고 있어요...' : '여기는 비워두고, 필요한 순간에 채워드릴게요.'}
+                    </p>
+                    <p className="mt-2 text-xs leading-5 text-slate-600">{funLines[funLineIdx]}</p>
+                    {generationProgressLabel ? (
+                      <p className="mt-2 inline-flex rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+                        진행 단계: {generationProgressLabel}
+                      </p>
+                    ) : null}
+                  </div>
 
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  {readyChecklist.map((item) => (
-                    <div key={item.label} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
-                      <span
-                        className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold ${
-                          item.done ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                        }`}
-                      >
-                        {item.done ? '✓' : '!'}
-                      </span>
-                      <span className="text-xs font-medium text-slate-700">{item.label}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                  <p className="text-xs font-semibold text-slate-500">미리보기 샘플</p>
-                  <h3 className="mt-2 text-base font-bold text-slate-900">{topic.trim() || '세대공감 팀빌딩 프로그램'}</h3>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {goal.trim() || '행사 목적과 운영 리스크를 동시에 관리하는 실행형 기획안'}
-                  </p>
-                  <div className="mt-3 space-y-2">
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                      <span className="font-semibold">1. 배경 및 필요성</span> · 행사 목적, 기대효과, 현재 과제를 명확히 정리
-                    </div>
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                      <span className="font-semibold">2. 세부 액션 프로그램</span> · 시간/대상/운영 포인트 중심 카드형 구성
-                    </div>
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                      <span className="font-semibold">3. 액션 플랜 표</span> · 단계/시기/담당/주요작업 테이블
-                    </div>
+                  <div className="mt-5 space-y-2">
+                    {readyChecklist.map((item) => (
+                      <div key={item.label} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                        <span
+                          className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold ${
+                            item.done ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                          }`}
+                        >
+                          {item.done ? '✓' : '!'}
+                        </span>
+                        <span className="text-xs font-medium text-slate-700">{item.label}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
-
                 <div className="mt-4 rounded-xl border border-dashed border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-800">
                   {validationMessage || '좌측에서 핵심 정보를 입력하고 “기획 문서 생성”을 눌러 결과를 만드세요.'}
                 </div>
