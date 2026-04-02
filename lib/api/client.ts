@@ -106,14 +106,23 @@ export async function apiGenerateStream(
     return parseJsonGenerateResponse(fallbackRes)
   }
 
+  const isTimeoutLike = (e: unknown): boolean => {
+    const msg = String((e as any)?.message ?? e ?? '').toLowerCase()
+    return (
+      msg.includes('timeout') ||
+      msg.includes('timed out') ||
+      msg.includes('etimedout') ||
+      msg.includes('upstream request timeout') ||
+      msg.includes('응답 시간이 초과')
+    )
+  }
+
   let res: Response
   try {
     res = await postGenerate(true)
   } catch (e) {
     // 일부 환경에서 NDJSON 스트림 연결이 차단될 수 있어 일반 JSON 요청으로 1회 폴백
-    if (e instanceof TypeError) {
-      return runFallbackJson()
-    }
+    if (e instanceof TypeError || isTimeoutLike(e)) return runFallbackJson()
     throw e
   }
 
@@ -165,9 +174,7 @@ export async function apiGenerateStream(
     }
   } catch (e) {
     // 스트림 파싱/연결 문제 시 1회 JSON 폴백
-    if (e instanceof TypeError) {
-      return runFallbackJson()
-    }
+    if (e instanceof TypeError || isTimeoutLike(e)) return runFallbackJson()
     throw e
   }
 
