@@ -2392,10 +2392,13 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
       documentRefineSkipReason = sk.reason
       return jsonTextIn
     }
-    if (generationProfile === 'realtime' && (input.documentTarget ?? 'estimate') !== 'estimate') {
-      // 실시간 경로에서는 문장 polish 단계를 생략하고 품질 리페어 1회로 수렴해 지연을 줄입니다.
-      documentRefineSkipReason = 'realtime_speed_policy'
-      return jsonTextIn
+    if (generationProfile !== 'background' ? generationProfile === 'realtime' : true) {
+      // 실시간(realtime) + 유료 background에서도 비-estimate 문서의 polish(문장·톤 다듬기) 호출은
+      // 전체 지연/타임아웃의 주요 원인이 됩니다. polish는 스킵하고, 이후 quality repair로만 구조 완성도를 맞춥니다.
+      if ((input.documentTarget ?? 'estimate') !== 'estimate') {
+        documentRefineSkipReason = generationProfile === 'realtime' ? 'realtime_speed_policy' : 'background_speed_policy'
+        return jsonTextIn
+      }
     }
     input.pipelineEmit?.({ stage: 'polish', label: '문장·톤 다듬는 중' })
     try {
