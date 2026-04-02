@@ -222,6 +222,22 @@ export default function PlanningGeneratorPage() {
 
   const topicInvalid = sourceMode === 'fromTopic' && generateDisabled && !topic.trim()
   const goalInvalid = sourceMode === 'fromTopic' && generateDisabled && !goal.trim()
+  const readyChecklist = useMemo(
+    () => [
+      { label: '기준 선택', done: true },
+      {
+        label: '핵심 정보 입력',
+        done:
+          sourceMode === 'fromTopic'
+            ? !!topic.trim() && !!goal.trim()
+            : sourceMode === 'fromTaskOrder'
+              ? !!selectedTaskOrderBaseId && !!doc
+              : !!selectedEstimateId && !!doc,
+      },
+      { label: '생성 실행', done: !!doc && !!generatedDocId },
+    ],
+    [doc, generatedDocId, goal, selectedEstimateId, selectedTaskOrderBaseId, sourceMode, topic],
+  )
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50/50">
@@ -401,16 +417,50 @@ export default function PlanningGeneratorPage() {
                 </div>
               </section>
             ) : (
-              <section className="min-h-0 overflow-y-auto rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center">
-                <div className="text-sm font-semibold text-gray-900">
-                  {doc ? '문서 컨텍스트 선택 후 생성하세요' : '입력 후 생성하세요'}
+              <section className="min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-semibold text-slate-900">입력 후 생성하면 이런 형태로 보입니다</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">
+                    문서 생성 전에는 미리보기와 준비 상태를 확인하고, 생성 후에는 동일 영역이 결과 편집 화면으로 전환됩니다.
+                  </p>
                 </div>
-                <div className="mt-2 text-xs text-gray-500">
-                  {doc
-                    ? '생성 후 편집 영역이 열립니다.'
-                    : sourceMode === 'fromTopic'
-                      ? '주제/목표만 입력하면 됩니다'
-                      : '소스 선택과 필수 입력이 필요합니다'}
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {readyChecklist.map((item) => (
+                    <div key={item.label} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                      <span
+                        className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold ${
+                          item.done ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                        }`}
+                      >
+                        {item.done ? '✓' : '!'}
+                      </span>
+                      <span className="text-xs font-medium text-slate-700">{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                  <p className="text-xs font-semibold text-slate-500">미리보기 샘플</p>
+                  <h3 className="mt-2 text-base font-bold text-slate-900">{topic.trim() || '세대공감 팀빌딩 프로그램'}</h3>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {goal.trim() || '행사 목적과 운영 리스크를 동시에 관리하는 실행형 기획안'}
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                      <span className="font-semibold">1. 배경 및 필요성</span> · 행사 목적, 기대효과, 현재 과제를 명확히 정리
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                      <span className="font-semibold">2. 세부 액션 프로그램</span> · 시간/대상/운영 포인트 중심 카드형 구성
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                      <span className="font-semibold">3. 액션 플랜 표</span> · 단계/시기/담당/주요작업 테이블
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-xl border border-dashed border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+                  {validationMessage || '좌측에서 핵심 정보를 입력하고 “기획 문서 생성”을 눌러 결과를 만드세요.'}
                 </div>
               </section>
             )}

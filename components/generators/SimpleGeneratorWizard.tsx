@@ -194,6 +194,13 @@ export default function SimpleGeneratorWizard({
     </div>
   )
 
+  const modeGridClass =
+    modes.length >= 4
+      ? 'grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4'
+      : modes.length === 3
+        ? 'grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3'
+        : 'grid grid-cols-1 gap-3 sm:grid-cols-2'
+
   const generateSection = (
     <>
       {progressText ? (
@@ -306,7 +313,7 @@ export default function SimpleGeneratorWizard({
             <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-slate-900 px-2 text-xs font-semibold text-white">1</span>
             <div className="text-[17px] font-semibold text-slate-900">기준 선택</div>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className={modeGridClass}>
             {modes.map((m) => {
               const active = m.id === modeId
               return (
