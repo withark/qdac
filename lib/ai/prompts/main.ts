@@ -346,15 +346,20 @@ export function getOutputSchema(target: GenerateInput['documentTarget'], categor
     return `
 [출력 규칙 — 기획안]
 - JSON만 출력.
-- planning 객체 모든 필드 3문장 이상. 빈 문자열 절대 불가.
-- overview: 행사 목적·기대효과·핵심 운영 방향 5문장 이상.
-- scope: 사전/현장/사후 업무 범위 구체적으로.
-- approach: 운영 철학·방법론 (관객 흐름·전환·리스크 대응 포함).
-- operationPlan: 시간축 기반 운영 계획 (구간별 what·who·how).
-- deliverablesPlan: 산출물 목록 + 제출 시점.
-- staffingConditions: 역할별 인원 + 조건.
-- risksAndCautions: 리스크 5가지 이상 + 대응 방안.
-- checklist: 8개 이상.
+- planning 객체 모든 필드는 빈 문자열 절대 금지.
+- **샘플 양식 고정**: 아래 5개 섹션이 읽히도록 내용 구성
+  1) 배경 및 필요성 (overview)
+  2) 프로그램 개요 (scope)
+  3) 세부 액션 프로그램 (approach + operationPlan)
+  4) 액션 플랜(Action Plan) (staffingConditions + checklist)
+  5) 기대 효과 (deliverablesPlan + risksAndCautions)
+- overview: 행사 목적·필요성·핵심 문제를 문장으로 명확히.
+- scope: 대상/기간/장소/운영 범위를 표에 넣을 수 있게 간결하게.
+- approach: Day1/Day2 또는 단계형 액션 프로그램처럼 **번호형 구성** 포함.
+- operationPlan: 시간축 기반 운영 계획 (누가/언제/무엇을).
+- staffingConditions: 담당 조직/역할을 실행형으로 작성.
+- risksAndCautions: 리스크 항목별 대응(최소 5개).
+- checklist: 8개 이상, 각 항목은 액션 문장(명사 나열 금지).
 ${category === 'sports' ? '- 체육대회: 종목 준비물 체크·안전 관리·날씨 대응 포함.' : ''}
 
 {
@@ -697,7 +702,8 @@ export function buildDocumentExcellenceGuide(target: GenerateInput['documentTarg
 - overview/scope/approach는 서로 다른 내용을 써야 합니다. 같은 말을 반복하지 마세요.
 - 운영 계획은 시간축, 역할, 산출물, 리스크 대응이 모두 보이게 작성합니다.
 - 내부 검토 문서이면서 동시에 클라이언트 공유용 문서처럼 읽히게 씁니다.
-- 추상적인 총론보다 의사결정 포인트, 승인 포인트, 실행 기준을 직접 적습니다.`
+- 추상적인 총론보다 의사결정 포인트, 승인 포인트, 실행 기준을 직접 적습니다.
+- 표/카드로 옮겨도 문맥이 깨지지 않게, 번호/단계/담당/시기를 문장 안에 명시합니다.`
     case 'scenario':
       return `
 [문서 완성도 기준 — 시나리오]

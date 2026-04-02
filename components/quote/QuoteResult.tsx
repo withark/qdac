@@ -151,52 +151,6 @@ function isPlanningReady(doc: QuoteDoc) {
   return !!doc.planning && typeof overview === 'string' && overview.trim().length > 0
 }
 
-function toPlanningLines(text: string | undefined): string[] {
-  return String(text || '')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-}
-
-function parseDayPrograms(text: string | undefined): Array<{ day: string; items: string[] }> {
-  const lines = toPlanningLines(text)
-  const result: Array<{ day: string; items: string[] }> = []
-  let current: { day: string; items: string[] } | null = null
-  for (const line of lines) {
-    const dayMatch = line.match(/^DAY\s*\d+\s*[—-]\s*(.+)$/i)
-    if (dayMatch) {
-      if (current) result.push(current)
-      current = { day: dayMatch[0].replace(/\s+/g, ' ').trim(), items: [] }
-      continue
-    }
-    const itemMatch = line.match(/^\d{2}\.\s*(.+)$/)
-    if (itemMatch && current) {
-      current.items.push(itemMatch[1].trim())
-      continue
-    }
-    if (current && !/^3\./.test(line)) {
-      current.items.push(line.replace(/^[-•]\s*/, '').trim())
-    }
-  }
-  if (current) result.push(current)
-  return result.filter((block) => block.items.length > 0)
-}
-
-function parseActionPlanRows(text: string | undefined): Array<{ stage: string; timing: string; task: string; owner: string }> {
-  const lines = toPlanningLines(text)
-  const rows: Array<{ stage: string; timing: string; task: string; owner: string }> = []
-  for (const line of lines) {
-    if (!line.includes('|')) continue
-    const parts = line.split('|').map((p) => p.trim())
-    if (parts.length < 4) continue
-    const [stage, timing, taskRaw, ownerRaw] = parts
-    const owner = ownerRaw.replace(/^담당[:：]?\s*/i, '').trim()
-    if (!stage || !timing || !taskRaw || !owner) continue
-    rows.push({ stage, timing, task: taskRaw, owner })
-  }
-  return rows
-}
-
 function isScenarioReady(doc: QuoteDoc) {
   const summaryTop = doc.scenario?.summaryTop
   return !!doc.scenario && typeof summaryTop === 'string' && summaryTop.trim().length > 0
@@ -489,7 +443,7 @@ export function QuoteResult({
               <Button size="sm" variant="secondary" onClick={onLoadPrevious}>기존 견적서 불러오기</Button>
             )}
             {onRegenerate && (
-              <Button size="sm" onClick={onRegenerate} disabled={regenerating}>{regenerating ? '다시 생성 중...' : '다시 생성하기'}</Button>
+              <Button size="sm" onClick={onRegenerate} disabled={regenerating}>{regenerating ? '재작성 중...' : '재작성'}</Button>
             )}
             {currentExcelView ? (
               <Button size="sm" onClick={() => onExcel(currentExcelView)} disabled={exportDisabled}>엑셀 다운로드</Button>
@@ -1273,104 +1227,137 @@ export function QuoteResult({
               (() => {
                 const p = doc.planning!
                 const update = (patch: Partial<typeof p>) => patchDoc(base => ({ ...base, planning: { ...(base.planning || p), ...patch } as any }))
-                const dayPrograms = parseDayPrograms(p.approach)
-                const actionPlanRows = parseActionPlanRows(p.operationPlan)
+                const checklist = Array.isArray(p.checklist) ? p.checklist.filter(Boolean) : []
+                const topChecklist = checklist.slice(0, 8)
+                const actionRows = topChecklist.map((item, idx) => {
+                  const order = idx + 1
+                  const timing = idx === 0 ? 'D-60' : idx === 1 ? 'D-45' : idx === 2 ? 'D-30' : idx === 3 ? 'D-14' : idx === 4 ? 'D-7' : idx === 5 ? 'D-Day' : `D+${idx - 5}`
+                  const owner = /MC|사회자/i.test(item) ? 'MC' : /음향|영상|장비/i.test(item) ? '기술팀' : /운영|동선|큐|리허설/i.test(item) ? '운영팀' : 'PM'
+                  return { order, timing, item, owner }
+                })
+                const tipsFromProgram = (d.program?.tips || []).slice(0, 4)
                 return (
                   <>
-                    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-                      <div className="border-b border-slate-200 bg-slate-50/70 px-4 py-3">
-                        <p className="text-[11px] font-semibold tracking-wide text-slate-500">샘플형 미리보기</p>
-                        <h4 className="mt-1 text-lg font-bold text-slate-900">{doc.eventName || '행사'} 프로그램 기획안</h4>
-                      </div>
-                      <div className="space-y-4 p-4">
-                        <section className="rounded-xl border border-slate-200 bg-white p-3">
-                          <h5 className="text-sm font-bold text-slate-800">1. 배경 및 필요성</h5>
-                          <p className="mt-2 whitespace-pre-line text-xs leading-6 text-slate-700">{p.overview}</p>
-                        </section>
-                        <section className="rounded-xl border border-slate-200 bg-white p-3">
-                          <h5 className="text-sm font-bold text-slate-800">2. 프로그램 개요</h5>
-                          <p className="mt-2 whitespace-pre-line text-xs leading-6 text-slate-700">{p.scope}</p>
-                        </section>
-                        <section className="rounded-xl border border-slate-200 bg-white p-3">
-                          <h5 className="text-sm font-bold text-slate-800">3. 세부 액션 프로그램</h5>
-                          {dayPrograms.length > 0 ? (
-                            <div className="mt-2 space-y-3">
-                              {dayPrograms.map((block) => (
-                                <div key={block.day} className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
-                                  <p className="text-xs font-bold text-amber-700">{block.day}</p>
-                                  <ul className="mt-1.5 space-y-1">
-                                    {block.items.map((item, idx) => (
-                                      <li key={`${block.day}-${idx}`} className="text-xs leading-6 text-slate-700">
-                                        {item}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="mt-2 whitespace-pre-line text-xs leading-6 text-slate-700">{p.approach}</p>
-                          )}
-                        </section>
-                        <section className="rounded-xl border border-slate-200 bg-white p-3">
-                          <h5 className="text-sm font-bold text-slate-800">4. 액션 플랜 (Action Plan)</h5>
-                          {actionPlanRows.length > 0 ? (
-                            <div className="mt-2 overflow-x-auto">
-                              <table className="w-full min-w-[540px] border-collapse text-xs">
-                                <thead>
-                                  <tr className="bg-slate-900 text-white">
-                                    <th className="px-2 py-1.5 text-left">단계</th>
-                                    <th className="px-2 py-1.5 text-left">시기</th>
-                                    <th className="px-2 py-1.5 text-left">주요 내용</th>
-                                    <th className="px-2 py-1.5 text-left">담당</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {actionPlanRows.map((row, idx) => (
-                                    <tr key={`${row.stage}-${idx}`} className="border-b border-slate-200">
-                                      <td className="px-2 py-1.5 font-semibold text-amber-700">{row.stage}</td>
-                                      <td className="px-2 py-1.5">{row.timing}</td>
-                                      <td className="px-2 py-1.5">{row.task}</td>
-                                      <td className="px-2 py-1.5">{row.owner}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          ) : (
-                            <p className="mt-2 whitespace-pre-line text-xs leading-6 text-slate-700">{p.operationPlan}</p>
-                          )}
-                        </section>
-                        <section className="rounded-xl border border-slate-200 bg-white p-3">
-                          <h5 className="text-sm font-bold text-slate-800">5. 기대 효과</h5>
-                          <p className="mt-2 whitespace-pre-line text-xs leading-6 text-slate-700">{p.deliverablesPlan}</p>
-                        </section>
-                      </div>
-                    </div>
+                    <article className="planning-word-sheet rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                      <header className="border-b border-slate-300 pb-4 text-center">
+                        <h4 className="text-3xl font-bold tracking-tight text-[#1f4f82]">{doc.eventName || '행사'} 프로그램 기획안</h4>
+                        <p className="mt-1 text-sm font-medium text-[#c06b2d]">Bridge the Gap - 세대를 잇는 즐거운 여정</p>
+                        <p className="mt-1 text-xs text-slate-500">{doc.eventDate || doc.quoteDate} · {doc.venue || '행사장'}</p>
+                      </header>
 
-                    {[
-                      { key: 'overview', label: '개요', rows: 4, val: p.overview },
-                      { key: 'scope', label: '범위', rows: 5, val: p.scope },
-                      { key: 'approach', label: '접근/전략', rows: 5, val: p.approach },
-                      { key: 'operationPlan', label: '운영 계획', rows: 5, val: p.operationPlan },
-                      { key: 'deliverablesPlan', label: '산출물 계획', rows: 5, val: p.deliverablesPlan },
-                      { key: 'staffingConditions', label: '인력/운영 조건', rows: 5, val: p.staffingConditions },
-                      { key: 'risksAndCautions', label: '리스크/주의사항', rows: 5, val: p.risksAndCautions },
-                    ].map(sec => (
-                      <div key={sec.key} className="bg-gray-50 rounded-xl p-3">
-                        <div className="text-[10px] text-gray-500 font-semibold mb-1">{sec.label}</div>
-                        <textarea value={sec.val} rows={sec.rows} onChange={e => update({ [sec.key]: e.target.value } as any)} className="w-full bg-white border border-gray-200 rounded-lg p-2 text-xs resize-none" />
+                      <section className="mt-6 space-y-2">
+                        <h5 className="text-lg font-bold text-[#1f4f82]">1. 배경 및 필요성</h5>
+                        <p className="text-[14px] leading-7 text-slate-700 whitespace-pre-line">{p.overview}</p>
+                      </section>
+
+                      <section className="mt-6 space-y-2">
+                        <h5 className="text-lg font-bold text-[#1f4f82]">2. 프로그램 개요</h5>
+                        <table className="w-full border-collapse text-[13px]">
+                          <tbody>
+                            {[
+                              ['목표', p.approach],
+                              ['기간', `${doc.eventDate || '미정'} / ${doc.eventDuration || '미정'}`],
+                              ['대상', `${doc.headcount || '미정'}명 · ${doc.eventType || '행사'}`],
+                              ['장소', doc.venue || '미정'],
+                              ['운영 핵심', p.scope],
+                            ].map(([label, val]) => (
+                              <tr key={label}>
+                                <th className="w-24 border border-slate-300 bg-slate-100 px-3 py-2 text-left font-semibold text-slate-700">{label}</th>
+                                <td className="border border-slate-300 px-3 py-2 text-slate-700">{val}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </section>
+
+                      <section className="mt-6 space-y-3">
+                        <h5 className="text-lg font-bold text-[#1f4f82]">3. 세부 액션 프로그램</h5>
+                        <div className="space-y-3">
+                          {(d.program?.programRows || []).slice(0, 8).map((row, idx) => (
+                            <div key={`${row.content}-${idx}`} className="grid grid-cols-[56px_1fr] gap-0 rounded-xl border border-slate-200 bg-white">
+                              <div className="flex items-center justify-center rounded-l-xl bg-[#1f4f82] text-sm font-bold text-white">{String(idx + 1).padStart(2, '0')}</div>
+                              <div className="px-4 py-3">
+                                <p className="text-sm font-semibold text-slate-800">{row.content || row.kind || '세션 내용'}</p>
+                                <p className="mt-1 text-xs leading-6 text-slate-600 whitespace-pre-line">{row.notes || row.tone || '세부 설명'}</p>
+                                <p className="mt-1 text-xs text-slate-500">{row.time || '-'} · {row.audience || '전체 참여자'}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+
+                      <section className="mt-6 space-y-2">
+                        <h5 className="text-lg font-bold text-[#1f4f82]">4. 액션 플랜 (Action Plan)</h5>
+                        <table className="w-full border-collapse text-[13px]">
+                          <thead>
+                            <tr className="bg-[#1f4f82] text-white">
+                              <th className="border border-slate-300 px-3 py-2 text-left">단계</th>
+                              <th className="border border-slate-300 px-3 py-2 text-left">시기</th>
+                              <th className="border border-slate-300 px-3 py-2 text-left">주요 내용</th>
+                              <th className="border border-slate-300 px-3 py-2 text-left">담당</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {actionRows.map((row) => (
+                              <tr key={row.order}>
+                                <td className="border border-slate-300 px-3 py-2 text-[#c06b2d]">{row.order}단계</td>
+                                <td className="border border-slate-300 px-3 py-2">{row.timing}</td>
+                                <td className="border border-slate-300 px-3 py-2">{row.item}</td>
+                                <td className="border border-slate-300 px-3 py-2">{row.owner}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </section>
+
+                      <section className="mt-6 space-y-2">
+                        <h5 className="text-lg font-bold text-[#1f4f82]">5. 기대 효과</h5>
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <div className="rounded-xl border border-slate-300 bg-slate-50 p-3">
+                            <p className="text-sm font-semibold text-[#c06b2d]">단기 효과</p>
+                            <p className="mt-1 whitespace-pre-line text-xs leading-6 text-slate-700">{p.deliverablesPlan}</p>
+                          </div>
+                          <div className="rounded-xl border border-slate-300 bg-slate-50 p-3">
+                            <p className="text-sm font-semibold text-[#c06b2d]">운영 포인트</p>
+                            <p className="mt-1 whitespace-pre-line text-xs leading-6 text-slate-700">{p.risksAndCautions}</p>
+                          </div>
+                        </div>
+                        {tipsFromProgram.length > 0 ? (
+                          <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-slate-600">
+                            {tipsFromProgram.map((tip, idx) => <li key={`${tip}-${idx}`}>{tip}</li>)}
+                          </ul>
+                        ) : null}
+                      </section>
+                    </article>
+
+                    <details className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <summary className="cursor-pointer text-xs font-semibold text-slate-700">원문 섹션 직접 편집</summary>
+                      <div className="mt-3 space-y-3">
+                        {[
+                          { key: 'overview', label: '개요', rows: 4, val: p.overview },
+                          { key: 'scope', label: '범위', rows: 4, val: p.scope },
+                          { key: 'approach', label: '접근/전략', rows: 4, val: p.approach },
+                          { key: 'operationPlan', label: '운영 계획', rows: 4, val: p.operationPlan },
+                          { key: 'deliverablesPlan', label: '산출물 계획', rows: 4, val: p.deliverablesPlan },
+                          { key: 'staffingConditions', label: '인력/운영 조건', rows: 4, val: p.staffingConditions },
+                          { key: 'risksAndCautions', label: '리스크/주의사항', rows: 4, val: p.risksAndCautions },
+                        ].map(sec => (
+                          <div key={sec.key} className="bg-white rounded-lg p-2">
+                            <div className="text-[10px] text-gray-500 font-semibold mb-1">{sec.label}</div>
+                            <textarea value={sec.val} rows={sec.rows} onChange={e => update({ [sec.key]: e.target.value } as any)} className="w-full bg-white border border-gray-200 rounded-lg p-2 text-xs resize-none" />
+                          </div>
+                        ))}
+                        <div className="bg-white rounded-lg p-2">
+                          <div className="text-[10px] text-gray-500 font-semibold mb-1">체크리스트</div>
+                          <textarea
+                            value={(p.checklist || []).join('\n')}
+                            rows={6}
+                            onChange={e => update({ checklist: e.target.value.split('\n').map(x => x.trim()).filter(Boolean) })}
+                            className="w-full bg-white border border-gray-200 rounded-lg p-2 text-xs resize-none"
+                          />
+                        </div>
                       </div>
-                    ))}
-                    <div className="bg-gray-50 rounded-xl p-3">
-                      <div className="text-[10px] text-gray-500 font-semibold mb-1">체크리스트</div>
-                      <textarea
-                        value={(p.checklist || []).join('\n')}
-                        rows={6}
-                        onChange={e => update({ checklist: e.target.value.split('\n').map(x => x.trim()).filter(Boolean) })}
-                        className="w-full bg-white border border-gray-200 rounded-lg p-2 text-xs resize-none"
-                      />
-                    </div>
+                    </details>
                   </>
                 )
               })()
