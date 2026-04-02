@@ -214,13 +214,12 @@ export async function executeGeneratePipeline(
   /** 유료 플랜: 초안 90s·리페어 완화·비-estimate도 hybrid 문장 정제 허용 → API 비용·품질 정책과 정합 */
   const generationProfileForPlan: 'realtime' | 'background' = isPaidPlan(plan) ? 'background' : 'realtime'
   const realtimePolicy = applyRealtimeEnginePolicy(effectiveRaw)
-  const effective =
-    generationProfileForPlan === 'realtime'
-      ? realtimePolicy.engine
-      : {
-          ...effectiveRaw,
-          maxTokens: clampEngineMaxTokens(effectiveRaw.maxTokens),
-        }
+  const engineForRealtime = realtimePolicy.engine
+  const engineForBackground = {
+    ...effectiveRaw,
+    maxTokens: clampEngineMaxTokens(effectiveRaw.maxTokens),
+  }
+  const effective = generationProfileForPlan === 'realtime' ? engineForRealtime : engineForBackground
 
   const effectiveStyleMode: 'userStyle' | 'aiTemplate' =
     styleMode === 'userStyle' && references.length > 0 ? 'userStyle' : 'aiTemplate'
@@ -372,33 +371,72 @@ export async function executeGeneratePipeline(
   const parsedBudgetForLogging = parseBudgetCeilingKRW(body.budget || '')
 
   const quoteId = uid()
-  let doc: QuoteDoc
+  let doc!: QuoteDoc
   let genMeta: Awaited<ReturnType<typeof generateQuoteWithMeta>>['meta'] | undefined
   let budgetConstraint: QuoteDoc['budgetConstraint'] | undefined
 
+  const isTimeoutLikeMessage = (message: string): boolean => {
+    const m = message.toLowerCase()
+    return (
+      m.includes('timeout') ||
+      m.includes('timed out') ||
+      m.includes('etimedout') ||
+      m.includes('econnaborted') ||
+      m.includes('upstream request timeout') ||
+      m.includes('응답 시간이 초과')
+    )
+  }
+
+  let didTimeoutRetry = false
   try {
     const generation = await generateQuoteWithMeta(input)
     doc = generation.doc
     genMeta = generation.meta
   } catch (genErr) {
-    await insertGenerationRun({
-      userId,
-      quoteId: null,
-      success: false,
-      errorMessage: genErr instanceof Error ? genErr.message : String(genErr),
-      sampleId: appliedSampleId,
-      sampleFilename: appliedSampleFilename,
-      cuesheetApplied,
-      engineSnapshot,
-      budgetRange: parsedBudgetForLogging.selectedBudgetLabel,
-      budgetCeilingKRW: parsedBudgetForLogging.ceilingKRW,
-      generatedFinalTotalKRW: 0,
-      budgetFit: false,
-    }).catch((err) => logError('generation_run.insert', err))
-    await kvSet('generationRunsLast', { at: new Date().toISOString(), userId, ok: false }).catch((err) =>
-      logError('generation_run.kvSet', err),
-    )
-    throw genErr
+    const initialMessage = genErr instanceof Error ? genErr.message : String(genErr)
+    let finalErr: unknown = genErr
+
+    // 유료에서 타임아웃이면 1회만 더: background 프로파일로 재시도(실패-생성-클레임 방지)
+    if (isPaidPlan(plan) && !didTimeoutRetry && isTimeoutLikeMessage(initialMessage)) {
+      didTimeoutRetry = true
+      try {
+        const retryInput: GenerateInput = {
+          ...input,
+          generationProfile: 'background',
+          cachedEngineConfig: engineForBackground,
+        }
+        const generation = await generateQuoteWithMeta(retryInput)
+        doc = generation.doc
+        genMeta = generation.meta
+        finalErr = null
+      } catch (retryErr) {
+        finalErr = retryErr
+      }
+    }
+
+    if (!finalErr) {
+      // retry succeeded -> proceed to save document below
+    } else {
+      const errorMessage = finalErr instanceof Error ? finalErr.message : String(finalErr)
+      await insertGenerationRun({
+        userId,
+        quoteId: null,
+        success: false,
+        errorMessage,
+        sampleId: appliedSampleId,
+        sampleFilename: appliedSampleFilename,
+        cuesheetApplied,
+        engineSnapshot,
+        budgetRange: parsedBudgetForLogging.selectedBudgetLabel,
+        budgetCeilingKRW: parsedBudgetForLogging.ceilingKRW,
+        generatedFinalTotalKRW: 0,
+        budgetFit: false,
+      }).catch((err) => logError('generation_run.insert', err))
+      await kvSet('generationRunsLast', { at: new Date().toISOString(), userId, ok: false }).catch((err) =>
+        logError('generation_run.kvSet', err),
+      )
+      throw finalErr
+    }
   }
   ;(doc as QuoteDoc).quoteTemplate = normalizeTemplateForPlan(plan, (doc as QuoteDoc).quoteTemplate as any)
 
