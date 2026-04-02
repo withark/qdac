@@ -6,7 +6,7 @@ import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
 import SimpleGeneratorWizard, { type WizardHighlight, type WizardMode } from '@/components/generators/SimpleGeneratorWizard'
 import { Input, Textarea, Toast } from '@/components/ui'
-import type { CompanySettings, HistoryRecord, PriceCategory, QuoteDoc, ReferenceDoc, TaskOrderDoc } from '@/lib/types'
+import type { CompanySettings, HistoryRecord, PriceCategory, QuoteDoc, TaskOrderDoc } from '@/lib/types'
 import { apiFetch, apiGenerateStream } from '@/lib/api/client'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
 import { LoadingState } from '@/components/ui/AsyncState'
@@ -85,7 +85,6 @@ function EstimateGeneratorContent() {
   const [taskOrderRefs, setTaskOrderRefs] = useState<TaskOrderDoc[]>([])
   const [selectedTaskOrderId, setSelectedTaskOrderId] = useState<string | null>(null)
 
-  const [referenceDocs, setReferenceDocs] = useState<ReferenceDoc[]>([])
 
   const [topic, setTopic] = useState('')
   const [headcount, setHeadcount] = useState('')
@@ -101,7 +100,6 @@ function EstimateGeneratorContent() {
   const [saving, setSaving] = useState(false)
   const generatingTabs = useMemo(() => ({ estimate: generating }), [generating])
 
-  const activeReference = useMemo(() => referenceDocs.find((r) => r.isActive) ?? null, [referenceDocs])
   const userDraftStorageKey = useMemo(() => {
     const userId = me?.user?.id
     if (!userId) return null
@@ -145,9 +143,6 @@ function EstimateGeneratorContent() {
     apiFetch<MeLite>('/api/me').then(setMe).catch(() => {})
     apiFetch<CompanySettings>('/api/settings').then(setCompanySettings).catch(() => {})
     apiFetch<PriceCategory[]>('/api/prices').then(setPrices).catch(() => setPrices([]))
-    apiFetch<ReferenceDoc[]>('/api/upload-reference')
-      .then(setReferenceDocs)
-      .catch(() => setReferenceDocs([]))
   }, [])
 
   useEffect(() => {
@@ -253,7 +248,7 @@ function EstimateGeneratorContent() {
       headcount: '',
       venue: '',
       budget,
-      styleMode: 'userStyle' as const,
+      styleMode: 'aiTemplate' as const,
       documentTarget: 'estimate' as const,
       clientName: '',
       clientManager: '',
@@ -324,10 +319,6 @@ function EstimateGeneratorContent() {
   ])
 
   const handleGenerateEstimate = useCallback(async () => {
-    if (!activeReference) {
-      showToast('참고 자료에서 템플릿 엑셀을 업로드하고 「견적 생성에 반영」을 먼저 설정해 주세요.')
-      return
-    }
     const body = requestBodyForEstimate()
     if (!body) {
       if (sourceMode === 'fromEstimate') {
@@ -355,7 +346,7 @@ function EstimateGeneratorContent() {
       setGenerating(false)
       setGenerationProgressLabel(null)
     }
-  }, [activeReference, requestBodyForEstimate, showToast, sourceMode])
+  }, [requestBodyForEstimate, showToast, sourceMode])
 
   const handleSaveDoc = useCallback(
     async (nextDoc: QuoteDoc) => {
@@ -385,17 +376,13 @@ function EstimateGeneratorContent() {
   )
 
   const generateDisabled = useMemo(() => {
-    if (!activeReference) return true
     if (sourceMode === 'fromEstimate') return !selectedEstimateId || !selectedHistoryDoc
     if (sourceMode === 'fromTaskOrder') return !selectedTaskOrderId || !selectedTaskOrder
     return !topic.trim()
-  }, [activeReference, selectedEstimateId, selectedHistoryDoc, selectedTaskOrderId, selectedTaskOrder, sourceMode, topic])
+  }, [selectedEstimateId, selectedHistoryDoc, selectedTaskOrderId, selectedTaskOrder, sourceMode, topic])
 
   const validationMessage = useMemo(() => {
     if (!generateDisabled) return null
-    if (!activeReference) {
-      return '참고 자료에서 템플릿 엑셀을 업로드하고 「견적 생성에 반영」을 먼저 설정해 주세요.'
-    }
     if (sourceMode === 'fromTopic') {
       if (!topic.trim()) return '이벤트 주제를 입력해 주세요.'
       return null
@@ -412,7 +399,6 @@ function EstimateGeneratorContent() {
     generateDisabled,
     sourceMode,
     topic,
-    activeReference,
     selectedTaskOrderId,
     selectedTaskOrder,
     selectedEstimateId,
@@ -429,7 +415,7 @@ function EstimateGeneratorContent() {
   const objectiveByMode = useMemo(() => {
     if (sourceMode === 'fromEstimate') return '기존 견적을 기반으로 빠르게 재작성'
     if (sourceMode === 'fromTaskOrder') return '과업지시서 요구사항 중심으로 견적서 구성'
-    return '활성 템플릿 엑셀 기준으로 견적서 생성'
+    return '고정 템플릿 기준으로 견적서 생성'
   }, [sourceMode])
   const readinessText = generateDisabled ? validationMessage || '필수 입력을 확인해 주세요.' : '생성 준비 완료'
   const readinessToneClass = generateDisabled ? 'text-amber-800' : 'text-emerald-700'
