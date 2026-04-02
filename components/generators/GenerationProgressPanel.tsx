@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import clsx from 'clsx'
 
 function TypewriterBubble({ text }: { text: string }) {
   const [n, setN] = useState(0)
@@ -34,12 +35,14 @@ type Props = {
   title: string
   /** 단계 라벨 누적(마지막 항목만 타자 효과) */
   lines: readonly string[]
+  /** 그리드 오른쪽 열 등에서 높이 맞출 때 `h-full min-h-0 flex-1` 등 */
+  className?: string
 }
 
 /**
  * 생성 스트림(NDJSON stage) 진행 상황을 채팅형으로 보여줍니다.
  */
-export default function GenerationProgressPanel({ title, lines }: Props) {
+export default function GenerationProgressPanel({ title, lines, className }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const completed = useMemo(() => (lines.length > 1 ? lines.slice(0, -1) : []), [lines])
@@ -50,7 +53,12 @@ export default function GenerationProgressPanel({ title, lines }: Props) {
   }, [lines])
 
   return (
-    <section className="flex min-h-0 min-h-[320px] flex-col overflow-hidden rounded-2xl border border-primary-100 bg-gradient-to-b from-white to-slate-50/90 shadow-card">
+    <section
+      className={clsx(
+        'flex h-full min-h-[240px] flex-col overflow-hidden rounded-2xl border border-primary-100 bg-gradient-to-b from-white to-slate-50/90 shadow-card md:min-h-[300px]',
+        className,
+      )}
+    >
       <div className="flex flex-shrink-0 items-center gap-2 border-b border-slate-100 bg-white/90 px-4 py-3">
         <span
           className="relative flex h-2.5 w-2.5"
@@ -92,7 +100,7 @@ export default function GenerationProgressPanel({ title, lines }: Props) {
       </div>
 
       <p className="flex-shrink-0 border-t border-slate-100 bg-white/80 px-4 py-2 text-center text-[11px] text-slate-500">
-        완료되면 오른쪽에 문서 편집 화면이 열립니다.
+        완료되면 옆(넓은 화면에서는 오른쪽)에 문서 편집 화면이 열립니다.
       </p>
     </section>
   )

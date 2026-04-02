@@ -234,7 +234,11 @@ export default function EmceeScriptGeneratorPage() {
           )}
         </header>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-hidden p-6">
+          <div className="grid h-full min-h-0 gap-6 md:grid-cols-[minmax(420px,520px)_minmax(0,1fr)]">
+            <section
+              className={`min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ${generating ? 'max-md:order-last' : ''}`}
+            >
           <SimpleGeneratorWizard
             title="사회자 멘트 만들기"
             subtitle=""
@@ -326,11 +330,18 @@ export default function EmceeScriptGeneratorPage() {
             generateDisabled={generateDisabled}
             validationMessage={validationMessage}
           />
+            </section>
 
           {generating ? (
-            <GenerationProgressPanel title="사회자 멘트 생성 중" lines={generationStageLog} />
+            <div className="flex max-h-full min-h-0 h-full flex-col max-md:order-first md:order-none">
+              <GenerationProgressPanel
+                className="flex-1"
+                title="사회자 멘트 생성 중"
+                lines={generationStageLog}
+              />
+            </div>
           ) : doc && generatedDocId ? (
-            <section className="rounded-2xl border border-gray-100 bg-white shadow-card overflow-hidden">
+            <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-card">
               <div className="p-4 border-b border-gray-100 bg-slate-50/50">
                 <div className="text-sm font-semibold text-gray-900">사회자 멘트 결과</div>
                 <div className="text-xs text-gray-500 mt-1">생성 후 구간별로 편집할 수 있습니다.</div>
@@ -378,7 +389,7 @@ export default function EmceeScriptGeneratorPage() {
               </div>
             </section>
           ) : (
-            <section className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center">
+            <section className="min-h-0 overflow-y-auto rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center">
               <div className="text-sm font-semibold text-gray-900">
                 {doc ? '문서를 선택한 뒤 생성하세요' : '입력 후 생성하세요'}
               </div>
@@ -401,6 +412,7 @@ export default function EmceeScriptGeneratorPage() {
               </p>
             </section>
           )}
+          </div>
         </div>
       </div>
       <LoadSavedGeneratedDocModal

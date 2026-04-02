@@ -247,8 +247,10 @@ export default function PlanningGeneratorPage() {
         </header>
 
         <div className="flex-1 overflow-hidden p-6">
-          <div className="grid h-full gap-6 lg:grid-cols-[minmax(420px,520px)_minmax(0,1fr)]">
-            <section className="min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="grid h-full min-h-0 gap-6 md:grid-cols-[minmax(420px,520px)_minmax(0,1fr)]">
+            <section
+              className={`min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ${generating ? 'max-md:order-last' : ''}`}
+            >
               <SimpleGeneratorWizard
             title="기획안 만들기"
             subtitle="실행 계획과 산출물 기준이 보이도록, 내부 검토와 고객 공유 둘 다 가능한 초안으로 작성합니다."
@@ -366,7 +368,13 @@ export default function PlanningGeneratorPage() {
             </section>
 
             {generating ? (
-              <GenerationProgressPanel title="기획 문서 생성 중" lines={generationStageLog} />
+              <div className="flex max-h-full min-h-0 h-full flex-col max-md:order-first md:order-none">
+                <GenerationProgressPanel
+                  className="flex-1"
+                  title="기획 문서 생성 중"
+                  lines={generationStageLog}
+                />
+              </div>
             ) : doc && generatedDocId ? (
               <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-card">
                 <div className="border-b border-gray-100 bg-slate-50/50 p-4">

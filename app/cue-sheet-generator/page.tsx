@@ -253,8 +253,10 @@ export default function CueSheetGeneratorPage() {
               />
             </div>
           ) : (
-            <div className="grid h-full gap-6 lg:grid-cols-[minmax(420px,520px)_minmax(0,1fr)]">
-              <section className="min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="grid h-full min-h-0 gap-6 md:grid-cols-[minmax(420px,520px)_minmax(0,1fr)]">
+              <section
+                className={`min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ${generating ? 'max-md:order-last' : ''}`}
+              >
                 <SimpleGeneratorWizard
             title="큐시트 만들기"
             subtitle="시간, 담당자, 준비물, 멘트 큐를 한 번에 정리해 바로 현장 공유가 가능하도록 구성했습니다."
@@ -367,7 +369,13 @@ export default function CueSheetGeneratorPage() {
               </section>
 
               {generating ? (
-                <GenerationProgressPanel title="큐시트 생성 중" lines={generationStageLog} />
+                <div className="flex max-h-full min-h-0 h-full flex-col max-md:order-first md:order-none">
+                  <GenerationProgressPanel
+                    className="flex-1"
+                    title="큐시트 생성 중"
+                    lines={generationStageLog}
+                  />
+                </div>
               ) : doc && generatedDocId ? (
                 <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-card">
                   <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 bg-slate-50/50 p-4">

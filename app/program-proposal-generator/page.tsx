@@ -257,8 +257,10 @@ export default function ProgramProposalGeneratorPage() {
         </header>
 
         <div className="flex-1 overflow-hidden p-6">
-          <div className="grid h-full gap-6 lg:grid-cols-[minmax(420px,520px)_minmax(0,1fr)]">
-            <section className="min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="grid h-full min-h-0 gap-6 md:grid-cols-[minmax(420px,520px)_minmax(0,1fr)]">
+            <section
+              className={`min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ${generating ? 'max-md:order-last' : ''}`}
+            >
               <SimpleGeneratorWizard
             title="프로그램 제안서 만들기"
             subtitle="고객에게 보여줄 구성안 중심으로 작성하고, 생성 후 바로 편집할 수 있습니다."
@@ -376,7 +378,13 @@ export default function ProgramProposalGeneratorPage() {
             </section>
 
             {generating ? (
-              <GenerationProgressPanel title="프로그램 제안 생성 중" lines={generationStageLog} />
+              <div className="flex max-h-full min-h-0 h-full flex-col max-md:order-first md:order-none">
+                <GenerationProgressPanel
+                  className="flex-1"
+                  title="프로그램 제안 생성 중"
+                  lines={generationStageLog}
+                />
+              </div>
             ) : doc && generatedDocId ? (
               <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-card">
                 <div className="border-b border-gray-100 bg-slate-50/50 p-4">

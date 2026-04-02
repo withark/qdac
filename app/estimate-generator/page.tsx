@@ -594,8 +594,10 @@ function EstimateGeneratorContent() {
         </header>
 
         <div className="flex-1 overflow-hidden p-6">
-          <div className="grid h-full gap-6 lg:grid-cols-[minmax(420px,520px)_minmax(0,1fr)]">
-            <section className="min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="grid h-full min-h-0 gap-6 md:grid-cols-[minmax(420px,520px)_minmax(0,1fr)]">
+            <section
+              className={`min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ${generating ? 'max-md:order-last' : ''}`}
+            >
               <SimpleGeneratorWizard
                 title="견적서 생성하기"
                 subtitle="필수 정보만 입력하고 바로 생성하세요."
@@ -712,7 +714,13 @@ function EstimateGeneratorContent() {
             </section>
 
             {generating ? (
-              <GenerationProgressPanel title="견적서 생성 중" lines={generationStageLog} />
+              <div className="flex max-h-full min-h-0 h-full flex-col max-md:order-first md:order-none">
+                <GenerationProgressPanel
+                  className="flex-1"
+                  title="견적서 생성 중"
+                  lines={generationStageLog}
+                />
+              </div>
             ) : doc && generatedDocId ? (
               <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-card">
               {docSummary ? (
