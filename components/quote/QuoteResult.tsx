@@ -10,6 +10,7 @@ import clsx from 'clsx'
 import type { PlanType } from '@/lib/plans'
 import { allowedQuoteTemplates } from '@/lib/plan-entitlements'
 import type { ExcelExportView } from '@/lib/exportExcel'
+import { exportPlanningToWord } from '@/lib/exportWord'
 
 type DocTab = 'estimate' | 'program' | 'timetable' | 'planning' | 'scenario' | 'emceeScript'
 
@@ -50,6 +51,8 @@ interface Props {
   /** 현재 탭·큐시트 모드에 맞는 PDF 종류는 부모에서 exportPdf.pdfKindFromQuoteTab 등으로 매핑 */
   onPdf: (ctx: { tab: DocTab; showCueSheetEditor: boolean }) => void | Promise<void>
   onLoadPrevious?: () => void
+  /** onLoadPrevious 버튼 문구 (기본: 기존 견적서 불러오기) */
+  loadPreviousLabel?: string
   onGenerateTab?: (tab: DocTab) => void | Promise<void>
   generatingTabs?: Partial<Record<DocTab, boolean>>
   generationProgressLabel?: string | null
@@ -181,6 +184,7 @@ export function QuoteResult({
   onExcel,
   onPdf,
   onLoadPrevious,
+  loadPreviousLabel,
   onGenerateTab,
   generatingTabs = {},
   generationProgressLabel = null,
@@ -271,7 +275,7 @@ export function QuoteResult({
         : tab === 'program'
           ? (showCueSheetEditor ? 'cuesheet' : 'program')
           : tab === 'planning'
-            ? 'planning'
+            ? null
             : tab === 'scenario'
               ? 'scenario'
               : tab === 'emceeScript'
@@ -444,7 +448,9 @@ export function QuoteResult({
               </span>
             )}
             {onLoadPrevious && (
-              <Button size="sm" variant="secondary" onClick={onLoadPrevious}>기존 견적서 불러오기</Button>
+              <Button size="sm" variant="secondary" onClick={onLoadPrevious}>
+                {loadPreviousLabel ?? '기존 견적서 불러오기'}
+              </Button>
             )}
             {onRegenerate && (
               <Button size="sm" onClick={onRegenerate} disabled={regenerating}>{regenerating ? '재작성 중...' : '재작성'}</Button>
@@ -452,7 +458,17 @@ export function QuoteResult({
             {currentExcelView ? (
               <Button size="sm" onClick={() => onExcel(currentExcelView)} disabled={exportDisabled}>엑셀 다운로드</Button>
             ) : (
-              <Button size="sm" disabled>엑셀 다운로드</Button>
+              tab === 'planning' ? (
+                <Button
+                  size="sm"
+                  onClick={() => void exportPlanningToWord(doc)}
+                  disabled={exportDisabled}
+                >
+                  워드 다운로드
+                </Button>
+              ) : (
+                <Button size="sm" disabled>엑셀 다운로드</Button>
+              )
             )}
             {onSaveDoc && docId ? (
               <Button

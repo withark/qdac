@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
 import SimpleGeneratorWizard, { type WizardHighlight, type WizardMode } from '@/components/generators/SimpleGeneratorWizard'
+import { LoadSavedGeneratedDocModal } from '@/components/generators/LoadSavedGeneratedDocModal'
 import { Input, Textarea, Toast } from '@/components/ui'
 import type { CompanySettings, PriceCategory, QuoteDoc } from '@/lib/types'
 import type { PlanType } from '@/lib/plans'
@@ -64,6 +65,7 @@ export default function CueSheetGeneratorPage() {
   const [generating, setGenerating] = useState(false)
   const [generationProgressLabel, setGenerationProgressLabel] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [loadSavedOpen, setLoadSavedOpen] = useState(false)
   const generatingTabs = useMemo(() => ({ program: generating }), [generating])
   const wizardHighlights: WizardHighlight[] = useMemo(
     () => [
@@ -173,6 +175,16 @@ export default function CueSheetGeneratorPage() {
       setGenerating(false)
     }
   }, [contextDoc, requestBaseFromDoc, showToast, sourceMode, topic, goal, notes, headcount, venue])
+
+  const handleLoadSavedDoc = useCallback(
+    ({ doc: nextDoc, id }: { doc: QuoteDoc; id: string }) => {
+      setDoc(nextDoc)
+      setContextDoc(nextDoc)
+      setGeneratedDocId(id)
+      showToast('저장된 문서를 불러왔습니다.')
+    },
+    [showToast],
+  )
 
   const handleSaveDoc = useCallback(
     async (nextDoc: QuoteDoc) => {
@@ -406,6 +418,8 @@ export default function CueSheetGeneratorPage() {
                       showToast(toUserMessage(e, '저장 실패'))
                     }
                   }}
+                  onLoadPrevious={() => setLoadSavedOpen(true)}
+                  loadPreviousLabel="저장된 큐시트 불러오기"
                     />
                   </div>
                 </section>
@@ -415,12 +429,26 @@ export default function CueSheetGeneratorPage() {
                   <div className="mt-2 text-xs text-gray-500">
                     {sourceMode === 'fromTopic' ? '주제와 목표만 있으면 됩니다' : '소스를 선택하세요'}
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setLoadSavedOpen(true)}
+                    className="mt-4 text-sm font-semibold text-primary-700 underline-offset-2 hover:text-primary-800 hover:underline"
+                  >
+                    저장된 큐시트 불러오기
+                  </button>
                 </section>
               )}
             </div>
           )}
         </div>
       </div>
+
+      <LoadSavedGeneratedDocModal
+        open={loadSavedOpen}
+        onClose={() => setLoadSavedOpen(false)}
+        docType="cuesheet"
+        onLoaded={handleLoadSavedDoc}
+      />
 
       {toast && <Toast message={toast} onClose={() => setToast('')} />}
     </div>

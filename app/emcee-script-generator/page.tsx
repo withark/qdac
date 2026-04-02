@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
 import SimpleGeneratorWizard from '@/components/generators/SimpleGeneratorWizard'
+import { LoadSavedGeneratedDocModal } from '@/components/generators/LoadSavedGeneratedDocModal'
 import { Input, Textarea, Toast } from '@/components/ui'
 import type { CompanySettings, PriceCategory, QuoteDoc } from '@/lib/types'
 import { apiFetch, apiGenerateStream } from '@/lib/api/client'
@@ -56,6 +57,7 @@ export default function EmceeScriptGeneratorPage() {
   const [generating, setGenerating] = useState(false)
   const [generationProgressLabel, setGenerationProgressLabel] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [loadSavedOpen, setLoadSavedOpen] = useState(false)
   const generatingTabs = useMemo(() => ({ emceeScript: generating }), [generating])
 
   useEffect(() => {
@@ -156,6 +158,15 @@ export default function EmceeScriptGeneratorPage() {
       setGenerating(false)
     }
   }, [doc, requestBaseFromDoc, showToast, sourceMode, topic, goal, notes, headcount, venue])
+
+  const handleLoadSavedDoc = useCallback(
+    ({ doc: nextDoc, id }: { doc: QuoteDoc; id: string }) => {
+      setDoc(nextDoc)
+      setGeneratedDocId(id)
+      showToast('저장된 문서를 불러왔습니다.')
+    },
+    [showToast],
+  )
 
   const handleSaveDoc = useCallback(
     async (nextDoc: QuoteDoc) => {
@@ -351,6 +362,8 @@ export default function EmceeScriptGeneratorPage() {
                       showToast(toUserMessage(e, '저장 실패'))
                     }
                   }}
+                  onLoadPrevious={() => setLoadSavedOpen(true)}
+                  loadPreviousLabel="저장된 멘트 문서 불러오기"
                 />
               </div>
             </section>
@@ -366,10 +379,23 @@ export default function EmceeScriptGeneratorPage() {
                     ? '주제와 멘트 목표만 입력하면 됩니다'
                     : '저장된 문서를 선택해야 합니다'}
               </div>
+              <button
+                type="button"
+                onClick={() => setLoadSavedOpen(true)}
+                className="mt-4 text-sm font-semibold text-primary-700 underline-offset-2 hover:text-primary-800 hover:underline"
+              >
+                저장된 멘트 문서 불러오기
+              </button>
             </section>
           )}
         </div>
       </div>
+      <LoadSavedGeneratedDocModal
+        open={loadSavedOpen}
+        onClose={() => setLoadSavedOpen(false)}
+        docType="emceeScript"
+        onLoaded={handleLoadSavedDoc}
+      />
       {toast && <Toast message={toast} onClose={() => setToast('')} />}
     </div>
   )

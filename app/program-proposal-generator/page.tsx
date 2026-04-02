@@ -5,6 +5,7 @@ import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
 import { Input, Textarea, Toast } from '@/components/ui'
 import SimpleGeneratorWizard, { type WizardHighlight } from '@/components/generators/SimpleGeneratorWizard'
+import { LoadSavedGeneratedDocModal } from '@/components/generators/LoadSavedGeneratedDocModal'
 import type { CompanySettings, HistoryRecord, PriceCategory, QuoteDoc, TaskOrderDoc } from '@/lib/types'
 import { apiFetch, apiGenerateStream } from '@/lib/api/client'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
@@ -55,6 +56,7 @@ export default function ProgramProposalGeneratorPage() {
   const [generating, setGenerating] = useState(false)
   const [generationProgressLabel, setGenerationProgressLabel] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [loadSavedOpen, setLoadSavedOpen] = useState(false)
   const generatingTabs = useMemo(() => ({ program: generating }), [generating])
   const wizardHighlights: WizardHighlight[] = useMemo(
     () => [
@@ -181,6 +183,15 @@ export default function ProgramProposalGeneratorPage() {
       setGenerating(false)
     }
   }, [doc, requestBaseFromDoc, showToast, sourceMode, topic, headcount, venue, goal, notes, taskOrderSummary])
+
+  const handleLoadSavedDoc = useCallback(
+    ({ doc: nextDoc, id }: { doc: QuoteDoc; id: string }) => {
+      setDoc(nextDoc)
+      setGeneratedDocId(id)
+      showToast('저장된 문서를 불러왔습니다.')
+    },
+    [showToast],
+  )
 
   const handleSaveDoc = useCallback(
     async (nextDoc: QuoteDoc) => {
@@ -413,6 +424,8 @@ export default function ProgramProposalGeneratorPage() {
                       showToast(toUserMessage(e, '저장 실패'))
                     }
                   }}
+                  onLoadPrevious={() => setLoadSavedOpen(true)}
+                  loadPreviousLabel="저장된 프로그램 제안 불러오기"
                   />
                 </div>
               </section>
@@ -428,11 +441,25 @@ export default function ProgramProposalGeneratorPage() {
                       ? '주제/목표만 입력하면 됩니다'
                       : '소스 선택과 필수 입력이 필요합니다'}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setLoadSavedOpen(true)}
+                  className="mt-4 text-sm font-semibold text-primary-700 underline-offset-2 hover:text-primary-800 hover:underline"
+                >
+                  저장된 프로그램 제안 불러오기
+                </button>
               </section>
             )}
           </div>
         </div>
       </div>
+
+      <LoadSavedGeneratedDocModal
+        open={loadSavedOpen}
+        onClose={() => setLoadSavedOpen(false)}
+        docType="program"
+        onLoaded={handleLoadSavedDoc}
+      />
 
       {toast && <Toast message={toast} onClose={() => setToast('')} />}
     </div>
