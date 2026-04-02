@@ -45,6 +45,8 @@ const EnvSchema = z.object({
   AI_HYBRID_TEMPLATES: z.string().optional(),
   /** true면 품질 보정(repair) LLM 루프 생략 */
   AI_ENABLE_REFINE_SKIP: z.string().optional(),
+  /** 실시간 생성에서 비견적 문서 품질 보정 시 초안(OpenAI) 엔진 사용(기본 true, 속도 우선) */
+  AI_REALTIME_REPAIR_USE_DRAFT_ENGINE: z.string().optional(),
   /** true면 hybrid 시 Claude 2차(문서 다듬기) 패스 생략 — 초안만 사용 */
   AI_HYBRID_DOCUMENT_REFINE_SKIP: z.string().optional(),
   /** true면 LLM 응답 usage 토큰 로그 */

@@ -1,5 +1,11 @@
 import type { GenerateInput, QuoteDoc, PriceCategory } from './types'
-import { callLLM, callLLMWithUsage, getEffectiveEngineConfig, type LLMUsage } from './client'
+import {
+  callLLM,
+  callLLMWithUsage,
+  getEffectiveEngineConfig,
+  type EffectiveEngineConfig,
+  type LLMUsage,
+} from './client'
 import { buildGeneratePrompt, buildRepairPrompt } from './prompts'
 import { getEnv, readEnvBool } from '../env'
 import { isEffectiveMockAi, isMockGenerationEnabled } from './mode'
@@ -2316,6 +2322,7 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
   let draftUsageMerged: LLMUsage | undefined
   let documentRefineUsage: LLMUsage | undefined
   let repairUsageLast: LLMUsage | undefined
+  let repairEngineUsedForCost: EffectiveEngineConfig | undefined
   let documentRefineSkipped = true
   let documentRefineSkipReason: string | undefined
   const isOpenAIDraftAuthFailure = (err: unknown): boolean => {
@@ -2499,6 +2506,18 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
       let bestScore = scoreQualityIssues(bestIssues)
       const maxRepairAttempts = generationProfile === 'realtime' ? 1 : strictQualityTarget ? 3 : 2
 
+      /** 실시간 + 비견적: polish는 이미 생략했으므로 repair만 남는데, 여기서 Claude를 쓰면 지연이 커짐 → 초안(OpenAI)으로 보정 */
+      const useDraftForQualityRepair =
+        generationProfile === 'realtime' &&
+        (input.documentTarget ?? 'estimate') !== 'estimate' &&
+        draftEff.provider === 'openai' &&
+        readEnvBool('AI_REALTIME_REPAIR_USE_DRAFT_ENGINE', true)
+      const repairEngine = useDraftForQualityRepair ? draftEff : (refineEff ?? eff)
+      const repairMax = useDraftForQualityRepair
+        ? resolveDraftMaxOut()
+        : resolveGenerateMaxTokens(repairEngine.maxTokens, repairEngine.provider)
+      repairEngineUsedForCost = repairEngine
+
       for (let attempt = 0; attempt < maxRepairAttempts; attempt++) {
         const strict = strictQualityTarget && attempt >= 1
         const issuesForPrompt = prioritizeQualityIssues(bestIssues).slice(0, 8)
@@ -2510,8 +2529,6 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
           focus,
         })
         try {
-          const repairEngine = refineEff ?? eff
-          const repairMax = resolveGenerateMaxTokens(repairEngine.maxTokens, repairEngine.provider)
           const repairTimeoutMs = generationProfile === 'realtime' ? 45_000 : 90_000
           const { text: refinedText, usage: repairU, latencyMs: repairMs } = await callLLMWithUsage(repairPrompt, {
             maxTokens: repairMax,
@@ -2620,7 +2637,9 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
   const costStages = [
     { model: draftEff.model, usage: draftUsageMerged },
     ...(hybrid?.refine && refineEff ? [{ model: refineEff.model, usage: documentRefineUsage }] : []),
-    ...(repairUsageLast ? [{ model: (refineEff ?? eff).model, usage: repairUsageLast }] : []),
+    ...(repairUsageLast && repairEngineUsedForCost
+      ? [{ model: repairEngineUsedForCost.model, usage: repairUsageLast }]
+      : []),
   ]
   const { totalUsd: costEstimateUsd } = aggregateGenerationCostUsd(costStages)
 
