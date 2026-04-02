@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { GNB } from '@/components/GNB'
 import { Button, Input, Toast } from '@/components/ui'
 import type { PriceCategory, PriceItem } from '@/lib/types'
@@ -25,7 +25,8 @@ export default function PricesPage() {
   const [saving, setSaving] = useState(false)
   const [toast,  setToast]  = useState('')
   const [editingPrice, setEditingPrice] = useState<{ ci: number; ii: number } | null>(null)
-  const [suggesting, setSuggesting] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     apiFetch<{ subscription: { planType: PlanType } }>('/api/me')
@@ -111,29 +112,28 @@ export default function PricesPage() {
     setDirty(true)
   }
 
-  async function applyMarketAverages() {
-    if (prices.length === 0 || prices.every(c => c.items.length === 0)) {
-      showToast('단가 항목이 없습니다.')
-      return
-    }
-    setSuggesting(true)
+  const openImportPicker = useCallback(() => {
+    fileInputRef.current?.click()
+  }, [])
+
+  const importEstimate = useCallback(async (file: File) => {
+    setImporting(true)
     try {
-      const data = await apiFetch<PriceCategory[]>('/api/prices/suggest-averages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(prices),
-      })
-      if (Array.isArray(data)) {
-        setPrices(data)
-        setDirty(true)
-        showToast('시장 평균 단가로 적용했습니다. 저장 버튼을 눌러 반영하세요.')
-      }
+      const fd = new FormData()
+      fd.append('file', file)
+      const result = await apiFetch<{ prices: PriceCategory[]; importedCategories: number; importedItems: number }>(
+        '/api/prices/import-estimate',
+        { method: 'POST', body: fd as any },
+      )
+      setPrices(result.prices || [])
+      setDirty(false)
+      showToast(`견적서 업로드 반영 완료 (${result.importedCategories}개 카테고리, ${result.importedItems}개 항목)`)
     } catch (e) {
-      showToast(toUserMessage(e, '평균 단가 적용에 실패했습니다.'))
+      showToast(toUserMessage(e, '견적서 단가표 불러오기에 실패했습니다.'))
     } finally {
-      setSuggesting(false)
+      setImporting(false)
     }
-  }
+  }, [showToast])
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50/50">
@@ -142,7 +142,7 @@ export default function PricesPage() {
         <header className="flex items-center justify-between px-6 h-14 border-b border-gray-100 flex-shrink-0 bg-white">
           <div>
             <h1 className="text-base font-semibold text-gray-900">단가표</h1>
-            <p className="text-xs text-gray-500 mt-0.5">회사 기준 단가·재사용 견적 구조입니다. 구독 요금제와는 별개입니다.</p>
+            <p className="text-xs text-gray-500 mt-0.5">기존 견적서(.xlsx)를 업로드하면 단가표가 자동으로 채워집니다.</p>
           </div>
           <div className="flex items-center gap-3">
             <span className={clsx('text-xs font-medium', dirty ? 'text-amber-600' : 'text-gray-400')}>
@@ -152,8 +152,19 @@ export default function PricesPage() {
             {!isLocked ? (
               <>
                 <div className="flex items-center gap-2">
-                  <Button size="sm" variant="secondary" onClick={applyMarketAverages} disabled={suggesting || prices.length === 0}>
-                    {suggesting ? '평균 산출 중...' : '시장 평균 적용'}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".xlsx"
+                    className="sr-only"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0]
+                      if (f) void importEstimate(f)
+                      e.target.value = ''
+                    }}
+                  />
+                  <Button size="sm" variant="secondary" onClick={openImportPicker} disabled={importing}>
+                    {importing ? '업로드 반영 중...' : '견적서 업로드(.xlsx)'}
                   </Button>
                   <Button type="button" size="sm" variant="secondary" onClick={addCat}>+ 카테고리</Button>
                 </div>
@@ -179,7 +190,7 @@ export default function PricesPage() {
           {!isLocked ? (
           <>
           <div className="rounded-lg border border-primary-100 bg-primary-50/50 px-4 py-2.5 text-xs text-gray-600">
-            <span className="font-medium text-primary-700">참고</span> 참고 견적서를 업로드하면 AI가 분석해 단가표에 자동 반영합니다.
+            <span className="font-medium text-primary-700">가이드</span> 기존 견적서 양식(.xlsx)을 업로드하면 항목/단가가 단가표에 자동 반영됩니다.
           </div>
 
           {(Array.isArray(prices) ? prices : []).map((cat, ci) => (
