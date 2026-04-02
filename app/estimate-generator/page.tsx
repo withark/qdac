@@ -708,10 +708,6 @@ function EstimateGeneratorContent() {
                     <button
                       type="button"
                       onClick={async () => {
-                        if (me?.subscription?.planType === 'FREE') {
-                          showToast('PDF 다운로드는 베이직 플랜부터 이용할 수 있어요.')
-                          return
-                        }
                         try {
                           await exportToPdf(doc, companySettings ?? undefined)
                           showToast('PDF 저장 완료!')
@@ -764,10 +760,6 @@ function EstimateGeneratorContent() {
                     }
                   }}
                   onPdf={async () => {
-                    if (me?.subscription?.planType === 'FREE') {
-                      showToast('PDF 다운로드는 베이직 플랜부터 이용할 수 있어요.')
-                      return
-                    }
                     try {
                       await exportToPdf(doc, companySettings ?? undefined)
                       showToast('PDF 저장 완료!')
