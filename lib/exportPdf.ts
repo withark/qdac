@@ -3,8 +3,14 @@ import { calcTotals, fmtKRW, getQuoteDateForFilename } from '@/lib/calc'
 import { KIND_ORDER, groupQuoteItemsByKind, subtotalsByKind } from '@/lib/quoteGroup'
 import { getQuoteTemplate } from '@/lib/quoteTemplates'
 
+type PdfExportView = 'quote' | 'planning'
+
 // html2canvas + jsPDF를 동적 import (클라이언트 전용)
-export async function exportToPdf(doc: QuoteDoc, company?: CompanySettings | null) {
+export async function exportToPdf(doc: QuoteDoc, company?: CompanySettings | null, view: PdfExportView = 'quote') {
+  if (view === 'planning') {
+    await exportPlanningToPdf(doc)
+    return
+  }
   const liveQuoteEl = document.querySelector('.quote-wrapper') as HTMLElement | null
   if (liveQuoteEl) {
     await exportElementToPdf(liveQuoteEl, doc)
@@ -48,6 +54,136 @@ export async function exportToPdf(doc: QuoteDoc, company?: CompanySettings | nul
 
     const date = getQuoteDateForFilename(doc.quoteDate)
     pdf.save(`견적서_${doc.eventName.replace(/\s/g,'_')}_${date}.pdf`)
+  } finally {
+    document.body.removeChild(container)
+  }
+}
+
+async function exportPlanningToPdf(doc: QuoteDoc): Promise<void> {
+  const [html2canvas, { jsPDF }] = await Promise.all([
+    import('html2canvas').then(m => m.default),
+    import('jspdf'),
+  ])
+
+  const planning = doc.planning || {
+    overview: '',
+    scope: '',
+    approach: '',
+    operationPlan: '',
+    deliverablesPlan: '',
+    staffingConditions: '',
+    risksAndCautions: '',
+    checklist: [],
+  }
+  const checklist = (planning.checklist || []).filter(Boolean)
+  const rows = (doc.program?.programRows || []).slice(0, 8)
+  const actionRows = checklist.slice(0, 6).map((item, idx) => {
+    const labels = ['1단계', '2단계', '3단계', '4단계', '5단계', '6단계']
+    const periods = ['D-60', 'D-45', 'D-30', 'D-14', 'D-Day', 'D+7']
+    return { step: labels[idx] || `${idx + 1}단계`, period: periods[idx] || '-', task: item }
+  })
+  const colorChip = ['#1D4ED8', '#EA580C', '#15803D', '#CA8A04', '#7C3AED', '#0369A1', '#BE185D', '#4D7C0F']
+
+  const html = `
+  <div style="width:794px;background:#fff;padding:36px 34px 56px;font-family:'Pretendard','Malgun Gothic',sans-serif;color:#0f172a">
+    <div style="text-align:center;border-bottom:2px solid #dbeafe;padding-bottom:16px;">
+      <div style="font-size:10px;letter-spacing:.18em;color:#64748b;font-weight:700;">PLANNING DOCUMENT</div>
+      <h1 style="margin:8px 0 4px;font-size:30px;color:#1e3a8a;line-height:1.2;">${doc.eventName || '행사 기획안'}</h1>
+      <div style="font-size:12px;color:#6b7280;">${doc.eventDate || '일정 미정'} · ${doc.venue || '장소 미정'}</div>
+    </div>
+
+    <div style="margin-top:18px;border:1px solid #dbeafe;border-radius:12px;padding:14px 16px;background:#f8fbff;">
+      <h2 style="font-size:16px;margin:0 0 8px;color:#0f172a;">1. 배경 및 필요성</h2>
+      <p style="margin:0;font-size:12px;line-height:1.8;white-space:pre-line;">${planning.overview || '-'}</p>
+    </div>
+
+    <div style="margin-top:12px;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;">
+      <h2 style="font-size:16px;margin:0 0 8px;color:#0f172a;">2. 프로그램 개요</h2>
+      <p style="margin:0;font-size:12px;line-height:1.8;white-space:pre-line;">${planning.scope || '-'}</p>
+    </div>
+
+    <div style="margin-top:12px;">
+      <h2 style="font-size:16px;margin:0 0 8px;color:#0f172a;">3. 세부 액션 프로그램</h2>
+      ${(rows.length > 0
+        ? rows
+            .map(
+              (row, idx) => `
+            <div style="display:flex;gap:10px;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-top:8px;">
+              <div style="min-width:42px;height:42px;border-radius:8px;background:${colorChip[idx % colorChip.length]};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:12px;">
+                ${String(idx + 1).padStart(2, '0')}
+              </div>
+              <div>
+                <div style="font-size:13px;font-weight:700;color:#0f172a;">${row.content || '프로그램 항목'}</div>
+                <div style="margin-top:3px;font-size:11px;line-height:1.7;color:#475569;">${row.notes || row.tone || '-'}</div>
+                <div style="margin-top:3px;font-size:10px;color:#64748b;">${row.time || '-'} · ${row.audience || '전체 대상'}</div>
+              </div>
+            </div>
+          `,
+            )
+            .join('')
+        : `<div style="border:1px dashed #cbd5e1;border-radius:10px;padding:12px;color:#64748b;font-size:11px;">프로그램 항목이 아직 없습니다.</div>`)}
+    </div>
+
+    <div style="margin-top:14px;">
+      <h2 style="font-size:16px;margin:0 0 8px;color:#0f172a;">4. 액션 플랜 (Action Plan)</h2>
+      <table style="width:100%;border-collapse:collapse;border:1px solid #cbd5e1;font-size:11px;">
+        <thead>
+          <tr style="background:#0f2f57;color:#fff;">
+            <th style="padding:8px;text-align:left;">단계</th>
+            <th style="padding:8px;text-align:left;">시기</th>
+            <th style="padding:8px;text-align:left;">주요 내용</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${
+            actionRows.length > 0
+              ? actionRows
+                  .map(
+                    (r) => `
+                <tr style="border-top:1px solid #e2e8f0;">
+                  <td style="padding:7px;">${r.step}</td>
+                  <td style="padding:7px;">${r.period}</td>
+                  <td style="padding:7px;line-height:1.6;">${r.task}</td>
+                </tr>
+              `,
+                  )
+                  .join('')
+              : `<tr><td colspan="3" style="padding:10px;text-align:center;color:#64748b;">체크리스트를 입력하면 액션 플랜이 채워집니다.</td></tr>`
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:14px;border:1px solid #e2e8f0;border-radius:12px;padding:12px;">
+      <h2 style="font-size:16px;margin:0 0 8px;color:#0f172a;">5. 리스크 및 운영 포인트</h2>
+      <p style="margin:0;font-size:12px;line-height:1.8;white-space:pre-line;">${planning.risksAndCautions || '-'}</p>
+    </div>
+  </div>
+  `
+
+  const container = document.createElement('div')
+  container.style.cssText = `
+    position: fixed; top: -9999px; left: -9999px;
+    width: 794px; background: white;
+  `
+  container.innerHTML = html
+  document.body.appendChild(container)
+
+  try {
+    const canvas = await html2canvas(container, { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' })
+    const imgData = canvas.toDataURL('image/png')
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const pageW = pdf.internal.pageSize.getWidth()
+    const pageH = pdf.internal.pageSize.getHeight()
+    const imgH = (canvas.height * pageW) / canvas.width
+    let yPos = 0
+    while (yPos < imgH) {
+      if (yPos > 0) pdf.addPage()
+      pdf.addImage(imgData, 'PNG', 0, -yPos, pageW, imgH)
+      yPos += pageH
+    }
+    const date = getQuoteDateForFilename(doc.quoteDate)
+    pdf.save(`기획문서_${doc.eventName.replace(/\s/g, '_')}_${date}.pdf`)
   } finally {
     document.body.removeChild(container)
   }

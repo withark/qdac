@@ -440,7 +440,7 @@ export default function PlanningGeneratorPage() {
                       return
                     }
                     try {
-                      await exportToPdf(doc, companySettings ?? undefined)
+                      await exportToPdf(doc, companySettings ?? undefined, 'planning')
                       showToast('PDF 저장 완료!')
                     } catch (e) {
                       showToast(toUserMessage(e, '저장 실패'))
