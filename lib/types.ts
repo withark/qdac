@@ -99,6 +99,40 @@ export interface EmceeScriptDoc {
 }
 
 // ─── 기획 문서(Planning) ─────────────────────────
+/** 배경·근거 수치 카드 (예: 73% / 세대 간 소통…) */
+export interface PlanningStatItem {
+  value: string
+  label: string
+  detail?: string
+}
+
+/** 프로그램 개요 표 행 (목표·기간·대상·장소·예산) */
+export interface PlanningOverviewRow {
+  label: string
+  value: string
+  detail?: string
+}
+
+/** 세부 액션 프로그램 카드 (DAY별 블록) */
+export interface PlanningActionBlock {
+  order: number
+  dayLabel: string
+  title: string
+  description: string
+  timeRange: string
+  participants: string
+  /** UI·PDF 색상 띠 */
+  accent?: 'blue' | 'orange' | 'green' | 'yellow' | 'slate'
+}
+
+/** 액션 플랜 표 행 */
+export interface PlanningActionPlanRow {
+  step: string
+  timing: string
+  content: string
+  owner: string
+}
+
 export interface PlanningDoc {
   overview: string
   scope: string
@@ -108,6 +142,20 @@ export interface PlanningDoc {
   staffingConditions: string
   risksAndCautions: string
   checklist: string[]
+  /** 제안서 톤: 부제·슬로건 */
+  subtitle?: string
+  /** 1. 배경 — 핵심 지표 카드 2개 이상 권장 */
+  backgroundStats?: PlanningStatItem[]
+  /** 2. 프로그램 개요 — 표 형태 */
+  programOverviewRows?: PlanningOverviewRow[]
+  /** 3. 세부 액션 프로그램 — 일자별 카드 6개 이상 권장 */
+  actionProgramBlocks?: PlanningActionBlock[]
+  /** 4. 액션 플랜 — D-day 기준 마일스톤 표 */
+  actionPlanTable?: PlanningActionPlanRow[]
+  /** 5. 기대 효과 — 단기 */
+  expectedEffectsShortTerm?: string[]
+  /** 5. 기대 효과 — 장기 */
+  expectedEffectsLongTerm?: string[]
 }
 
 // ─── 견적서 ──────────────────────────────────
@@ -222,6 +270,14 @@ export interface CompanySettings {
   profitRate: number
   validDays: number
   paymentTerms: string
+  bankAccount?: {
+    bankName: string
+    accountNumber: string
+    accountHolder: string
+  }
+  logoUrl?: string | null
+  email?: string
+  websiteUrl?: string
 }
 
 // ─── 참고 견적서 학습 ──────────────────────────

@@ -6,6 +6,11 @@ import type {
   ScenarioDoc,
   TimelineRow,
   EmceeScriptDoc,
+  PlanningDoc,
+  PlanningStatItem,
+  PlanningOverviewRow,
+  PlanningActionBlock,
+  PlanningActionPlanRow,
 } from '../types'
 import { redistributeTimelineTimes } from './timeline-utils'
 
@@ -60,6 +65,120 @@ function defaultProgramPlan(eventName: string, eventType: string, headcount: str
     cueRows: [],
     cueSummary: '',
   }
+}
+
+type PlanningAccent = NonNullable<PlanningActionBlock['accent']>
+const PLANNING_ACCENTS: readonly PlanningAccent[] = ['blue', 'orange', 'green', 'yellow', 'slate']
+
+function normalizePlanningDoc(raw: unknown): PlanningDoc | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const p = raw as Record<string, unknown>
+  const str = (k: string) => (typeof p[k] === 'string' ? (p[k] as string) : '')
+  const checklist = Array.isArray(p.checklist)
+    ? (p.checklist as unknown[]).map((x) => String(x ?? '').trim()).filter(Boolean)
+    : []
+
+  const base: PlanningDoc = {
+    overview: str('overview'),
+    scope: str('scope'),
+    approach: str('approach'),
+    operationPlan: str('operationPlan'),
+    deliverablesPlan: str('deliverablesPlan'),
+    staffingConditions: str('staffingConditions'),
+    risksAndCautions: str('risksAndCautions'),
+    checklist,
+  }
+
+  const subtitle = str('subtitle').trim() || undefined
+
+  const backgroundStats: PlanningStatItem[] = Array.isArray(p.backgroundStats)
+    ? (p.backgroundStats as unknown[])
+        .map((x) => {
+          if (!x || typeof x !== 'object') return null
+          const o = x as Record<string, unknown>
+          const value = String(o.value ?? '').trim()
+          const label = String(o.label ?? '').trim()
+          const detail = String(o.detail ?? '').trim()
+          if (!value && !label) return null
+          return { value, label, ...(detail ? { detail } : {}) }
+        })
+        .filter(Boolean as unknown as (x: PlanningStatItem | null) => x is PlanningStatItem)
+    : []
+
+  const programOverviewRows: PlanningOverviewRow[] = Array.isArray(p.programOverviewRows)
+    ? (p.programOverviewRows as unknown[])
+        .map((x) => {
+          if (!x || typeof x !== 'object') return null
+          const o = x as Record<string, unknown>
+          const label = String(o.label ?? '').trim()
+          const value = String(o.value ?? '').trim()
+          const detail = String(o.detail ?? '').trim()
+          if (!label && !value) return null
+          return { label, value, ...(detail ? { detail } : {}) }
+        })
+        .filter(Boolean as unknown as (x: PlanningOverviewRow | null) => x is PlanningOverviewRow)
+    : []
+
+  const actionProgramBlocks = (
+    Array.isArray(p.actionProgramBlocks)
+      ? (p.actionProgramBlocks as unknown[])
+          .map((x, i): PlanningActionBlock | null => {
+            if (!x || typeof x !== 'object') return null
+            const o = x as Record<string, unknown>
+            const title = String(o.title ?? '').trim()
+            const description = String(o.description ?? '').trim()
+            if (!title && !description) return null
+            const accentRaw = String(o.accent ?? '').toLowerCase()
+            const accent: PlanningAccent = (PLANNING_ACCENTS as readonly string[]).includes(accentRaw)
+              ? (accentRaw as PlanningAccent)
+              : PLANNING_ACCENTS[i % PLANNING_ACCENTS.length]!
+            return {
+              order: Number.isFinite(Number(o.order)) ? Math.round(Number(o.order)) : i + 1,
+              dayLabel: String(o.dayLabel ?? '').trim() || `DAY ${i + 1}`,
+              title: title || `액션 ${i + 1}`,
+              description: description || '—',
+              timeRange: String(o.timeRange ?? '').trim() || '—',
+              participants: String(o.participants ?? '').trim() || '—',
+              accent,
+            }
+          })
+          .filter((item): item is PlanningActionBlock => item !== null)
+      : []
+  ) as PlanningActionBlock[]
+
+  const actionPlanTable: PlanningActionPlanRow[] = Array.isArray(p.actionPlanTable)
+    ? (p.actionPlanTable as unknown[])
+        .map((x) => {
+          if (!x || typeof x !== 'object') return null
+          const o = x as Record<string, unknown>
+          const content = String(o.content ?? '').trim()
+          if (!content) return null
+          return {
+            step: String(o.step ?? '').trim() || '단계',
+            timing: String(o.timing ?? '').trim() || '—',
+            content,
+            owner: String(o.owner ?? '').trim() || '—',
+          }
+        })
+        .filter(Boolean as unknown as (x: PlanningActionPlanRow | null) => x is PlanningActionPlanRow)
+    : []
+
+  const expectedEffectsShortTerm = Array.isArray(p.expectedEffectsShortTerm)
+    ? (p.expectedEffectsShortTerm as unknown[]).map((x) => String(x ?? '').trim()).filter(Boolean)
+    : []
+  const expectedEffectsLongTerm = Array.isArray(p.expectedEffectsLongTerm)
+    ? (p.expectedEffectsLongTerm as unknown[]).map((x) => String(x ?? '').trim()).filter(Boolean)
+    : []
+
+  const out: PlanningDoc = { ...base }
+  if (subtitle) out.subtitle = subtitle
+  if (backgroundStats.length) out.backgroundStats = backgroundStats
+  if (programOverviewRows.length) out.programOverviewRows = programOverviewRows
+  if (actionProgramBlocks.length) out.actionProgramBlocks = actionProgramBlocks
+  if (actionPlanTable.length) out.actionPlanTable = actionPlanTable
+  if (expectedEffectsShortTerm.length) out.expectedEffectsShortTerm = expectedEffectsShortTerm
+  if (expectedEffectsLongTerm.length) out.expectedEffectsLongTerm = expectedEffectsLongTerm
+  return out
 }
 
 /** 파싱 직후·마이그레이션: 누락 필드 보강 + 타임라인 시각 정합 */
@@ -238,6 +357,12 @@ export function normalizeQuoteDoc(
     }
   }
 
+  let planning = doc.planning
+  if (planning && typeof planning === 'object') {
+    const normalized = normalizePlanningDoc(planning)
+    if (normalized) planning = normalized
+  }
+
   if (fillScenarioDefaults && scenario) {
     const tl = program.timeline
     if (!scenario.summaryTop.trim()) scenario.summaryTop = `${eventName} 연출·진행 요약`
@@ -265,6 +390,7 @@ export function normalizeQuoteDoc(
     program: program as ProgramPlan,
     scenario,
     emceeScript,
+    planning,
   }
 }
 

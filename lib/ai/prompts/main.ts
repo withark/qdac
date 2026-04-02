@@ -344,37 +344,42 @@ export function getOutputSchema(target: GenerateInput['documentTarget'], categor
 
   if (target === 'planning') {
     return `
-[출력 규칙 — 기획안]
+[출력 규칙 — 기획안(제안서 품질)]
 - JSON만 출력.
-- planning 객체 모든 필드는 빈 문자열 절대 금지.
-- **샘플 양식 고정**: 아래 5개 섹션이 읽히도록 내용 구성
-  1) 배경 및 필요성 (overview)
-  2) 프로그램 개요 (scope)
-  3) 세부 액션 프로그램 (approach + operationPlan)
-  4) 액션 플랜(Action Plan) (staffingConditions + checklist)
-  5) 기대 효과 (deliverablesPlan + risksAndCautions)
-- overview: 행사 목적·필요성·핵심 문제를 문장으로 명확히.
-- scope: 대상/기간/장소/운영 범위를 표에 넣을 수 있게 간결하게.
-- approach: Day1/Day2 또는 단계형 액션 프로그램처럼 **번호형 구성** 포함.
-- operationPlan: 시간축 기반 운영 계획 (누가/언제/무엇을).
-- staffingConditions: 담당 조직/역할을 실행형으로 작성.
-- risksAndCautions: 리스크 항목별 대응(최소 5개).
-- checklist: 8개 이상, 각 항목은 액션 문장(명사 나열 금지).
-${category === 'sports' ? '- 체육대회: 종목 준비물 체크·안전 관리·날씨 대응 포함.' : ''}
+- 고객 제출용 워드 제안서 수준: 표·카드·액션플랜·기대효과 2열까지 데이터로 채운다. 추상 총론만 쓰지 말 것.
+- 기존 텍스트 필드(overview~risksAndCautions)는 유지하되, 아래 구조화 필드를 반드시 함께 채운다(비우면 안 됨).
+- subtitle: 메인 타이틀 아래 한 줄 슬로건(영문+한글 혼용 가능).
+- backgroundStats: 2개. value는 수치·비율(예 "73%"), label은 한 줄 요약, detail은 근거·출처 힌트.
+- programOverviewRows: 5행. label은 목표/기간/대상/장소/예산 중 고정. value·detail에 구체 수치·일정·인원·장소명·금액대.
+- actionProgramBlocks: 최소 6개. DAY1·DAY2 등 dayLabel로 구분. title·description은 실행 가능한 액션(준비물·진행법·산출물 포함).
+  order는 01부터 연번. timeRange는 "14:00-15:30 (90분)" 형태. participants는 "전체 참가자" 등.
+  accent는 "blue"|"orange"|"green"|"yellow"|"slate"를 카드마다 번갈아 사용.
+- actionPlanTable: 최소 6행. step은 "1단계" 형태, timing은 D-60·D-45·D-Day·D+7 등, content는 구체 업무, owner는 담당(팀명).
+- expectedEffectsShortTerm·expectedEffectsLongTerm: 각 3개 이상 bullet 문장(단기·장기).
+- overview: 배경·필요성 서술(위 카드와 중복되되 문장으로 풀어씀). scope/approach/operationPlan 등 기존 규칙 유지.
+- checklist: 8개 이상 실행 체크 항목.
+${category === 'sports' ? '- 체육대회: 종목·안전·날씨·심판 반영.' : ''}
 
 {
   "eventName":"","clientName":"","quoteDate":"","eventDate":"","eventDuration":"","venue":"","headcount":"","eventType":"",
   "quoteItems":[],"expenseRate":0,"profitRate":0,"cutAmount":0,"notes":"","paymentTerms":"","validDays":7,
   "program":{"concept":"","programRows":[],"timeline":[],"staffing":[],"tips":[],"cueRows":[],"cueSummary":""},
   "planning":{
-    "overview":"행사 목적·기대효과 5문장 이상",
-    "scope":"사전·현장·사후 범위 구체적으로",
-    "approach":"운영 방법론 3문장 이상",
-    "operationPlan":"구간별 운영 계획 (시간축 포함)",
-    "deliverablesPlan":"산출물 목록 + 제출 시점",
-    "staffingConditions":"역할별 인원·조건",
-    "risksAndCautions":"리스크 5가지 이상 + 대응",
-    "checklist":["체크리스트 8개 이상"]
+    "subtitle":"슬로건 한 줄",
+    "overview":"배경·필요성·기대효과 서술",
+    "scope":"사전·현장·사후 범위",
+    "approach":"운영 철학·방법",
+    "operationPlan":"시간축 운영 요약(본문)",
+    "deliverablesPlan":"산출물·제출 시점",
+    "staffingConditions":"역할·인원",
+    "risksAndCautions":"리스크+대응",
+    "checklist":["8개 이상"],
+    "backgroundStats":[{"value":"73%","label":"요약","detail":"근거 힌트"}],
+    "programOverviewRows":[{"label":"목표","value":"","detail":""},{"label":"기간","value":"","detail":""},{"label":"대상","value":"","detail":""},{"label":"장소","value":"","detail":""},{"label":"예산","value":"","detail":""}],
+    "actionProgramBlocks":[{"order":1,"dayLabel":"DAY 1 — 부제","title":"액션 제목","description":"2~4문장 실행 설명","timeRange":"HH:mm-HH:mm (N분)","participants":"대상","accent":"blue"}],
+    "actionPlanTable":[{"step":"1단계","timing":"D-60","content":"구체 업무","owner":"담당팀"}],
+    "expectedEffectsShortTerm":["단기 효과1"],
+    "expectedEffectsLongTerm":["장기 효과1"]
   }
 }`
   }
@@ -702,8 +707,7 @@ export function buildDocumentExcellenceGuide(target: GenerateInput['documentTarg
 - overview/scope/approach는 서로 다른 내용을 써야 합니다. 같은 말을 반복하지 마세요.
 - 운영 계획은 시간축, 역할, 산출물, 리스크 대응이 모두 보이게 작성합니다.
 - 내부 검토 문서이면서 동시에 클라이언트 공유용 문서처럼 읽히게 씁니다.
-- 추상적인 총론보다 의사결정 포인트, 승인 포인트, 실행 기준을 직접 적습니다.
-- 표/카드로 옮겨도 문맥이 깨지지 않게, 번호/단계/담당/시기를 문장 안에 명시합니다.`
+- 추상적인 총론보다 의사결정 포인트, 승인 포인트, 실행 기준을 직접 적습니다.`
     case 'scenario':
       return `
 [문서 완성도 기준 — 시나리오]
