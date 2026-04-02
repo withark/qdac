@@ -1312,11 +1312,62 @@ function fillWeakOutputs(doc: QuoteDoc, input: GenerateInput): QuoteDoc {
       `4) 전달 메시지 분산: ${secondaryFocus}가 약해지는 단계에서는 사회자 멘트와 현장 사인 안내를 동시에 넣어 주제를 다시 고정합니다.\n` +
       `5) 돌발 변수: 발표 순서 변경, 참석자 변동, 현장 제약이 생기면 총괄 PM이 단계별 우선순위를 다시 정해 프로그램표·큐시트에 즉시 반영합니다.`
 
-    if (isBlankish(p.overview)) p.overview = defaultOverview
-    if (isBlankish(p.scope)) p.scope = defaultScope
-    if (isBlankish(p.approach)) p.approach = defaultApproach
-    if (isBlankish(p.operationPlan)) p.operationPlan = defaultOperationPlan + (timeAxis ? `\n(시간축: ${timeAxis})` : '')
-    if (isBlankish(p.deliverablesPlan)) p.deliverablesPlan = defaultDeliverables
+    const structuredBackgroundBlock =
+      `1. 배경 및 필요성\n` +
+      `- ${primaryFocus} 중심 운영 목표와 ${secondaryFocus} 연계를 동시에 달성하기 위한 기획입니다.\n` +
+      `- ${venue || '현장'} 운영 특성(동선/대기/전환)을 반영해 실행 난이도를 사전에 낮춥니다.\n` +
+      `- 대상 규모 ${input.headcount || '미정'} 기준으로, 승인 후 즉시 실행 가능한 수준의 문서 밀도를 유지합니다.`
+    const programOverviewBlock =
+      `2. 프로그램 개요\n` +
+      `- 목표: ${input.briefGoal || primaryFocus}\n` +
+      `- 기간: ${input.eventDate || '행사일 미정'} ${timeAxis || ''}\n` +
+      `- 대상: ${input.headcount || '참석자 규모 미정'} / 유형: ${eventType || '일반 행사'}\n` +
+      `- 장소: ${venue || '현장 미정'}\n` +
+      `- 예산: ${input.budget || '미정'}`
+    const actionProgramBlock =
+      `3. 세부 액션 프로그램\n` +
+      `DAY 1 — 우리, 서로를 발견하다\n` +
+      `01. 오프닝 정렬: 메시지/멘트 기준선 공유 (담당: ${phasePlans[0]?.manager || '총괄 PM'})\n` +
+      `02. 참여형 아이스브레이킹: 세대/직무 혼합 팀 구성 및 역할 분담\n` +
+      `03. 협업 미션 1: 공통 과제 해결 중심 실행\n` +
+      `04. 중간 점검: 진행 리듬/전환 지연/리스크 즉시 보정\n` +
+      `DAY 2 — 함께, 새로운 길을 만든다\n` +
+      `05. 협업 미션 2: 결과물 고도화 및 발표 준비\n` +
+      `06. 운영 워크숍: 현장 적용 액션 도출 (담당/시점/지표 명시)\n` +
+      `07. 결과 발표: 실행 우선순위와 일정 확정\n` +
+      `08. 클로징: 후속 실행 owner/체크포인트 확정`
+    const actionPlanBlock =
+      `4. 액션 플랜(Action Plan)\n` +
+      `1단계 | D-60 | 참가자 니즈 사전 진단 및 핵심 목표 합의 | 담당: HR/총괄 PM\n` +
+      `2단계 | D-45 | 세션 구조/외부 파트너/예산 확정 | 담당: 총무/HR\n` +
+      `3단계 | D-30 | 팀 편성/참가자 안내/자료 초안 배포 | 담당: HR\n` +
+      `4단계 | D-14 | 리허설/장비 점검/비상 대응 플랜 확정 | 담당: 운영팀\n` +
+      `5단계 | D-Day | 현장 운영/실시간 피드백 수집/전환 최적화 | 담당: 전 팀\n` +
+      `6단계 | D+7 | 만족도 분석/결과 보고/후속 실행 회고 | 담당: HR`
+    const expectedEffectBlock =
+      `5. 기대 효과\n` +
+      `- 단기 효과: 현장 몰입도 향상, 세대 간 소통 증가, 실행 합의 도출\n` +
+      `- 장기 효과: 협업 문화 내재화, 갈등 비용 감소, 조직 운영 생산성 개선`
+    const appendSectionIfMissing = (base: string, token: string, section: string) => {
+      const safe = (base || '').trim()
+      if (safe.includes(token)) return safe
+      if (!safe) return section
+      return `${safe}\n\n${section}`
+    }
+
+    p.overview = appendSectionIfMissing(isBlankish(p.overview) ? defaultOverview : p.overview, '1. 배경 및 필요성', structuredBackgroundBlock)
+    p.scope = appendSectionIfMissing(isBlankish(p.scope) ? defaultScope : p.scope, '2. 프로그램 개요', programOverviewBlock)
+    p.approach = appendSectionIfMissing(isBlankish(p.approach) ? defaultApproach : p.approach, '3. 세부 액션 프로그램', actionProgramBlock)
+    p.operationPlan = appendSectionIfMissing(
+      isBlankish(p.operationPlan) ? defaultOperationPlan + (timeAxis ? `\n(시간축: ${timeAxis})` : '') : p.operationPlan,
+      '4. 액션 플랜(Action Plan)',
+      actionPlanBlock,
+    )
+    p.deliverablesPlan = appendSectionIfMissing(
+      isBlankish(p.deliverablesPlan) ? defaultDeliverables : p.deliverablesPlan,
+      '5. 기대 효과',
+      expectedEffectBlock,
+    )
     if (isBlankish(p.staffingConditions)) p.staffingConditions = defaultStaffing
     if (isBlankish(p.risksAndCautions)) p.risksAndCautions = defaultRisks
 
@@ -1860,6 +1911,9 @@ function listQualityIssues(doc: QuoteDoc, input: GenerateInput): string[] {
     if (!hasText(planning?.scope, 80)) issues.push('planning.scope가 너무 짧습니다.')
     if (!hasText(planning?.approach, 80)) issues.push('planning.approach가 너무 짧습니다.')
     if (!hasText(planning?.operationPlan, 120)) issues.push('planning.operationPlan이 너무 짧습니다.')
+    if (!/(액션 플랜|Action Plan|1단계|D-\d+)/.test(String(planning?.operationPlan || ''))) {
+      issues.push('planning.operationPlan에 실행 단계(Action Plan) 형식이 부족합니다.')
+    }
     if (!hasText(planning?.risksAndCautions, 120)) issues.push('planning.risksAndCautions가 너무 짧습니다.')
     if ((planning?.checklist || []).length < 8) issues.push('planning.checklist가 최소 8개보다 적습니다.')
     const planningFallbackCount = [
@@ -2278,8 +2332,6 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
   const stageBrief = buildStageBrief(input)
   const stageStructurePlan = buildStageStructurePlan(input, stageBrief)
   const generationProfile = input.generationProfile ?? 'realtime'
-  const realtimeTarget = input.documentTarget ?? 'estimate'
-  const isHeavyRealtimeTarget = ['planning', 'program', 'scenario', 'cuesheet', 'emceeScript'].includes(realtimeTarget)
   const stagedInput: GenerateInput = {
     ...input,
     stageBrief,
@@ -2318,8 +2370,7 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
 
   async function runOnce(extra = '', kind: 'primary' | 'retry'): Promise<string> {
     try {
-      const draftTimeoutMs =
-        generationProfile === 'realtime' ? (isHeavyRealtimeTarget ? 110_000 : 70_000) : 90_000
+      const draftTimeoutMs = generationProfile === 'realtime' ? 75_000 : 90_000
       const { text, usage, latencyMs } = await callLLMWithUsage(prompt + extra, {
         maxTokens: resolveDraftMaxOut(),
         timeoutMs: draftTimeoutMs,
@@ -2378,7 +2429,11 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
       documentRefineSkipReason = sk.reason
       return jsonTextIn
     }
-    if (generationProfile === 'realtime' && (input.documentTarget ?? 'estimate') !== 'estimate') {
+    if (
+      generationProfile === 'realtime' &&
+      (input.documentTarget ?? 'estimate') !== 'estimate' &&
+      (input.documentTarget ?? 'estimate') !== 'planning'
+    ) {
       // 실시간 경로에서는 문장 polish 단계를 생략하고 품질 리페어 1회로 수렴해 지연을 줄입니다.
       documentRefineSkipReason = 'realtime_speed_policy'
       return jsonTextIn
@@ -2495,8 +2550,7 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
         try {
           const repairEngine = refineEff ?? eff
           const repairMax = resolveGenerateMaxTokens(repairEngine.maxTokens, repairEngine.provider)
-          const repairTimeoutMs =
-            generationProfile === 'realtime' ? (isHeavyRealtimeTarget ? 70_000 : 55_000) : 90_000
+          const repairTimeoutMs = generationProfile === 'realtime' ? 60_000 : 90_000
           const { text: refinedText, usage: repairU, latencyMs: repairMs } = await callLLMWithUsage(repairPrompt, {
             maxTokens: repairMax,
             timeoutMs: repairTimeoutMs,
