@@ -157,12 +157,13 @@ export default function ScenarioGeneratorPage() {
       )
       setDoc(data.doc)
       setGeneratedDocId(data.id)
+      setGenerationProgressLabel(null)
       showToast('시나리오 생성 완료!')
     } catch (e) {
       showToast(toUserMessage(e, '시나리오 생성에 실패했습니다.'))
+      setGenerationProgressLabel('생성에 실패했습니다. 다시 시도해 주세요.')
     } finally {
       setGenerating(false)
-      setGenerationProgressLabel(null)
     }
   }, [doc, requestBaseFromDoc, showToast, sourceMode, topic, goal, notes, headcount, venue])
 

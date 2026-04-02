@@ -172,12 +172,13 @@ export default function ProgramProposalGeneratorPage() {
       )
       setDoc(data.doc)
       setGeneratedDocId(data.id)
+      setGenerationProgressLabel(null)
       showToast('프로그램 제안 생성 완료!')
     } catch (e) {
       showToast(toUserMessage(e, '프로그램 생성에 실패했습니다.'))
+      setGenerationProgressLabel('생성에 실패했습니다. 다시 시도해 주세요.')
     } finally {
       setGenerating(false)
-      setGenerationProgressLabel(null)
     }
   }, [doc, requestBaseFromDoc, showToast, sourceMode, topic, headcount, venue, goal, notes, taskOrderSummary])
 

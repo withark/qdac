@@ -359,12 +359,13 @@ function EstimateGeneratorContent() {
       })
       setDoc(data.doc)
       setGeneratedDocId(data.id)
+      setGenerationProgressLabel(null)
       showToast('견적서 생성 완료!')
     } catch (e) {
       showToast(toUserMessage(e, '견적서 생성에 실패했습니다.'))
+      setGenerationProgressLabel('생성에 실패했습니다. 다시 시도해 주세요.')
     } finally {
       setGenerating(false)
-      setGenerationProgressLabel(null)
     }
   }, [requestBodyForEstimate, showToast, sourceMode])
 

@@ -5,7 +5,7 @@ import { DEFAULT_SETTINGS } from '@/lib/defaults'
 import { quotesDbAppend } from '@/lib/db/quotes-db'
 import { normalizeTemplateForPlan } from '@/lib/plan-entitlements'
 import type { PlanType } from '@/lib/plans'
-import { referenceStyleDocLimitForPlan } from '@/lib/plans'
+import { isPaidPlan, referenceStyleDocLimitForPlan } from '@/lib/plans'
 import { getUserPrices } from '@/lib/db/prices-db'
 import { listReferenceDocsForStyle } from '@/lib/db/reference-docs-db'
 import {
@@ -211,8 +211,16 @@ export async function executeGeneratePipeline(
       getEffectiveEngineConfig(),
     ])
   const contextLoadMs = Date.now() - contextStartedAt
+  /** 유료 플랜: 초안 90s·리페어 완화·비-estimate도 hybrid 문장 정제 허용 → API 비용·품질 정책과 정합 */
+  const generationProfileForPlan: 'realtime' | 'background' = isPaidPlan(plan) ? 'background' : 'realtime'
   const realtimePolicy = applyRealtimeEnginePolicy(effectiveRaw)
-  const effective = realtimePolicy.engine
+  const effective =
+    generationProfileForPlan === 'realtime'
+      ? realtimePolicy.engine
+      : {
+          ...effectiveRaw,
+          maxTokens: clampEngineMaxTokens(effectiveRaw.maxTokens),
+        }
 
   const effectiveStyleMode: 'userStyle' | 'aiTemplate' =
     styleMode === 'userStyle' && references.length > 0 ? 'userStyle' : 'aiTemplate'
@@ -288,6 +296,7 @@ export async function executeGeneratePipeline(
     branchUsed: isMockAi ? 'mock' : 'real',
     llmInvoked: !isMockAi,
     documentTarget: documentTarget,
+    generationProfile: generationProfileForPlan,
     aiModeIsMock: isMockAi,
     mockBlockedInProduction,
     requestStyleMode: styleMode,
@@ -356,7 +365,7 @@ export async function executeGeneratePipeline(
     hybridTemplateId: hybridTemplateIdForPolicy,
     forceStandardHybridRefine,
     cachedEngineConfig: effective,
-    generationProfile: 'realtime',
+    generationProfile: generationProfileForPlan,
     pipelineEmit,
   }
 

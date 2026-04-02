@@ -167,12 +167,13 @@ export default function PlanningGeneratorPage() {
       )
       setDoc(data.doc)
       setGeneratedDocId(data.id)
+      setGenerationProgressLabel(null)
       showToast('기획 문서 생성 완료!')
     } catch (e) {
       showToast(toUserMessage(e, '기획 문서 생성에 실패했습니다.'))
+      setGenerationProgressLabel('생성에 실패했습니다. 다시 시도해 주세요.')
     } finally {
       setGenerating(false)
-      setGenerationProgressLabel(null)
     }
   }, [doc, requestBaseFromDoc, showToast, sourceMode, taskOrderSummary, topic, goal, notes, headcount, venue])
 
@@ -195,14 +196,6 @@ export default function PlanningGeneratorPage() {
     },
     [generatedDocId, showToast],
   )
-
-  const handleRegenerate = useCallback(() => {
-    setGeneratedDocId(null)
-    setGenerationProgressLabel(null)
-    if (sourceMode === 'fromTopic') {
-      setDoc(null)
-    }
-  }, [sourceMode])
 
   const generateDisabled =
     sourceMode === 'fromEstimate'
@@ -378,8 +371,6 @@ export default function PlanningGeneratorPage() {
                   prices={prices}
                   planType={me?.subscription?.planType ?? 'FREE'}
                   onChange={setDoc}
-                  onRegenerate={handleRegenerate}
-                  regenerating={generating}
                   generatingTabs={generatingTabs}
                   generationProgressLabel={generationProgressLabel}
                   hideOnDemandGenerate
