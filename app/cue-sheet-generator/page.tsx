@@ -128,7 +128,6 @@ export default function CueSheetGeneratorPage() {
       eventType: d.eventType,
       budget: '',
       requirements: requirementsText,
-      styleMode: 'userStyle' as const,
     }
   }, [])
 

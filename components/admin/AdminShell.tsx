@@ -20,7 +20,6 @@ export const ADMIN_NAV_GROUPS: {
       { href: '/admin/engines', label: '생성 규칙 설정', desc: '탭별 규칙·샘플 강도·출력 형식' },
       { href: '/admin/generation-logs', label: '생성 로그', desc: '샘플·엔진 반영 추적' },
       { href: '/admin/review', label: '검수·미리보기', desc: '출력 품질 확인' },
-      { href: '/admin/references-collect', label: '외부 자료 수집', desc: '웹/URL 수집 → 검토 → 샘플 등록' },
     ],
   },
   {

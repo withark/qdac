@@ -5,12 +5,9 @@ import { DEFAULT_SETTINGS } from '@/lib/defaults'
 import { quotesDbAppend } from '@/lib/db/quotes-db'
 import { normalizeTemplateForPlan } from '@/lib/plan-entitlements'
 import type { PlanType } from '@/lib/plans'
-import { isPaidPlan, referenceStyleDocLimitForPlan } from '@/lib/plans'
 import { getUserPrices } from '@/lib/db/prices-db'
-import { listReferenceDocsForStyle } from '@/lib/db/reference-docs-db'
 import {
   getTaskOrderRefById,
-  listTaskOrderRefsLight,
 } from '@/lib/db/task-order-refs-db'
 import { insertGeneratedDoc } from '@/lib/db/generated-docs-db'
 import { insertGenerationRun } from '@/lib/db/generation-runs-db'
@@ -30,6 +27,7 @@ import { parseBudgetCeilingKRW } from '@/lib/budget'
 import { enforceBudgetHardConstraint } from '@/lib/quote/budget-enforcer'
 import { deriveProgramHintsFromQuoteDoc } from '@/lib/ai/prompts/existing-doc-context'
 import { trackEvent } from '@/lib/analytics'
+import { applyFixedEstimateTemplateV2 } from '@/lib/estimate/fixed-template-v2'
 
 export class GeneratePipelineError extends Error {
   constructor(
@@ -62,7 +60,6 @@ export type GeneratePipelineBody = {
   generationMode?: 'normal' | 'taskOrderBase'
   taskOrderBaseId?: string
   documentTarget?: 'estimate' | 'program' | 'timetable' | 'planning' | 'scenario' | 'cuesheet' | 'emceeScript'
-  styleMode?: 'userStyle' | 'aiTemplate'
   existingDoc?: unknown
   scenarioRefIds?: string[]
   cuesheetSampleIds?: string[]
@@ -96,7 +93,7 @@ export type ExecuteGeneratePipelineResult = {
 }
 
 const REALTIME_ANTHROPIC_MODEL_DEFAULT = resolveAnthropicFinalModel()
-const REALTIME_MAX_TOKENS_DEFAULT = 6_144
+const REALTIME_MAX_TOKENS_DEFAULT = 4_096
 
 function parsePositiveInt(value: string | undefined, fallback: number): number {
   const n = Number.parseInt(String(value ?? ''), 10)
@@ -169,7 +166,6 @@ export async function executeGeneratePipeline(
 
   const generationMode = body.generationMode ?? 'normal'
   const documentTarget = body.documentTarget ?? 'estimate'
-  const styleMode = body.styleMode ?? 'userStyle'
   const existingDoc = body.existingDoc as QuoteDoc | undefined
   const taskOrderBaseId = (body.taskOrderBaseId || '').trim() || undefined
 
@@ -177,21 +173,18 @@ export async function executeGeneratePipeline(
 
   const contextStartedAt = Date.now()
   const needPrices = documentTarget === 'estimate'
-  const needReferences = styleMode === 'userStyle'
   const taskOrderRefsPromise =
     generationMode === 'taskOrderBase' && taskOrderBaseId
       ? getTaskOrderRefById(userId, taskOrderBaseId).then((r) => (r ? [r] : []))
       : Promise.resolve([])
 
-  const refLimit = referenceStyleDocLimitForPlan(plan)
-  const [prices, settings, references, taskOrderRefs, scenarioRefs, cuesheetSampleContext, effectiveRaw] =
+  const [prices, settings, taskOrderRefs, scenarioRefs, cuesheetSampleContext, effectiveRaw] =
     await Promise.all([
       needPrices ? getUserPrices(userId) : Promise.resolve([]),
       (async () => {
         const p = await getDefaultCompanyProfile(userId)
         return p ? profileToCompanySettings(p) : DEFAULT_SETTINGS
       })(),
-      needReferences ? listReferenceDocsForStyle(userId, refLimit) : Promise.resolve([]),
       taskOrderRefsPromise,
       documentTarget === 'scenario' && scenarioRefIds.length
         ? listScenarioRefs(userId).then((list) => list.filter((r) => scenarioRefIds.includes(r.id)))
@@ -211,50 +204,10 @@ export async function executeGeneratePipeline(
       getEffectiveEngineConfig(),
     ])
   const contextLoadMs = Date.now() - contextStartedAt
-  /** 유료 플랜: 초안 90s·리페어 완화·비-estimate도 hybrid 문장 정제 허용 → API 비용·품질 정책과 정합 */
-  const generationProfileForPlan: 'realtime' | 'background' = isPaidPlan(plan) ? 'background' : 'realtime'
   const realtimePolicy = applyRealtimeEnginePolicy(effectiveRaw)
-  const engineForRealtime = realtimePolicy.engine
-  const engineForBackground = {
-    ...effectiveRaw,
-    maxTokens: clampEngineMaxTokens(effectiveRaw.maxTokens),
-  }
-  const effective = generationProfileForPlan === 'realtime' ? engineForRealtime : engineForBackground
+  const effective = realtimePolicy.engine
 
-  const effectiveStyleMode: 'userStyle' | 'aiTemplate' =
-    styleMode === 'userStyle' && references.length > 0 ? 'userStyle' : 'aiTemplate'
-  const referencesForPrompt = effectiveStyleMode === 'userStyle' ? references : []
-
-  const pricesForPrompt: PriceCategory[] =
-    documentTarget === 'estimate' && effectiveStyleMode === 'userStyle'
-      ? (() => {
-          const base = structuredClone(prices) as PriceCategory[]
-          referencesForPrompt.forEach((r) => {
-            const baseName = (r.filename || '').replace(/\.[^.]+$/, '')
-            const extracted = (r.extractedPrices || []) as any[]
-            if (!Array.isArray(extracted) || extracted.length === 0) return
-            extracted.forEach((cat) => {
-              const categoryName = cat.category || '참고'
-              const newCat: PriceCategory = {
-                id: uid(),
-                name: `참고 - ${baseName} (${categoryName})`,
-                items:
-                  (cat.items || []).map((it: any) => ({
-                    id: uid(),
-                    name: String(it.name ?? ''),
-                    spec: String(it.spec ?? ''),
-                    unit: String(it.unit ?? '식'),
-                    price: Number.isFinite(it.price) ? Math.round(it.price) : 0,
-                    note: '',
-                    types: [],
-                  })) || [],
-              }
-              base.push(newCat)
-            })
-          })
-          return base
-        })()
-      : prices
+  const pricesForPrompt: PriceCategory[] = prices
 
   const filteredTaskOrderRefs =
     generationMode === 'taskOrderBase' && taskOrderBaseId
@@ -295,12 +248,9 @@ export async function executeGeneratePipeline(
     branchUsed: isMockAi ? 'mock' : 'real',
     llmInvoked: !isMockAi,
     documentTarget: documentTarget,
-    generationProfile: generationProfileForPlan,
     aiModeIsMock: isMockAi,
     mockBlockedInProduction,
-    requestStyleMode: styleMode,
-    effectiveStyleMode,
-    referenceFilenames: referencesForPrompt.map((r) => r.filename || r.id),
+    referenceFilenames: [],
     taskOrderRefsLoaded: filteredTaskOrderRefs.length,
     taskOrderBaseId: taskOrderBaseId || null,
     generationMode: generationMode,
@@ -352,95 +302,56 @@ export async function executeGeneratePipeline(
     programs: programsForPrompt,
     prices: pricesForPrompt,
     settings,
-    references: referencesForPrompt,
+    references: [],
     taskOrderRefs: filteredTaskOrderRefs,
     scenarioRefs,
     cuesheetSampleContext,
     engineQuality,
     documentTarget,
-    styleMode: effectiveStyleMode,
     existingDoc,
     userPlan: plan,
     hybridTemplateId: hybridTemplateIdForPolicy,
     forceStandardHybridRefine,
     cachedEngineConfig: effective,
-    generationProfile: generationProfileForPlan,
+    generationProfile: 'realtime',
     pipelineEmit,
   }
 
   const parsedBudgetForLogging = parseBudgetCeilingKRW(body.budget || '')
 
   const quoteId = uid()
-  let doc!: QuoteDoc
+  let doc: QuoteDoc
   let genMeta: Awaited<ReturnType<typeof generateQuoteWithMeta>>['meta'] | undefined
   let budgetConstraint: QuoteDoc['budgetConstraint'] | undefined
 
-  const isTimeoutLikeMessage = (message: string): boolean => {
-    const m = message.toLowerCase()
-    return (
-      m.includes('timeout') ||
-      m.includes('timed out') ||
-      m.includes('etimedout') ||
-      m.includes('econnaborted') ||
-      m.includes('upstream request timeout') ||
-      m.includes('응답 시간이 초과')
-    )
-  }
-
-  let didTimeoutRetry = false
   try {
     const generation = await generateQuoteWithMeta(input)
     doc = generation.doc
     genMeta = generation.meta
   } catch (genErr) {
-    const initialMessage = genErr instanceof Error ? genErr.message : String(genErr)
-    let finalErr: unknown = genErr
-
-    // 유료에서 타임아웃이면 1회만 더: background 프로파일로 재시도(실패-생성-클레임 방지)
-    if (isPaidPlan(plan) && !didTimeoutRetry && isTimeoutLikeMessage(initialMessage)) {
-      didTimeoutRetry = true
-      try {
-        const retryInput: GenerateInput = {
-          ...input,
-          generationProfile: 'background',
-          cachedEngineConfig: engineForBackground,
-        }
-        const generation = await generateQuoteWithMeta(retryInput)
-        doc = generation.doc
-        genMeta = generation.meta
-        finalErr = null
-      } catch (retryErr) {
-        finalErr = retryErr
-      }
-    }
-
-    if (!finalErr) {
-      // retry succeeded -> proceed to save document below
-    } else {
-      const errorMessage = finalErr instanceof Error ? finalErr.message : String(finalErr)
-      await insertGenerationRun({
-        userId,
-        quoteId: null,
-        success: false,
-        errorMessage,
-        sampleId: appliedSampleId,
-        sampleFilename: appliedSampleFilename,
-        cuesheetApplied,
-        engineSnapshot,
-        budgetRange: parsedBudgetForLogging.selectedBudgetLabel,
-        budgetCeilingKRW: parsedBudgetForLogging.ceilingKRW,
-        generatedFinalTotalKRW: 0,
-        budgetFit: false,
-      }).catch((err) => logError('generation_run.insert', err))
-      await kvSet('generationRunsLast', { at: new Date().toISOString(), userId, ok: false }).catch((err) =>
-        logError('generation_run.kvSet', err),
-      )
-      throw finalErr
-    }
+    await insertGenerationRun({
+      userId,
+      quoteId: null,
+      success: false,
+      errorMessage: genErr instanceof Error ? genErr.message : String(genErr),
+      sampleId: appliedSampleId,
+      sampleFilename: appliedSampleFilename,
+      cuesheetApplied,
+      engineSnapshot,
+      budgetRange: parsedBudgetForLogging.selectedBudgetLabel,
+      budgetCeilingKRW: parsedBudgetForLogging.ceilingKRW,
+      generatedFinalTotalKRW: 0,
+      budgetFit: false,
+    }).catch((err) => logError('generation_run.insert', err))
+    await kvSet('generationRunsLast', { at: new Date().toISOString(), userId, ok: false }).catch((err) =>
+      logError('generation_run.kvSet', err),
+    )
+    throw genErr
   }
   ;(doc as QuoteDoc).quoteTemplate = normalizeTemplateForPlan(plan, (doc as QuoteDoc).quoteTemplate as any)
 
   if (documentTarget === 'estimate') {
+    doc = applyFixedEstimateTemplateV2(doc, prices)
     budgetConstraint = enforceBudgetHardConstraint(doc, body.budget || '')
     doc.budgetConstraint = budgetConstraint
   }

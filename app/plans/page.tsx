@@ -189,7 +189,7 @@ function PlansContent() {
                   <th scope="row" className="px-4 py-3 font-medium text-slate-600 sm:px-5">
                     운영 참고/단가 기능
                   </th>
-                  <td className="px-3 py-3 text-center text-slate-500 sm:px-4">단가표 · 시나리오 참고자료 · 과업 참고자료 API는 베이직부터</td>
+                  <td className="px-3 py-3 text-center text-slate-500 sm:px-4">단가표 업로드/저장 · 과업 참고자료 API는 베이직부터</td>
                   <td className="px-3 py-3 text-center sm:px-4">✓</td>
                   <td className="px-3 py-3 text-center sm:px-4">✓</td>
                 </tr>
@@ -205,11 +205,11 @@ function PlansContent() {
                 </tr>
                 <tr>
                   <th scope="row" className="px-4 py-3 font-medium text-slate-600 sm:px-5">
-                    참고 견적 반영(활성)
+                    단가표 업로드 반영
                   </th>
-                  <td className="px-3 py-3 text-center sm:px-4">1건</td>
-                  <td className="px-3 py-3 text-center sm:px-4">3건</td>
-                  <td className="px-3 py-3 text-center sm:px-4">5건</td>
+                  <td className="px-3 py-3 text-center sm:px-4">✓</td>
+                  <td className="px-3 py-3 text-center sm:px-4">✓</td>
+                  <td className="px-3 py-3 text-center sm:px-4">✓</td>
                 </tr>
                 <tr>
                   <th scope="row" className="px-4 py-3 font-medium text-slate-600 sm:px-5">
@@ -223,9 +223,9 @@ function PlansContent() {
                   <th scope="row" className="px-4 py-3 font-medium text-slate-600 sm:px-5">
                     견적 레이아웃 템플릿
                   </th>
-                  <td className="px-3 py-3 text-center sm:px-4">기본</td>
-                  <td className="px-3 py-3 text-center sm:px-4">전체</td>
-                  <td className="px-3 py-3 text-center sm:px-4">전체 + 우선</td>
+                  <td className="px-3 py-3 text-center sm:px-4">고정 1종</td>
+                  <td className="px-3 py-3 text-center sm:px-4">고정 1종</td>
+                  <td className="px-3 py-3 text-center sm:px-4">고정 1종</td>
                 </tr>
                 <tr>
                   <th scope="row" className="px-4 py-3 font-medium text-slate-600 sm:px-5">
@@ -428,7 +428,7 @@ function PlansContent() {
                         - 우선 처리·긴 문서·고급 정제 경로
                       </li>
                       <li className={clsx('text-xs text-slate-500', !planDetailOpen[c.plan] && 'max-md:hidden')}>
-                        - 참고 견적 5건
+                        - 고정 템플릿 + 단가표 업로드 반영
                       </li>
                     </>
                   )}

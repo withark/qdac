@@ -54,7 +54,6 @@ function createBaseInput(target: Target, existingDoc?: QuoteDoc): GenerateInput 
     briefGoal: '핵심 메시지 전달과 참여도 높은 세션 운영',
     briefNotes: 'VIP 좌석 분리, 전환 지연 최소화, 종료 후 즉시 공유 가능한 문서 품질',
     generationMode: 'normal',
-    styleMode: 'aiTemplate',
     existingDoc,
     prices: [
       {

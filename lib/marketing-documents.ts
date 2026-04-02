@@ -1,4 +1,4 @@
-/** 랜딩·문서 만들기 등에서 공통으로 쓰는 문서 종류 안내 (참고 견적 스타일은 「참고 자료」 메뉴 전용) */
+/** 랜딩·문서 만들기 등에서 공통으로 쓰는 문서 종류 안내 */
 export type MarketingDocCategory = '견적·금액' | '기획·제안' | '운영·정리'
 
 export type MarketingDocHubIcon =
@@ -74,7 +74,7 @@ export const MARKETING_DOCUMENTS: MarketingDocumentItem[] = [
   },
 ]
 
-/** 문서 만들기 허브 전용 — 위와 동일 목록(참고 자료 제외) */
+/** 문서 만들기 허브 전용 — 위와 동일 목록 */
 export const CREATE_DOCUMENT_HUB_ITEMS = MARKETING_DOCUMENTS
 
 export type LandingProcessStep = {

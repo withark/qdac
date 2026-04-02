@@ -3,12 +3,10 @@ import { Fragment, useState, useEffect, useRef } from 'react'
 import type { QuoteDoc, CompanySettings, QuoteItemKind, PriceCategory, PriceItem, ProgramTableRow, TimelineRow } from '@/lib/types'
 import PlanningProposalView from '@/components/quote/PlanningProposalView'
 import { KIND_ORDER, subtotalsByKind } from '@/lib/quoteGroup'
-import { QUOTE_TEMPLATES, QUOTE_TEMPLATE_IDS, type QuoteTemplateId } from '@/lib/quoteTemplates'
 import { calcTotals, fmtKRW } from '@/lib/calc'
 import { Button } from '@/components/ui'
 import clsx from 'clsx'
 import type { PlanType } from '@/lib/plans'
-import { allowedQuoteTemplates } from '@/lib/plan-entitlements'
 import type { ExcelExportView } from '@/lib/exportExcel'
 import { exportPlanningToWord } from '@/lib/exportWord'
 
@@ -269,7 +267,6 @@ export function QuoteResult({
   const flatPriceItems = safePrices.flatMap(cat =>
     (Array.isArray(cat.items) ? cat.items : []).map(item => ({ ...item, categoryName: cat.name })),
   )
-  const templatePlanLabel = (id: QuoteTemplateId) => (id === 'default' ? '전체 플랜' : 'BASIC+')
   const currentExcelView: ExcelExportView | null =
     tab === 'estimate'
       ? 'quote'
@@ -436,18 +433,10 @@ export function QuoteResult({
           <div className="flex flex-wrap items-center gap-2">
             {tab === 'estimate' && (
               <span className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5">
-                <span className="text-xs font-semibold text-slate-600">스타일</span>
-              <select
-                value={doc.quoteTemplate || 'default'}
-                onChange={e => onChange({ ...doc, quoteTemplate: (e.target.value as QuoteTemplateId) || undefined })}
-                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-200"
-              >
-                {allowedQuoteTemplates(planType).map(id => (
-                  <option key={id} value={id}>
-                    {`${QUOTE_TEMPLATES[id].name} · ${templatePlanLabel(id)}`}
-                  </option>
-                ))}
-              </select>
+                <span className="text-xs font-semibold text-slate-600">템플릿</span>
+                <span className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700">
+                  고정 양식
+                </span>
               </span>
             )}
             {onLoadPrevious && (
@@ -614,7 +603,7 @@ export function QuoteResult({
 
       <div className={clsx('p-4 pb-20', !disableInternalScroll && 'flex-1 overflow-y-auto')}>
         {tab === 'estimate' && (() => {
-          const templateId = (doc.quoteTemplate || 'default') as QuoteTemplateId
+          const templateId: string = 'default'
           const groupedByKind = groupByKind()
           const kindSubtotals = subtotalsByKind(doc)
           return (

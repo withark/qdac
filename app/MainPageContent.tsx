@@ -113,7 +113,7 @@ function planItems(plan: PlanType) {
       `월 ${limits.monthlyQuoteGenerateLimit}회 견적 생성`,
       '표준 하이브리드 품질(동일 파이프라인)',
       '견적서·기획안·프로그램 제안서 생성',
-      '기본 견적 레이아웃 · 참고 견적 1건 반영',
+      '고정 견적 템플릿 · 단가표 업로드 반영',
       `기업 정보 ${company} · 이력 ${history}`,
     ]
   }
@@ -121,8 +121,8 @@ function planItems(plan: PlanType) {
     return [
       `월 ${limits.monthlyQuoteGenerateLimit}회 견적 생성`,
       'PDF·복제·이메일 공유',
-      '참고 견적 다중 반영 · 과업지시서 연동',
-      '견적 레이아웃 전체 · 스타일 모드',
+      '단가표 업로드 · 과업지시서 연동',
+      '고정 템플릿 기반 견적 생성',
       `기업 정보 ${company} · 이력 ${history}`,
     ]
   }
@@ -259,7 +259,7 @@ export async function MainPageContent() {
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-[15px] leading-7 text-slate-600 sm:text-[17px] lg:mx-0 lg:max-w-[540px]">
               견적서·기획안·프로그램 제안서·시나리오·사회자 멘트·큐시트·과업지시서 요약까지 한곳에서 완성본으로 만듭니다.
-              주제와 목적, 참고 자료를 넣으면 검토·발송까지 이어갈 수 있는 문서가 한 번에 정리됩니다.
+              주제와 목적, 단가표만 입력해도 검토·발송까지 이어갈 수 있는 문서가 한 번에 정리됩니다.
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-2 text-sm font-medium text-slate-600 lg:justify-start">
               <span className="rounded-full border border-white/80 bg-white/90 px-3.5 py-1.5 shadow-sm shadow-slate-900/5 backdrop-blur-sm">

@@ -106,7 +106,7 @@ export default function AdminSamplesPage() {
       <section className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
         <h2 className="text-sm font-semibold text-gray-800 mb-2">역할 구분</h2>
         <ul className="text-sm text-gray-700 space-y-1 list-disc list-inside">
-          <li><strong>사용자 「참고 자료」</strong> — 각 사용자 본인 문서(견적서·시나리오·과업지시서 등)를 올리는 곳입니다. 사용자 정보로만 활용됩니다.</li>
+          <li><strong>사용자 업로드 문서</strong> — 각 사용자 본인 단가표/과업 문서를 올리는 곳입니다. 사용자 정보로만 활용됩니다.</li>
           <li><strong>관리자 기준 양식</strong> — 여기서 등록·관리하는 양식은 <strong>엔진 성능 및 생성 결과물 품질</strong> 향상용입니다. 활성·우선순위에 따라 생성 시 참고됩니다.</li>
         </ul>
       </section>

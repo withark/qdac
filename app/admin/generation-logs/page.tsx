@@ -411,16 +411,10 @@ export default function AdminGenerationLogsPage() {
                             {r.budgetFit === true ? '예' : r.budgetFit === false ? '아니오' : '—'}
                           </div>
                         )}
-                        {typeof r.engineSnapshot?.requestStyleMode === 'string' && (
-                          <div className="text-[11px] text-slate-600">
-                            스타일 요청: {String(r.engineSnapshot.requestStyleMode)} → 적용:{' '}
-                            {String(r.engineSnapshot.effectiveStyleMode ?? '—')}
-                          </div>
-                        )}
                         {Array.isArray(r.engineSnapshot?.referenceFilenames) &&
                         (r.engineSnapshot.referenceFilenames as unknown[]).length > 0 ? (
                           <div className="text-[11px] text-slate-600 break-all">
-                            참고 견적: {(r.engineSnapshot.referenceFilenames as string[]).join(', ')}
+                            추가 소스: {(r.engineSnapshot.referenceFilenames as string[]).join(', ')}
                           </div>
                         ) : null}
                         {r.engineSnapshot?.llmInvoked === false ? (

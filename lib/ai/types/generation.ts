@@ -27,7 +27,6 @@ export type GenerationMetadata = {
   tokenUsage: GenerationTokenUsage
   costEstimateUsd?: number
   usedReferenceSources: string[]
-  styleMode: GenerateInput['styleMode']
   premiumMode: boolean
   hybridPipeline: boolean
   /** Sonnet vs Opus 정제 티어(하이브리드 메타) */

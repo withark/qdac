@@ -119,7 +119,6 @@ export default function ScenarioGeneratorPage() {
       eventType: d.eventType,
       budget: '',
       requirements: requirementsText,
-      styleMode: 'userStyle' as const,
     }
   }, [])
 

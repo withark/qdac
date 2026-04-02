@@ -46,7 +46,6 @@ const GenerateRequestSchema = z.object({
     .enum(['estimate', 'program', 'timetable', 'planning', 'scenario', 'cuesheet', 'emceeScript'])
     .optional()
     .default('estimate'),
-  styleMode: z.enum(['userStyle', 'aiTemplate']).optional().default('userStyle'),
   existingDoc: z.any().optional(),
   /** scenario 생성 시 참고할 시나리오 샘플 ID */
   scenarioRefIds: z.array(z.string()).optional().default([]),

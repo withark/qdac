@@ -4,17 +4,15 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
-import SimpleGeneratorWizard, { type WizardMode } from '@/components/generators/SimpleGeneratorWizard'
-import { LoadSavedGeneratedDocModal } from '@/components/generators/LoadSavedGeneratedDocModal'
-import GenerationProgressPanel, { appendStageLine } from '@/components/generators/GenerationProgressPanel'
+import SimpleGeneratorWizard, { type WizardHighlight, type WizardMode } from '@/components/generators/SimpleGeneratorWizard'
 import { Input, Textarea, Toast } from '@/components/ui'
-import type { CompanySettings, HistoryRecord, PriceCategory, QuoteDoc, ReferenceDoc, TaskOrderDoc } from '@/lib/types'
+import type { CompanySettings, HistoryRecord, PriceCategory, QuoteDoc, TaskOrderDoc } from '@/lib/types'
 import { apiFetch, apiGenerateStream } from '@/lib/api/client'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
 import { LoadingState } from '@/components/ui/AsyncState'
 import { ESTIMATE_BUDGET_OPTIONS } from '@/lib/estimate-budget-options'
 import { exportToExcel } from '@/lib/exportExcel'
-import { exportToPdf, pdfKindFromQuoteTab } from '@/lib/exportPdf'
+import { exportToPdf } from '@/lib/exportPdf'
 import { isPaidPlan, type PlanType } from '@/lib/plans'
 import { calcTotals, fmtKRW } from '@/lib/calc'
 
@@ -25,9 +23,7 @@ type MeLite = {
   limits: { monthlyQuoteGenerateLimit: number; monthlyPremiumGenerationLimit: number }
 }
 
-type SourceMode = 'fromEstimate' | 'fromTaskOrder' | 'fromTopic' | 'fromReferenceStyle'
-
-type StyleMode = 'userStyle' | 'aiTemplate'
+type SourceMode = 'fromEstimate' | 'fromTaskOrder' | 'fromTopic'
 const DRAFT_STORAGE_KEY = 'planic:estimate-generator:draft:v1'
 
 type TaskOrderSummaryParsed = {
@@ -89,8 +85,6 @@ function EstimateGeneratorContent() {
   const [taskOrderRefs, setTaskOrderRefs] = useState<TaskOrderDoc[]>([])
   const [selectedTaskOrderId, setSelectedTaskOrderId] = useState<string | null>(null)
 
-  const [referenceDocs, setReferenceDocs] = useState<ReferenceDoc[]>([])
-  const [globalStyleMode, setGlobalStyleMode] = useState<StyleMode>('userStyle')
 
   const [topic, setTopic] = useState('')
   const [headcount, setHeadcount] = useState('')
@@ -103,12 +97,9 @@ function EstimateGeneratorContent() {
   const [generatedDocId, setGeneratedDocId] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
   const [generationProgressLabel, setGenerationProgressLabel] = useState<string | null>(null)
-  const [generationStageLog, setGenerationStageLog] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
-  const [loadSavedOpen, setLoadSavedOpen] = useState(false)
   const generatingTabs = useMemo(() => ({ estimate: generating }), [generating])
 
-  const activeReference = useMemo(() => referenceDocs.find((r) => r.isActive) ?? null, [referenceDocs])
   const userDraftStorageKey = useMemo(() => {
     const userId = me?.user?.id
     if (!userId) return null
@@ -133,12 +124,12 @@ function EstimateGeneratorContent() {
   const modes: WizardMode[] = useMemo(
     () => [
       { id: 'fromTopic', title: '주제만 입력', desc: '행사 주제와 예산 범위만으로 빠르게 견적서를 생성합니다.' },
-      { id: 'fromReferenceStyle', title: '참고 견적서 스타일', desc: '기존 견적 문체와 항목 구조를 최대한 반영합니다.' },
       { id: 'fromTaskOrder', title: '과업지시서 기준', desc: '요구사항 문서를 바탕으로 바로 견적서를 생성합니다.' },
       { id: 'fromEstimate', title: '저장된 견적서 기준', desc: '기존 문서를 토대로 비슷한 유형의 견적을 재작성합니다.' },
     ],
     [],
   )
+  const wizardHighlights: WizardHighlight[] = useMemo(() => [], [])
   const isAdvancedModeAvailable = useMemo(() => isPaidPlan(me?.subscription?.planType ?? 'FREE'), [me?.subscription?.planType])
   const planFeatureHint = isAdvancedModeAvailable
     ? '현재 플랜: 기본 + 고급 방식 사용 가능'
@@ -152,12 +143,6 @@ function EstimateGeneratorContent() {
     apiFetch<MeLite>('/api/me').then(setMe).catch(() => {})
     apiFetch<CompanySettings>('/api/settings').then(setCompanySettings).catch(() => {})
     apiFetch<PriceCategory[]>('/api/prices').then(setPrices).catch(() => setPrices([]))
-    apiFetch<{ mode: StyleMode }>('/api/estimate-style-mode')
-      .then((d) => setGlobalStyleMode(d.mode))
-      .catch(() => setGlobalStyleMode('userStyle'))
-    apiFetch<ReferenceDoc[]>('/api/upload-reference')
-      .then(setReferenceDocs)
-      .catch(() => setReferenceDocs([]))
   }, [])
 
   useEffect(() => {
@@ -238,7 +223,7 @@ function EstimateGeneratorContent() {
     setGeneratedDocId(null)
     if (sourceMode === 'fromEstimate') setSelectedTaskOrderId(null)
     if (sourceMode === 'fromTaskOrder') setSelectedEstimateId(null)
-    if (sourceMode === 'fromTopic' || sourceMode === 'fromReferenceStyle') {
+    if (sourceMode === 'fromTopic') {
       setSelectedEstimateId(null)
       setSelectedTaskOrderId(null)
     }
@@ -254,13 +239,7 @@ function EstimateGeneratorContent() {
     }
   }, [isAdvancedModeAvailable, showAdvancedModes, sourceMode])
 
-  const resolveStyleModeForRequest = useCallback((): StyleMode => {
-    if (sourceMode === 'fromReferenceStyle') return 'userStyle'
-    return globalStyleMode
-  }, [globalStyleMode, sourceMode])
-
   const requestBodyForEstimate = useCallback(() => {
-    const styleMode = resolveStyleModeForRequest()
     const base = {
       eventDate: '',
       eventDuration: '',
@@ -269,7 +248,6 @@ function EstimateGeneratorContent() {
       headcount: '',
       venue: '',
       budget,
-      styleMode,
       documentTarget: 'estimate' as const,
       clientName: '',
       clientManager: '',
@@ -329,8 +307,6 @@ function EstimateGeneratorContent() {
     }
   }, [
     budget,
-    globalStyleMode,
-    resolveStyleModeForRequest,
     selectedHistoryDoc,
     selectedTaskOrder,
     selectedTaskOrderParsed,
@@ -355,24 +331,19 @@ function EstimateGeneratorContent() {
     }
 
     setGenerating(true)
-    setGenerationStageLog(['입력 확인 중'])
     setGenerationProgressLabel('입력 확인 중')
     try {
       const data = await apiGenerateStream(body, {
-        onStage: ({ label }) => {
-          setGenerationProgressLabel(label)
-          setGenerationStageLog((prev) => appendStageLine(prev, label))
-        },
+        onStage: ({ label }) => setGenerationProgressLabel(label),
       })
       setDoc(data.doc)
       setGeneratedDocId(data.id)
-      setGenerationProgressLabel(null)
       showToast('견적서 생성 완료!')
     } catch (e) {
       showToast(toUserMessage(e, '견적서 생성에 실패했습니다.'))
-      setGenerationProgressLabel('생성에 실패했습니다. 다시 시도해 주세요.')
     } finally {
       setGenerating(false)
+      setGenerationProgressLabel(null)
     }
   }, [requestBodyForEstimate, showToast, sourceMode])
 
@@ -403,30 +374,15 @@ function EstimateGeneratorContent() {
     [generatedDocId, showToast],
   )
 
-  const handleLoadSavedDoc = useCallback(
-    ({ doc: nextDoc, id }: { doc: QuoteDoc; id: string }) => {
-      setDoc(nextDoc)
-      setGeneratedDocId(id)
-      showToast('과거에 저장한 문서를 불러왔습니다. 내용을 수정한 뒤 저장·다운로드하세요.')
-    },
-    [showToast],
-  )
-
-  const generateDisabled =
-    sourceMode === 'fromEstimate'
-      ? !selectedEstimateId || !selectedHistoryDoc
-      : sourceMode === 'fromTaskOrder'
-        ? !selectedTaskOrderId || !selectedTaskOrder
-        : sourceMode === 'fromReferenceStyle'
-          ? !activeReference || !topic.trim()
-          : !topic.trim()
+  const generateDisabled = useMemo(() => {
+    if (sourceMode === 'fromEstimate') return !selectedEstimateId || !selectedHistoryDoc
+    if (sourceMode === 'fromTaskOrder') return !selectedTaskOrderId || !selectedTaskOrder
+    return !topic.trim()
+  }, [selectedEstimateId, selectedHistoryDoc, selectedTaskOrderId, selectedTaskOrder, sourceMode, topic])
 
   const validationMessage = useMemo(() => {
     if (!generateDisabled) return null
-    if (sourceMode === 'fromTopic' || sourceMode === 'fromReferenceStyle') {
-      if (sourceMode === 'fromReferenceStyle' && !activeReference) {
-        return null
-      }
+    if (sourceMode === 'fromTopic') {
       if (!topic.trim()) return '이벤트 주제를 입력해 주세요.'
       return null
     }
@@ -442,7 +398,6 @@ function EstimateGeneratorContent() {
     generateDisabled,
     sourceMode,
     topic,
-    activeReference,
     selectedTaskOrderId,
     selectedTaskOrder,
     selectedEstimateId,
@@ -450,18 +405,16 @@ function EstimateGeneratorContent() {
   ])
 
   const showTopicInlineError =
-    (sourceMode === 'fromTopic' && !topic.trim()) || (sourceMode === 'fromReferenceStyle' && !!activeReference && !topic.trim())
+    sourceMode === 'fromTopic' && !topic.trim()
 
   const topicInvalidHighlight =
-    (sourceMode === 'fromTopic' && generateDisabled && !topic.trim()) ||
-    (sourceMode === 'fromReferenceStyle' && !!activeReference && generateDisabled && !topic.trim())
+    sourceMode === 'fromTopic' && generateDisabled && !topic.trim()
 
   const selectedModeMeta = useMemo(() => modes.find((m) => m.id === sourceMode) ?? null, [modes, sourceMode])
   const objectiveByMode = useMemo(() => {
     if (sourceMode === 'fromEstimate') return '기존 견적을 기반으로 빠르게 재작성'
     if (sourceMode === 'fromTaskOrder') return '과업지시서 요구사항 중심으로 견적서 구성'
-    if (sourceMode === 'fromReferenceStyle') return '활성 참고 견적의 문체/구조를 반영해 생성'
-    return '주제 중심으로 가장 빠르게 견적서 생성'
+    return '고정 템플릿 기준으로 견적서 생성'
   }, [sourceMode])
   const readinessText = generateDisabled ? validationMessage || '필수 입력을 확인해 주세요.' : '생성 준비 완료'
   const readinessToneClass = generateDisabled ? 'text-amber-800' : 'text-emerald-700'
@@ -586,143 +539,121 @@ function EstimateGeneratorContent() {
               </p>
             ) : null}
           </div>
-          {me?.subscription?.planType === 'FREE' ? (
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            {isAdvancedModeAvailable ? (
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !showAdvancedModes
+                  setShowAdvancedModes(next)
+                  if (!next && sourceMode !== 'fromTopic') {
+                    setSourceMode('fromTopic')
+                  }
+                }}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                {showAdvancedModes ? '고급 방식 숨기기' : '고급 방식 보기'}
+              </button>
+            ) : null}
+            {me?.subscription?.planType === 'FREE' && (
               <span className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-700">무료</span>
-            </div>
-          ) : null}
+            )}
+          </div>
         </header>
 
-        <div className="flex-1 overflow-hidden p-6">
-          <div className="grid h-full min-h-0 gap-6 md:grid-cols-[minmax(420px,520px)_minmax(0,1fr)]">
-            <section
-              className={`min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ${generating ? 'max-md:order-last' : ''}`}
-            >
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+            <section className="min-w-0">
               <SimpleGeneratorWizard
-                title="견적서 생성하기"
-                subtitle="필수 정보만 입력하고 바로 생성하세요."
-                preStepContent={null}
-                step1HeaderExtra={
-                  isAdvancedModeAvailable ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const next = !showAdvancedModes
-                        setShowAdvancedModes(next)
-                        if (!next && sourceMode !== 'fromTopic') {
-                          setSourceMode('fromTopic')
-                        }
-                      }}
-                      className="rounded-full border border-primary-400 bg-white px-3.5 py-1.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-primary-50"
-                    >
-                      {showAdvancedModes ? '고급 방식 숨기기' : '고급 방식 보기'}
-                    </button>
-                  ) : null
-                }
-                modes={modesForWizard}
-                modeId={sourceMode}
-                onModeChange={(id) => {
-                  const next = id as SourceMode
-                  setSourceMode(next)
-                  setTopic('')
-                  setHeadcount('')
-                  setVenue('')
-                  setNotes('')
-                  setBudget('미정')
-                }}
-                requiredInput={
-                  sourceMode === 'fromEstimate' ? (
+            title="견적서 생성하기"
+            subtitle="필수 정보만 입력하고 바로 생성하세요."
+            highlights={wizardHighlights}
+            collapsibleHighlights
+            preStepContent={null}
+            modes={modesForWizard}
+            modeId={sourceMode}
+            onModeChange={(id) => {
+              const next = id as SourceMode
+              setSourceMode(next)
+              setTopic('')
+              setHeadcount('')
+              setVenue('')
+              setNotes('')
+              setBudget('미정')
+            }}
+            requiredInput={
+              sourceMode === 'fromEstimate' ? (
+                <select
+                  value={selectedEstimateId || ''}
+                  onChange={(e) => {
+                    setSelectedEstimateId(e.target.value || null)
+                    setDoc(null)
+                    setGeneratedDocId(null)
+                  }}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70"
+                >
+                  <option value="" disabled>
+                    저장된 견적을 선택하세요
+                  </option>
+                  {historyList.slice(0, 20).map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.eventName || '행사'} · {r.quoteDate}
+                    </option>
+                  ))}
+                </select>
+              ) : sourceMode === 'fromTaskOrder' ? (
+                <>
+                  <div>
+                    <label className="mb-1.5 block text-[13px] font-semibold text-slate-700">예산 범위</label>
                     <select
-                      value={selectedEstimateId || ''}
-                      onChange={(e) => {
-                        setSelectedEstimateId(e.target.value || null)
-                        setDoc(null)
-                        setGeneratedDocId(null)
-                      }}
+                      value={budget}
+                      onChange={(e) => setBudget(e.target.value)}
                       className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70"
                     >
-                      <option value="" disabled>
-                        저장된 견적을 선택하세요
-                      </option>
-                      {historyList.slice(0, 20).map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.eventName || '행사'} · {r.quoteDate}
+                      {ESTIMATE_BUDGET_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
                         </option>
                       ))}
                     </select>
-                  ) : sourceMode === 'fromTaskOrder' ? (
-                    <>
-                      <div>
-                        <label className="mb-1.5 block text-[13px] font-semibold text-slate-700">예산 범위</label>
-                        <select
-                          value={budget}
-                          onChange={(e) => setBudget(e.target.value)}
-                          className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70"
-                        >
-                          {ESTIMATE_BUDGET_OPTIONS.map((o) => (
-                            <option key={o.value} value={o.value}>
-                              {o.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <select
-                        value={selectedTaskOrderId || ''}
-                        onChange={(e) => {
-                          setSelectedTaskOrderId(e.target.value || null)
-                          setDoc(null)
-                          setGeneratedDocId(null)
-                        }}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70"
-                      >
-                        <option value="" disabled>
-                          과업지시서를 선택하세요
-                        </option>
-                        {taskOrderRefs.slice(0, 20).map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.filename || '문서'}
-                          </option>
-                        ))}
-                      </select>
-                    </>
-                  ) : sourceMode === 'fromReferenceStyle' ? (
-                    <>
-                      {activeReference ? (
-                        <p className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-800">
-                          참고 견적 「{activeReference.filename}」 스타일이 이번 생성에 적용됩니다.
-                        </p>
-                      ) : (
-                        <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-                          활성 참고 견적이 없습니다. 참고 자료 메뉴에서 파일을 올리고 「견적 생성에 반영」을 눌러 주세요.
-                        </p>
-                      )}
-                      {topicInputs}
-                    </>
-                  ) : (
-                    topicInputs
-                  )
-                }
-                generateLabel="견적서 생성하기"
-                onGenerate={handleGenerateEstimate}
-                generating={generating}
-                generationProgressLabel={generationProgressLabel}
-                generateDisabled={generateDisabled}
-                validationMessage={validationMessage}
-                showValidationBanner
-                step2ActionLabel="견적서 생성으로 이동"
+                  </div>
+                  <select
+                    value={selectedTaskOrderId || ''}
+                    onChange={(e) => {
+                      setSelectedTaskOrderId(e.target.value || null)
+                      setDoc(null)
+                      setGeneratedDocId(null)
+                    }}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70"
+                  >
+                    <option value="" disabled>
+                      과업지시서를 선택하세요
+                    </option>
+                    {taskOrderRefs.slice(0, 20).map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.filename || '문서'}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              ) : (
+                topicInputs
+              )
+            }
+            generateLabel="견적서 생성하기"
+            onGenerate={handleGenerateEstimate}
+            generating={generating}
+            generationProgressLabel={generationProgressLabel}
+            generateDisabled={generateDisabled}
+            validationMessage={validationMessage}
+            showValidationBanner
+            step2ActionLabel="견적서 생성으로 이동"
               />
             </section>
 
-            {generating ? (
-              <div className="flex max-h-full min-h-0 h-full flex-col max-md:order-first md:order-none">
-                <GenerationProgressPanel
-                  className="flex-1"
-                  title="견적서 생성 중"
-                  lines={generationStageLog}
-                />
-              </div>
-            ) : doc && generatedDocId ? (
-              <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-card">
+            <section className="min-w-0">
+              {doc && generatedDocId ? (
+            <section className="rounded-2xl border border-gray-100 bg-white shadow-card">
               {docSummary ? (
                 <div className="sticky top-2 z-20 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
                   <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
@@ -776,12 +707,8 @@ function EstimateGeneratorContent() {
                     <button
                       type="button"
                       onClick={async () => {
-                        if (me?.subscription?.planType === 'FREE') {
-                          showToast('PDF 다운로드는 베이직 플랜부터 이용할 수 있어요.')
-                          return
-                        }
                         try {
-                          await exportToPdf(doc, companySettings ?? undefined, 'estimate')
+                          await exportToPdf(doc, companySettings ?? undefined)
                           showToast('PDF 저장 완료!')
                         } catch (e) {
                           showToast(toUserMessage(e, '저장 실패'))
@@ -805,7 +732,7 @@ function EstimateGeneratorContent() {
                 <div className="text-base font-semibold text-gray-900">견적 결과</div>
                 <div className="text-sm text-gray-600 mt-1">생성 후 내용을 편집하고 저장하세요.</div>
               </div>
-              <div className="min-h-0 flex-1 overflow-hidden">
+              <div>
                 <QuoteResult
                   doc={doc}
                   docId={generatedDocId}
@@ -822,6 +749,7 @@ function EstimateGeneratorContent() {
                   showTabButtons={false}
                   disableAutoGenerate
                   hideOnDemandGenerate
+                  disableInternalScroll
                   onExcel={async (view) => {
                     try {
                       await exportToExcel(doc, companySettings ?? undefined, view)
@@ -830,57 +758,29 @@ function EstimateGeneratorContent() {
                       showToast(toUserMessage(e, '엑셀 다운로드 실패'))
                     }
                   }}
-                  onPdf={async ({ tab, showCueSheetEditor }) => {
-                    if (me?.subscription?.planType === 'FREE') {
-                      showToast('PDF 다운로드는 베이직 플랜부터 이용할 수 있어요.')
-                      return
-                    }
+                  onPdf={async () => {
                     try {
-                      await exportToPdf(
-                        doc,
-                        companySettings ?? undefined,
-                        pdfKindFromQuoteTab(tab, { showCueSheetEditor }),
-                      )
+                      await exportToPdf(doc, companySettings ?? undefined)
                       showToast('PDF 저장 완료!')
                     } catch (e) {
                       showToast(toUserMessage(e, '저장 실패'))
                     }
                   }}
-                  onLoadPrevious={() => setLoadSavedOpen(true)}
-                  loadPreviousLabel="과거 견적서 불러오기"
                 />
               </div>
-              </section>
-            ) : (
-              <section className="min-h-0 overflow-y-auto rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center">
-                <div className="text-base font-semibold text-gray-900">입력 후 생성하세요</div>
-                <div className="text-sm text-gray-500 mt-2">
-                  {sourceMode === 'fromTopic' || sourceMode === 'fromReferenceStyle'
-                    ? '이벤트 주제만 입력하면 됩니다'
-                    : '소스 선택과 필수 입력이 필요합니다'}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setLoadSavedOpen(true)}
-                  className="mt-4 text-sm font-semibold text-primary-700 underline-offset-2 hover:text-primary-800 hover:underline"
-                >
-                  과거 견적서 불러오기
-                </button>
-                <p className="mt-2 text-xs text-slate-500">
-                  예전에 저장한 견적 본문을 불러와 수정·전송할 수 있습니다. (작성 중 화면 이어쓰기 아님)
-                </p>
-              </section>
-            )}
+            </section>
+              ) : (
+                <section className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center">
+                  <div className="text-base font-semibold text-gray-900">입력 후 생성하세요</div>
+                  <div className="text-sm text-gray-500 mt-2">
+                    {sourceMode === 'fromTopic' ? '이벤트 주제만 입력하면 됩니다' : '소스 선택과 필수 입력이 필요합니다'}
+                  </div>
+                </section>
+              )}
+            </section>
           </div>
         </div>
       </div>
-
-      <LoadSavedGeneratedDocModal
-        open={loadSavedOpen}
-        onClose={() => setLoadSavedOpen(false)}
-        docType="estimate"
-        onLoaded={handleLoadSavedDoc}
-      />
 
       {toast && <Toast message={toast} onClose={() => setToast('')} />}
     </div>

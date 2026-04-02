@@ -8,7 +8,6 @@ const ADMIN_LINKS = [
   { href: '/admin/samples', label: '기준 양식 관리', desc: '참고 양식 등록·반영 방식' },
   { href: '/admin/engines', label: '생성 규칙 설정', desc: '탭별 규칙·샘플 강도·출력 형식' },
   { href: '/admin/generation-logs', label: '생성 로그', desc: '샘플·엔진 반영 추적' },
-  { href: '/admin/references-collect', label: '외부 자료 수집', desc: '웹/URL 수집 → 검토 → 샘플 등록' },
   { href: '/admin/users', label: '사용자 관리', desc: '가입·플랜·한도' },
   { href: '/admin/subscriptions', label: '구독 현황', desc: '구독 이력·플랜별' },
   { href: '/admin/payments', label: '결제 관리', desc: '매출·실패·환불' },

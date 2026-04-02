@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Input, Select, Textarea, SectionLabel, Btn, Spinner } from '@/components/ui'
 import CalendarPicker, { formatKorDate } from '@/components/ui/CalendarPicker'
 import DurationInput, { durationToString, type DurationValue } from '@/components/ui/DurationInput'
-import type { QuoteDoc, ReferenceDoc } from '@/lib/types'
+import type { QuoteDoc } from '@/lib/types'
 import { apiFetch, ApiError } from '@/lib/api/client'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
 import { buildAuthHref } from '@/lib/auth-redirect'
@@ -114,8 +114,6 @@ export type GenerateRequestBody = {
   generationMode?: 'normal' | 'taskOrderBase'
   /** 과업지시서 업로드 중 어떤 문서를 기준으로 할지 */
   taskOrderBaseId?: string
-  /** 스타일 모드: 사용자 학습 스타일 vs AI 추천 템플릿 */
-  styleMode?: 'userStyle' | 'aiTemplate'
   /** 문서 타깃(현재 UI는 견적서만 초기 생성) */
   documentTarget?: 'estimate' | 'program' | 'timetable' | 'planning' | 'scenario'
 }
@@ -139,8 +137,6 @@ interface Props {
     restrictionsCautions?: string
     oneLineSummary?: string
   } | null
-  /** UI 진입 시 기본 스타일 모드 (Reference Estimate에서 선택한 값) */
-  initialStyleMode?: 'userStyle' | 'aiTemplate'
 }
 
 export default function InputForm({
@@ -150,7 +146,6 @@ export default function InputForm({
   taskOrderRefsCount = 0,
   taskOrderBaseId,
   taskOrderSummary,
-  initialStyleMode,
 }: Props) {
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
@@ -173,8 +168,6 @@ export default function InputForm({
   const [budgetCustom,   setBudgetCustom]  = useState('')
   const [requirements,  setRequirements]  = useState('')
   const [generationMode, setGenerationMode] = useState<'normal' | 'taskOrderBase'>('normal')
-  const [styleMode, setStyleMode] = useState<'userStyle' | 'aiTemplate'>(initialStyleMode ?? 'userStyle')
-  const [activeRef, setActiveRef] = useState<ReferenceDoc | null>(null)
   const autoFilledRef = useRef(false)
 
   useEffect(() => {
@@ -250,12 +243,6 @@ export default function InputForm({
     if (taskOrderBaseId && taskOrderBaseId.trim()) setGenerationMode('taskOrderBase')
   }, [taskOrderBaseId])
 
-  useEffect(() => {
-    apiFetch<{ active: ReferenceDoc | null }>('/api/reference-estimate/active')
-      .then(d => setActiveRef(d.active))
-      .catch(() => setActiveRef(null))
-  }, [])
-
   // 시작·종료 시간이 모두 있으면 행사 시간(시간/분) 자동 반영
   useEffect(() => {
     const min = startTime && endTime ? minutesFromStartEnd(startTime, endTime) : null
@@ -266,7 +253,7 @@ export default function InputForm({
 
   const STEPS = [
     '행사 기본 정보 분석 중...',
-    '단가표·참고 견적 스타일 반영 중...',
+    '단가표 반영 중...',
     '견적 항목 구성 중...',
     '견적서 구조/문체 검토 중...',
   ]
@@ -321,7 +308,6 @@ export default function InputForm({
       requirements,
       generationMode: generationMode === 'taskOrderBase' ? 'taskOrderBase' : undefined,
       taskOrderBaseId: generationMode === 'taskOrderBase' ? (taskOrderBaseId || undefined) : undefined,
-      styleMode,
       documentTarget: 'estimate',
     }
     try {
@@ -350,7 +336,7 @@ export default function InputForm({
     <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overflow-x-hidden p-4 min-w-0">
       <SectionLabel>행사 기본 정보</SectionLabel>
       <p className="text-[11px] text-gray-500 mb-1">
-        입력한 정보와 참고 자료(과업지시서 요약/참고 견적서 스타일)를 바탕으로 인공지능이 견적서만 생성합니다. 프로그램/타임테이블/기획/시나리오는 탭에서 필요할 때 생성하세요.
+        입력한 정보와 단가표를 바탕으로 인공지능이 견적서를 생성합니다. 프로그램/타임테이블/기획/시나리오는 탭에서 필요할 때 생성하세요.
       </p>
 
       <Select label="행사 유형" value={eventType} onChange={e => setEventType(e.target.value)}>
@@ -480,37 +466,6 @@ export default function InputForm({
         onChange={e => setRequirements(e.target.value)}
         rows={3}
       />
-
-      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-        <Select label="스타일 모드" value={styleMode} onChange={e => setStyleMode(e.target.value as 'userStyle' | 'aiTemplate')}>
-          <option value="userStyle">사용자 학습 스타일</option>
-          <option value="aiTemplate">인공지능 추천 템플릿 모드</option>
-        </Select>
-        <p className="text-[11px] text-gray-500 mt-1">
-          사용자 학습 스타일은 참고 견적서 업로드로 항목명/구성/문체 경향을 따라갑니다. 인공지능 추천 템플릿 모드는 플래닉 표준 포맷을 사용합니다.
-        </p>
-
-        <div className="mt-2 text-[11px] text-gray-600">
-          {styleMode === 'userStyle' ? (
-            activeRef ? (
-              <span className="inline-flex items-center gap-2">
-                <span className="font-semibold text-primary-700">현재 견적 생성에 반영</span>
-                <span>· 참고: {activeRef.filename}</span>
-                <span className="text-gray-400">({new Date(activeRef.uploadedAt).toLocaleDateString('ko-KR')})</span>
-              </span>
-            ) : (
-              <span className="text-amber-800">
-                활성 참고 견적서가 없습니다. 생성은 인공지능 추천 템플릿(표준 포맷)으로 폴백합니다.
-              </span>
-            )
-          ) : (
-            <span>
-              인공지능 추천 템플릿으로 생성합니다.
-              {activeRef ? <span className="text-gray-400"> (참고 견적서: {activeRef.filename}는 이번 생성에 적용되지 않음)</span> : null}
-            </span>
-          )}
-        </div>
-      </div>
 
       {error && (
         <p className="text-xs text-red-500 bg-red-50 px-2.5 py-2 rounded-lg">{error}</p>
