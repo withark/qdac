@@ -230,16 +230,6 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          <section className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-card">
-            <div className="px-4 py-3 bg-primary-50/50 border-b border-gray-100">
-              <h2 className="text-sm font-medium text-gray-900">참고 견적서 학습</h2>
-              <p className="text-xs text-gray-400 mt-0.5">견적서 파일을 올리면 인공지능이 구성·단가를 학습하고, 단가표에 자동 반영합니다. 업로드·관리는 왼쪽 메뉴 「참고 자료」에서 하세요.</p>
-              <Link href="/reference-estimate" className="inline-block mt-2 text-xs font-medium text-gray-600 hover:text-gray-900 underline">
-                참고 견적서 메뉴로 이동 →
-              </Link>
-            </div>
-          </section>
-
         </div>
       </div>
       {toast && <Toast message={toast} onClose={() => setToast('')} />}

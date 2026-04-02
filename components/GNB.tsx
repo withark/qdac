@@ -46,18 +46,6 @@ const NAVS: NavItem[] = [
     ),
   },
   {
-    href: '/reference-estimate',
-    text: '참고 자료',
-    matchPrefixes: ['/scenario-reference'],
-    icon: ({ className }) => (
-      <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-        <path d="M6.5 4.5h9A2.5 2.5 0 0 1 18 7v14.5H8.5A2.5 2.5 0 0 0 6 24V7A2.5 2.5 0 0 1 6.5 4.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-        <path d="M6 20.5c.6-.6 1.5-1 2.5-1H18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M10 9h4M10 12.5h6M10 16h3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
     href: '/prices',
     text: '단가표',
     icon: ({ className }) => (
