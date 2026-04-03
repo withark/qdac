@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { GNB } from '@/components/GNB'
 import QuoteResult from '@/components/quote/QuoteResult'
 import SimpleGeneratorWizard, { type WizardMode } from '@/components/generators/SimpleGeneratorWizard'
-import { Input, Textarea, Toast } from '@/components/ui'
+import { CalendarPicker, Input, Textarea, Toast } from '@/components/ui'
 import type { CompanySettings, HistoryRecord, PriceCategory, QuoteDoc, TaskOrderDoc } from '@/lib/types'
 import { apiFetch, apiGenerateStream } from '@/lib/api/client'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
@@ -90,10 +90,19 @@ function EstimateGeneratorContent() {
   const [selectedTaskOrderId, setSelectedTaskOrderId] = useState<string | null>(null)
 
 
-  const [topic, setTopic] = useState('')
+  /** 견적서에 들어가는 수신/행사 기본 정보 */
+  const [clientName, setClientName] = useState('')
+  const [clientManager, setClientManager] = useState('')
+  const [clientTel, setClientTel] = useState('')
+  const [topic, setTopic] = useState('') // 행사명
+  const [eventDate, setEventDate] = useState<Date | null>(null)
+  const [eventDuration, setEventDuration] = useState('')
+  // (선택) 시작/종료 시간(HH:mm) — UI에서는 현재 필수로 받지 않음
+  const [startHHmm, setStartHHmm] = useState('')
+  const [endHHmm, setEndHHmm] = useState('')
   const [headcount, setHeadcount] = useState('')
   const [venue, setVenue] = useState('')
-  const [notes, setNotes] = useState('')
+  const [notes, setNotes] = useState('') // 행사내용(요청내용)
   const [budget, setBudget] = useState('미정')
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null)
 
@@ -188,7 +197,14 @@ function EstimateGeneratorContent() {
       sourceMode: SourceMode
       selectedEstimateId: string | null
       selectedTaskOrderId: string | null
+      clientName: string
+      clientManager: string
+      clientTel: string
       topic: string
+      eventDateIso: string
+      eventDuration: string
+      startHHmm: string
+      endHHmm: string
       headcount: string
       venue: string
       notes: string
@@ -199,7 +215,22 @@ function EstimateGeneratorContent() {
     if (draft.sourceMode) setSourceMode(draft.sourceMode)
     if (typeof draft.selectedEstimateId !== 'undefined') setSelectedEstimateId(draft.selectedEstimateId)
     if (typeof draft.selectedTaskOrderId !== 'undefined') setSelectedTaskOrderId(draft.selectedTaskOrderId)
+    if (typeof draft.clientName === 'string') setClientName(draft.clientName)
+    if (typeof draft.clientManager === 'string') setClientManager(draft.clientManager)
+    if (typeof draft.clientTel === 'string') setClientTel(draft.clientTel)
     if (typeof draft.topic === 'string') setTopic(draft.topic)
+    if (typeof draft.eventDateIso === 'string') {
+      const m = draft.eventDateIso.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+      if (m) {
+        const y = Number(m[1])
+        const mo = Number(m[2]) - 1
+        const d = Number(m[3])
+        if (Number.isFinite(y) && Number.isFinite(mo) && Number.isFinite(d)) setEventDate(new Date(y, mo, d))
+      }
+    }
+    if (typeof draft.eventDuration === 'string') setEventDuration(draft.eventDuration)
+    if (typeof draft.startHHmm === 'string') setStartHHmm(draft.startHHmm)
+    if (typeof draft.endHHmm === 'string') setEndHHmm(draft.endHHmm)
     if (typeof draft.headcount === 'string') setHeadcount(draft.headcount)
     if (typeof draft.venue === 'string') setVenue(draft.venue)
     if (typeof draft.notes === 'string') setNotes(draft.notes)
@@ -215,7 +246,14 @@ function EstimateGeneratorContent() {
         sourceMode,
         selectedEstimateId,
         selectedTaskOrderId,
+        clientName,
+        clientManager,
+        clientTel,
         topic,
+        eventDateIso: eventDate ? `${eventDate.getFullYear()}-${String(eventDate.getMonth() + 1).padStart(2, '0')}-${String(eventDate.getDate()).padStart(2, '0')}` : '',
+        eventDuration,
+        startHHmm,
+        endHHmm,
         headcount,
         venue,
         notes,
@@ -228,7 +266,7 @@ function EstimateGeneratorContent() {
     return () => {
       window.clearTimeout(timer)
     }
-  }, [userDraftStorageKey, sourceMode, selectedEstimateId, selectedTaskOrderId, topic, headcount, venue, notes, budget])
+  }, [userDraftStorageKey, sourceMode, selectedEstimateId, selectedTaskOrderId, clientName, clientManager, clientTel, topic, eventDate, eventDuration, startHHmm, endHHmm, headcount, venue, notes, budget])
 
   useEffect(() => {
     const q = searchParams.get('estimate')
@@ -255,6 +293,75 @@ function EstimateGeneratorContent() {
     }
   }, [sourceMode])
 
+  // 저장 견적(fromEstimate)을 고르면 공통 입력값을 자동으로 채웁니다.
+  useEffect(() => {
+    if (sourceMode !== 'fromEstimate') return
+    if (!selectedHistoryDoc) return
+    const d = selectedHistoryDoc
+    setClientName(d.clientName || '')
+    setClientManager(d.clientManager || '')
+    setClientTel(d.clientTel || '')
+    setTopic(d.eventName || '')
+    setVenue(d.venue || '')
+    setHeadcount(d.headcount || '')
+    setNotes(d.notes || '')
+    setEventDuration(d.eventDuration || '')
+
+    const iso = String(d.eventDate || '').trim()
+    const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    if (m) {
+      setEventDate(new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])))
+    } else {
+      const dt = new Date(iso)
+      setEventDate(Number.isNaN(dt.getTime()) ? null : dt)
+    }
+  }, [sourceMode, selectedHistoryDoc])
+
+  // 과업지시서(fromTaskOrder) 선택 시 가능한 범위에서 공통 입력값을 채웁니다.
+  useEffect(() => {
+    if (sourceMode !== 'fromTaskOrder') return
+    if (!selectedTaskOrderParsed) return
+
+    const p = selectedTaskOrderParsed
+    const derivedEventName =
+      p.projectTitle ||
+      p.orderingOrganization ||
+      selectedTaskOrder?.filename ||
+      '행사'
+    const derivedNotes = p.oneLineSummary || p.purpose || p.mainScope || p.summary || ''
+
+    if (!topic.trim()) setTopic(derivedEventName)
+    if (!clientName.trim() && p.orderingOrganization) setClientName(p.orderingOrganization)
+    if (!venue.trim() && p.eventRange) setVenue(p.eventRange)
+    if (!notes.trim() && derivedNotes) setNotes(derivedNotes)
+
+    if (!headcount.trim() && p.requiredStaffing) {
+      const raw = p.requiredStaffing
+      const range = raw.match(/(\d{1,3}(?:,\d{3})?)\s*명?\s*[~\-–]\s*(\d{1,3}(?:,\d{3})?)\s*명?/)
+      if (range) {
+        const a = range[1].replace(/,/g, '')
+        const b = range[2].replace(/,/g, '')
+        setHeadcount(`${a}~${b}`)
+      } else {
+        const one = raw.match(/(\d{1,3}(?:,\d{3})?)\s*명/)
+        if (one) setHeadcount(one[1].replace(/,/g, ''))
+      }
+    }
+
+    if (!eventDuration.trim() && p.timelineDuration) {
+      const h = p.timelineDuration.match(/(\d{1,2})\s*시간/)
+      const m = p.timelineDuration.match(/(\d{1,2})\s*분/)
+      if (h) {
+        setEventDuration(m ? `${h[1]}시간 ${m[1]}분` : `${h[1]}시간`)
+      }
+    }
+
+    if (!eventDate && p.timelineDuration) {
+      const dtm = p.timelineDuration.match(/(20\d{2})[.\-/](\d{1,2})[.\-/](\d{1,2})/)
+      if (dtm) setEventDate(new Date(Number(dtm[1]), Number(dtm[2]) - 1, Number(dtm[3])))
+    }
+  }, [sourceMode, selectedTaskOrderParsed, selectedTaskOrder, topic, clientName, venue, notes, headcount, eventDuration, eventDate])
+
   useEffect(() => {
     if (isAdvancedModeAvailable) return
     if (sourceMode !== 'fromTopic') {
@@ -266,69 +373,95 @@ function EstimateGeneratorContent() {
   }, [isAdvancedModeAvailable, showAdvancedModes, sourceMode])
 
   const requestBodyForEstimate = useCallback(() => {
+    const eventDateIso = eventDate
+      ? `${eventDate.getFullYear()}-${String(eventDate.getMonth() + 1).padStart(2, '0')}-${String(eventDate.getDate()).padStart(
+          2,
+          '0',
+        )}`
+      : ''
+    const safeClientName = clientName.trim()
+    const safeClientManager = clientManager.trim()
+    const safeClientTel = clientTel.trim()
+    const safeTopic = topic.trim()
+    const safeNotes = notes.trim()
+    const safeHeadcount = headcount.trim()
+    const safeVenue = venue.trim()
+    const safeEventDuration = eventDuration.trim()
+    const safeStartHHmm = startHHmm.trim()
+    const safeEndHHmm = endHHmm.trim()
+    const promptRequirements = safeNotes ? `추가 메모: ${safeNotes}` : ''
+
     const base = {
-      eventDate: '',
-      eventDuration: '',
-      eventStartHHmm: '',
-      eventEndHHmm: '',
-      headcount: '',
-      venue: '',
+      eventDate: eventDateIso,
+      eventDuration: safeEventDuration,
+      eventStartHHmm: safeStartHHmm,
+      eventEndHHmm: safeEndHHmm,
+      headcount: safeHeadcount,
+      venue: safeVenue,
       budget,
       documentTarget: 'estimate' as const,
-      clientName: '',
-      clientManager: '',
-      clientTel: '',
-      requirements: '',
+      clientName: safeClientName,
+      clientManager: safeClientManager,
+      clientTel: safeClientTel,
+      requirements: promptRequirements,
     }
 
     if (sourceMode === 'fromEstimate') {
       const d = selectedHistoryDoc
       if (!d) return null
+      const effectiveNotes = safeNotes || d.notes || ''
+      const effectiveRequirements = effectiveNotes ? `추가 메모: ${effectiveNotes}` : ''
       return {
         ...base,
-        eventName: d.eventName,
         quoteDate: d.quoteDate,
+        eventName: safeTopic || d.eventName,
         eventType: d.eventType || '기타',
-        clientName: d.clientName || '',
-        clientManager: d.clientManager || '',
-        clientTel: d.clientTel || '',
+        clientName: safeClientName || d.clientName || '',
+        clientManager: safeClientManager || d.clientManager || '',
+        clientTel: safeClientTel || d.clientTel || '',
+        headcount: safeHeadcount || d.headcount || '',
+        venue: safeVenue || d.venue || '',
+        eventDate: eventDateIso || d.eventDate || '',
+        eventDuration: safeEventDuration || d.eventDuration || '',
         existingDoc: d,
+        requirements: effectiveRequirements,
+        briefNotes: effectiveNotes,
       }
     }
 
     if (sourceMode === 'fromTaskOrder') {
       if (!selectedTaskOrder) return null
+      const derivedNotes =
+        selectedTaskOrderParsed?.oneLineSummary ||
+        selectedTaskOrderParsed?.purpose ||
+        selectedTaskOrderParsed?.mainScope ||
+        selectedTaskOrder.summary ||
+        ''
+      const effectiveNotes = safeNotes || derivedNotes
+      const effectiveRequirements = effectiveNotes ? `추가 메모: ${effectiveNotes}` : ''
       return {
         ...base,
         eventName:
+          safeTopic ||
           selectedTaskOrderParsed?.projectTitle ||
           selectedTaskOrderParsed?.orderingOrganization ||
           selectedTaskOrder.filename ||
           '행사',
         quoteDate: todayStr(),
         eventType: '기타',
-        requirements:
-          selectedTaskOrderParsed?.oneLineSummary ||
-          selectedTaskOrderParsed?.purpose ||
-          selectedTaskOrderParsed?.mainScope ||
-          selectedTaskOrder.summary ||
-          '',
+        clientName: safeClientName || selectedTaskOrderParsed?.orderingOrganization || '',
+        requirements: effectiveRequirements,
+        briefNotes: effectiveNotes,
         generationMode: 'taskOrderBase' as const,
         taskOrderBaseId: selectedTaskOrder.id,
       }
     }
 
-    const safeTopic = topic.trim()
-    const safeNotes = notes.trim()
-    const promptRequirements = safeNotes ? `추가 메모: ${safeNotes}` : ''
     return {
       ...base,
       eventName: safeTopic || '행사',
       quoteDate: todayStr(),
       eventType: '기타',
-      headcount: headcount.trim(),
-      venue: venue.trim(),
-      requirements: promptRequirements,
       briefNotes: safeNotes,
     }
   }, [
@@ -336,6 +469,13 @@ function EstimateGeneratorContent() {
     selectedHistoryDoc,
     selectedTaskOrder,
     selectedTaskOrderParsed,
+    clientName,
+    clientManager,
+    clientTel,
+    eventDate,
+    eventDuration,
+    startHHmm,
+    endHHmm,
     sourceMode,
     topic,
     headcount,
@@ -430,9 +570,20 @@ function EstimateGeneratorContent() {
 
   const generateDisabled = useMemo(() => {
     if (priceItemCount === 0) return true
-    if (sourceMode === 'fromEstimate') return !selectedEstimateId || !selectedHistoryDoc
-    if (sourceMode === 'fromTaskOrder') return !selectedTaskOrderId || !selectedTaskOrder
-    return !topic.trim()
+    const commonValid =
+      clientName.trim() &&
+      clientManager.trim() &&
+      clientTel.trim() &&
+      topic.trim() &&
+      !!eventDate &&
+      eventDuration.trim() &&
+      headcount.trim() &&
+      venue.trim() &&
+      notes.trim()
+
+    if (sourceMode === 'fromEstimate') return !selectedEstimateId || !selectedHistoryDoc || !commonValid
+    if (sourceMode === 'fromTaskOrder') return !selectedTaskOrderId || !selectedTaskOrder || !commonValid
+    return !commonValid
   }, [
     priceItemCount,
     selectedEstimateId,
@@ -441,6 +592,14 @@ function EstimateGeneratorContent() {
     selectedTaskOrder,
     sourceMode,
     topic,
+    clientName,
+    clientManager,
+    clientTel,
+    eventDate,
+    eventDuration,
+    headcount,
+    venue,
+    notes,
   ])
 
   const validationMessage = useMemo(() => {
@@ -448,17 +607,23 @@ function EstimateGeneratorContent() {
     if (priceItemCount === 0) {
       return '단가표에 항목이 없습니다. 단가표 메뉴에서 항목을 입력하거나 .xlsx를 업로드한 뒤 다시 시도해 주세요.'
     }
-    if (sourceMode === 'fromTopic') {
-      if (!topic.trim()) return '이벤트 주제를 입력해 주세요.'
-      return null
+    if (sourceMode === 'fromEstimate') {
+      if (!selectedEstimateId) return '저장된 견적을 선택해 주세요.'
+      if (!selectedHistoryDoc) return '선택한 견적 문서를 불러올 수 없습니다. 다른 항목을 선택해 주세요.'
     }
     if (sourceMode === 'fromTaskOrder') {
       if (!selectedTaskOrderId) return '과업지시서를 선택해 주세요.'
       if (!selectedTaskOrder) return '선택한 과업지시서를 불러오지 못했습니다.'
-      return null
     }
-    if (!selectedEstimateId) return '저장된 견적을 선택해 주세요.'
-    if (!selectedHistoryDoc) return '선택한 견적 문서를 불러올 수 없습니다. 다른 항목을 선택해 주세요.'
+    if (!clientName.trim()) return '업체명을 입력해 주세요.'
+    if (!clientManager.trim()) return '담당자를 입력해 주세요.'
+    if (!clientTel.trim()) return '연락처를 입력해 주세요.'
+    if (!topic.trim()) return '행사명을 입력해 주세요.'
+    if (!eventDate) return '행사 날짜를 입력해 주세요.'
+    if (!eventDuration.trim()) return '행사 시간(소요/구간)을 입력해 주세요.'
+    if (!venue.trim()) return '행사장소를 입력해 주세요.'
+    if (!headcount.trim()) return '인원을 입력해 주세요.'
+    if (!notes.trim()) return '행사내용(요청내용)을 입력해 주세요.'
     return null
   }, [
     generateDisabled,
@@ -469,13 +634,15 @@ function EstimateGeneratorContent() {
     selectedTaskOrder,
     selectedEstimateId,
     selectedHistoryDoc,
+    clientName,
+    clientManager,
+    clientTel,
+    eventDate,
+    eventDuration,
+    venue,
+    headcount,
+    notes,
   ])
-
-  const showTopicInlineError =
-    sourceMode === 'fromTopic' && !topic.trim()
-
-  const topicInvalidHighlight =
-    sourceMode === 'fromTopic' && generateDisabled && !topic.trim()
 
   const docSummary = useMemo(() => {
     if (!doc) return null
@@ -497,71 +664,85 @@ function EstimateGeneratorContent() {
   }, [doc])
 
   const topicInputs = (
-    <div className="space-y-4">
-      <div className="space-y-3 rounded-2xl border border-slate-200 bg-white px-4 py-4">
-        <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">필수 정보</div>
-        <div>
-          <label className="mb-1.5 block text-[13px] font-semibold text-slate-700">예산 범위</label>
-          <select
-            value={budget}
-            onChange={(e) => setBudget(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70"
-          >
-            {ESTIMATE_BUDGET_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
+    <div className="space-y-3">
+      <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 space-y-3">
+        <Input
+          label="업체명"
+          showRequiredMark
+          required
+          value={clientName}
+          onChange={(e) => setClientName(e.target.value)}
+          placeholder="예) ㈜OOO"
+        />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input
-            label="이벤트 주제"
+            label="담당자"
             showRequiredMark
             required
-            invalid={topicInvalidHighlight}
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            placeholder="예) 기업 워크숍 / 신제품 론칭"
-            aria-invalid={showTopicInlineError || topicInvalidHighlight}
+            value={clientManager}
+            onChange={(e) => setClientManager(e.target.value)}
+            placeholder="예) 김OO"
           />
-          {showTopicInlineError ? (
-            <p className="mt-1.5 text-sm text-red-600" role="alert">
-              이벤트 주제를 입력해 주세요.
-            </p>
-          ) : null}
+          <Input
+            label="연락처"
+            showRequiredMark
+            required
+            value={clientTel}
+            onChange={(e) => setClientTel(e.target.value)}
+            placeholder="예) 010-1234-5678"
+          />
         </div>
+        <Input
+          label="행사명"
+          showRequiredMark
+          required
+          value={topic}
+          onChange={(e) => setTopic(e.target.value)}
+          placeholder="예) 2026 상반기 임직원 워크숍"
+        />
+        <Input
+          label="행사장소"
+          showRequiredMark
+          required
+          value={venue}
+          onChange={(e) => setVenue(e.target.value)}
+          placeholder="예) 잠실 롯데호텔"
+        />
+        <div className="space-y-3">
+          <CalendarPicker
+            label="행사 날짜"
+            value={eventDate}
+            onChange={setEventDate}
+            placeholder="날짜 선택"
+          />
+          <Input
+            label="행사 시간"
+            showRequiredMark
+            required
+            value={eventDuration}
+            onChange={(e) => setEventDuration(e.target.value)}
+            placeholder="예) 10:00~12:00 / 2시간"
+          />
+        </div>
+        <Input
+          label="인원"
+          showRequiredMark
+          required
+          value={headcount}
+          onChange={(e) => setHeadcount(e.target.value)}
+          placeholder="예) 80"
+          inputMode="numeric"
+        />
+        <Textarea
+          label="행사내용(요청내용)"
+          showRequiredMark
+          required
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="예) CEO 인사말, VIP 동선 고려, 발표 구조 등"
+          rows={4}
+        />
       </div>
-
-      <details className="rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-3">
-        <summary className="cursor-pointer text-sm font-semibold text-slate-800 outline-none marker:text-primary-700">
-          선택 입력 더보기 (인원/장소/메모)
-        </summary>
-        <div className="mt-3 space-y-3">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Input
-              label="참석 인원(선택)"
-              value={headcount}
-              onChange={(e) => setHeadcount(e.target.value)}
-              placeholder="예) 80"
-              inputMode="numeric"
-            />
-            <Input
-              label="장소(선택)"
-              value={venue}
-              onChange={(e) => setVenue(e.target.value)}
-              placeholder="예) 잠실"
-            />
-          </div>
-          <Textarea
-            label="추가 요청 · 프롬프트(선택)"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="예) 트러스·현수막 제외, VIP 동선, 발표 구조 등 — 단가표 품목과 맞는 말로 쓰면 반영됩니다."
-            rows={3}
-          />
-        </div>
-      </details>
     </div>
   )
 
@@ -594,6 +775,7 @@ function EstimateGeneratorContent() {
             <section className="min-w-0">
               <SimpleGeneratorWizard
             title="견적서 생성하기"
+            step1Label="생성 방식"
             showHeaderEyebrow={false}
             preStepContent={null}
             modes={modesForWizard}
@@ -619,7 +801,14 @@ function EstimateGeneratorContent() {
             onModeChange={(id) => {
               const next = id as SourceMode
               setSourceMode(next)
+              setClientName('')
+              setClientManager('')
+              setClientTel('')
               setTopic('')
+              setEventDate(null)
+              setEventDuration('')
+              setStartHHmm('')
+              setEndHHmm('')
               setHeadcount('')
               setVenue('')
               setNotes('')
@@ -627,40 +816,29 @@ function EstimateGeneratorContent() {
             }}
             requiredInput={
               sourceMode === 'fromEstimate' ? (
-                <select
-                  value={selectedEstimateId || ''}
-                  onChange={(e) => {
-                    setSelectedEstimateId(e.target.value || null)
-                    setDoc(null)
-                    setGeneratedDocId(null)
-                  }}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70"
-                >
-                  <option value="" disabled>
-                    저장된 견적을 선택하세요
-                  </option>
-                  {historyList.slice(0, 20).map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.eventName || '행사'} · {r.quoteDate}
+                <>
+                  <select
+                    value={selectedEstimateId || ''}
+                    onChange={(e) => {
+                      setSelectedEstimateId(e.target.value || null)
+                      setDoc(null)
+                      setGeneratedDocId(null)
+                    }}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70"
+                  >
+                    <option value="" disabled>
+                      저장된 견적을 선택하세요
                     </option>
-                  ))}
-                </select>
+                    {historyList.slice(0, 20).map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.eventName || '행사'} · {r.quoteDate}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="mt-3">{topicInputs}</div>
+                </>
               ) : sourceMode === 'fromTaskOrder' ? (
                 <>
-                  <div>
-                    <label className="mb-1.5 block text-[13px] font-semibold text-slate-700">예산 범위</label>
-                    <select
-                      value={budget}
-                      onChange={(e) => setBudget(e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70"
-                    >
-                      {ESTIMATE_BUDGET_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
                   <select
                     value={selectedTaskOrderId || ''}
                     onChange={(e) => {
@@ -679,6 +857,7 @@ function EstimateGeneratorContent() {
                       </option>
                     ))}
                   </select>
+                  <div className="mt-3">{topicInputs}</div>
                 </>
               ) : (
                 topicInputs

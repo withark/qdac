@@ -6,7 +6,7 @@ import clsx from 'clsx'
 import { Button } from '@/components/ui'
 import { getGenerationLoadingCopy } from '@/lib/generation/loading-copy'
 
-const WIZARD_STEPS = [
+const DEFAULT_WIZARD_STEPS = [
   { n: 1 as const, label: '기준 선택' },
   { n: 2 as const, label: '핵심 정보' },
   { n: 3 as const, label: '생성·확인' },
@@ -47,6 +47,9 @@ export default function SimpleGeneratorWizard({
   preStepContent,
   /** 1단계「기준 선택」제목 줄 오른쪽에 붙는 보조 UI(예: 고급 생성 방식 토글) */
   step1HeaderExtra,
+  step1Label = DEFAULT_WIZARD_STEPS[0].label,
+  step2Label = DEFAULT_WIZARD_STEPS[1].label,
+  step3Label = DEFAULT_WIZARD_STEPS[2].label,
   /** 잠긴 모드 카드 클릭 시(무료 플랜 등) */
   onBlockedModeClick,
   /** 상단 보라색 태그줄「바로 전달 가능한 문서 생성」 */
@@ -68,11 +71,19 @@ export default function SimpleGeneratorWizard({
   validationMessage?: string | null
   preStepContent?: ReactNode
   step1HeaderExtra?: ReactNode
+  step1Label?: string
+  step2Label?: string
+  step3Label?: string
   onBlockedModeClick?: (modeId: string) => void
   showHeaderEyebrow?: boolean
   showValidationBanner?: boolean
   step2ActionLabel?: string
 }) {
+  const WIZARD_STEPS = [
+    { n: 1 as const, label: step1Label },
+    { n: 2 as const, label: step2Label },
+    { n: 3 as const, label: step3Label },
+  ]
   const inFlightRef = useRef(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const step1Ref = useRef<HTMLElement>(null)
