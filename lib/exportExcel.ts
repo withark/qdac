@@ -37,7 +37,6 @@ export async function exportToExcel(
 
   if (view === 'quote') {
     await buildQuoteSheet(ExcelJS, workbook, doc, company)
-    buildQuoteProgramPlanSheet(ExcelJS, workbook, doc)
     await downloadWorkbook(workbook, `견적서_${name}_${date}.xlsx`)
     return
   }
@@ -625,97 +624,6 @@ async function buildQuoteSheet(
     row.eachCell((cell) => {
       if (!cell.font) cell.font = { name: DEFAULT_FONT, size: 10 }
       if (!cell.alignment) cell.alignment = { vertical: 'middle', wrapText: true }
-    })
-  })
-}
-
-function buildQuoteProgramPlanSheet(
-  ExcelJS: typeof import('exceljs'),
-  workbook: ExcelJS.Workbook,
-  doc: QuoteDoc,
-) {
-  const ws = workbook.addWorksheet('기획안')
-  ws.columns = [
-    { width: 28 },
-    { width: 32 },
-    { width: 8 },
-    { width: 8 },
-    { width: 14 },
-    { width: 14 },
-    { width: 24 },
-    { width: 0, hidden: true },
-  ]
-
-  let r = 1
-  setCell(ws, r, 1, '프로그램 기획안', { bold: true, size: 18, align: 'center' })
-  merge(ws, r, 1, r, 8)
-  ws.getRow(r).height = 40
-  r += 2
-
-  setCell(ws, r, 1, '행사명', { bold: true, bg: SECTION_BG })
-  merge(ws, r, 1, r, 2)
-  setCell(ws, r, 3, doc.eventName || '')
-  merge(ws, r, 3, r, 8)
-  ws.getRow(r).height = 22
-  r += 1
-
-  setCell(ws, r, 1, '행사 유형', { bold: true, bg: SECTION_BG })
-  merge(ws, r, 1, r, 2)
-  setCell(ws, r, 3, doc.eventType || '')
-  merge(ws, r, 3, r, 8)
-  ws.getRow(r).height = 22
-  r += 1
-
-  setCell(ws, r, 1, '프로그램 컨셉', { bold: true, bg: SECTION_BG })
-  merge(ws, r, 1, r, 2)
-  setCell(ws, r, 3, doc.program?.concept || '')
-  merge(ws, r, 3, r, 8)
-  ws.getRow(r).height = 22
-  r += 2
-
-  const headerRow = r
-  ;['구분', '내용', '성격', '시간', '대상', '비고'].forEach((label, idx) => {
-    setCell(ws, r, idx + 1, label, {
-      bold: true,
-      align: 'center',
-      bg: TABLE_HEADER_BG,
-      color: 'FFFFFF',
-    })
-  })
-  merge(ws, r, 7, r, 8)
-  ws.getRow(r).height = 22
-  r += 1
-
-  ;(doc.program?.programRows || []).forEach((rowValue) => {
-    setCell(ws, r, 1, rowValue.kind || '')
-    setCell(ws, r, 2, rowValue.content || '')
-    setCell(ws, r, 3, rowValue.tone || '', { align: 'center' })
-    setCell(ws, r, 4, rowValue.time || '', { align: 'center' })
-    setCell(ws, r, 5, rowValue.audience || '')
-    setCell(ws, r, 6, rowValue.notes || '')
-    setCell(ws, r, 7, '')
-    merge(ws, r, 7, r, 8)
-    ws.getRow(r).height = 18
-    r += 1
-  })
-
-  if (r === headerRow + 1) {
-    setCell(ws, r, 1, '등록된 프로그램 항목이 없습니다.', { align: 'center' })
-    merge(ws, r, 1, r, 8)
-    ws.getRow(r).height = 22
-    r += 1
-  }
-
-  applyBorderRange(ws, headerRow, 1, r - 1, 8, 'thin')
-  applyOuterBorder(ws, headerRow, 1, r - 1, 8, 'medium')
-  ws.eachRow((row) => {
-    row.eachCell((cell) => {
-      if (!cell.font) {
-        cell.font = { name: DEFAULT_FONT, size: 10 }
-      }
-      if (!cell.border) {
-        cell.border = borderByStyle('thin')
-      }
     })
   })
 }
