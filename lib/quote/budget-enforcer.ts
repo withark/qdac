@@ -1,6 +1,7 @@
 import type { QuoteDoc, QuoteLineItem, QuoteItemKind, BudgetConstraintMeta } from '@/lib/types'
 import { calcTotals } from '@/lib/calc'
 import { parseBudgetCeilingKRW } from '@/lib/budget'
+import { EXTRA_QUOTE_CATEGORY_AI_MARKET } from '@/lib/estimate/fixed-template-v2'
 
 function isOptionalKind(k: QuoteItemKind | undefined): boolean {
   return (k || '').startsWith('선택')
@@ -35,11 +36,13 @@ function scaleUnitPrices(
   factor: number,
   origUnitPrices: Map<QuoteLineItem, number>,
 ) {
+  const matchSet = new Set(items)
   // unitPrice는 qty * unitPrice가 totals.sub에 직접 반영되므로 비율 스케일을 사용합니다.
   // floorMultiplier는 "minimum viable" 의미의 바닥값(원본 대비)을 걸어 과도한 무작위 컷을 방지합니다.
   doc.quoteItems.forEach(cat => {
     cat.items.forEach(it => {
       if (!origUnitPrices.has(it)) return
+      if (!matchSet.has(it)) return
       const o = origUnitPrices.get(it) || 0
       const minUnitPrice = Math.max(0, Math.round(o * floorMultiplier))
       const targetUnitPrice = Math.max(minUnitPrice, Math.round((it.unitPrice || 0) * factor))
@@ -48,6 +51,11 @@ function scaleUnitPrices(
   })
 
   // calcTotals는 (qty * unitPrice)로 total을 재계산하므로 item.total은 여기서 따로 조정하지 않아도 됩니다.
+}
+
+/** fixed-v2: 업로드 단가표에서 온 행은 예산 맞춤으로 단가를 깎지 않음(AI·시장가 행만 조정) */
+function isBudgetUnitPriceScalableCategory(categoryName: string): boolean {
+  return categoryName === EXTRA_QUOTE_CATEGORY_AI_MARKET
 }
 
 function removeOptionalQuoteItems(doc: QuoteDoc): number {
@@ -103,6 +111,7 @@ function reduceUnitPricesPriority(
     const matches: QuoteLineItem[] = []
     doc.quoteItems.forEach(cat => {
       cat.items.forEach(it => {
+        if (!isBudgetUnitPriceScalableCategory(cat.category)) return
         if (p.filter(it, cat.category)) matches.push(it)
       })
     })

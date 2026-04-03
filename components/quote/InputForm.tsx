@@ -4,6 +4,7 @@ import { Input, Select, Textarea, SectionLabel, Btn, Spinner } from '@/component
 import CalendarPicker, { formatKorDate } from '@/components/ui/CalendarPicker'
 import DurationInput, { durationToString, type DurationValue } from '@/components/ui/DurationInput'
 import type { QuoteDoc } from '@/lib/types'
+import { EVENT_TYPE_GROUPS } from '@/lib/estimate/event-types'
 import { apiFetch, ApiError } from '@/lib/api/client'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
 import { buildAuthHref } from '@/lib/auth-redirect'
@@ -85,13 +86,6 @@ const TIME_SLOTS_30: { value: string; label: string }[] = (() => {
   }
   return out
 })()
-
-const EVENT_TYPES = [
-  { group: '기념·의식', options: ['기념식 / 개교기념', '시상식 / 수료식', '창립기념'] },
-  { group: '교육·강연', options: ['강연 / 강의', '세미나 / 컨퍼런스', '워크숍'] },
-  { group: '야외·체험', options: ['체육대회 / 운동회', '레크레이션', '팀빌딩', '야유회 / MT'] },
-  { group: '공연·축제', options: ['축제 / 페스티벌', '콘서트 / 공연', '기업 행사'] },
-]
 
 /** 견적 생성 API에 보내는 클라이언트 입력 (재작성 시 재사용) */
 export type GenerateRequestBody = {
@@ -341,7 +335,7 @@ export default function InputForm({
 
       <Select label="행사 유형" value={eventType} onChange={e => setEventType(e.target.value)}>
         <option value="">선택하세요</option>
-        {EVENT_TYPES.map(g => (
+        {EVENT_TYPE_GROUPS.map(g => (
           <optgroup key={g.group} label={g.group}>
             {g.options.map(o => <option key={o} value={o}>{o}</option>)}
           </optgroup>

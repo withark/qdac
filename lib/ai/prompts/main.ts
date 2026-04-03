@@ -25,6 +25,7 @@ export type EventCategory =
 export function detectEventCategory(eventType: string, eventName: string): EventCategory {
   const text = `${eventType} ${eventName}`.toLowerCase()
   if (/(체육대회|운동회|스포츠|달리기|이어달리기|줄다리기|운동장)/.test(text)) return 'sports'
+  if (/(팀빌딩|team\s*building)/.test(text)) return 'corporate'
   if (/(웨딩|결혼|혼례|브라이덜)/.test(text)) return 'wedding'
   if (/(컨퍼런스|컨벤션|convention|conference)/.test(text)) return 'conference'
   if (/(런칭|쇼케이스|launch|showcase)/.test(text)) return 'launch'
@@ -646,12 +647,16 @@ function buildVendorBriefModeBlock(input: GenerateInput): string {
   const raw = (input.briefNotes || '').trim()
   if (!raw) return ''
   const capped = raw.slice(0, 14_000)
+  const et = (input.eventType || '').trim()
+  const typeHint = et
+    ? `\n- **행사 유형(사용자 선택): "${et}"** — 이 유형에 필요한 품목만 quoteItems에 넣으세요. 단가표에 체육대회·레크 품목이 많아도, 워크숍/팀빌딩/세미나 등이면 그에 맞는 항목만 골라 반영하고 나머지는 넣지 마세요.`
+    : ''
   return `
 === 모드: 업체 원문(프롬프트) 기반 견적 ===
 - 아래「업체에서 전달받은 내용」원문을 최우선 근거로 사용합니다.
 - 원문에서 행사명, 수신처(업체명·담당·연락처), 일정·장소·인원, 품목·수량·단가·조건을 찾아 JSON(eventName, clientName, clientManager, clientTel, eventDate, venue, headcount, quoteItems, notes 등)에 반영하세요.
 - 원문에 금액이 없거나 불명확하면 단가표에 맞는 품목은 단가표 단가를 쓰고, 없는 품목은 시장가 조사로 채우며 spec·note에 산출 근거를 적으세요.
-- 원문과 모순되지 않게 작성하세요.
+- 원문과 모순되지 않게 작성하세요.${typeHint}
 
 === 업체에서 전달받은 내용(원문) ===
 ${capped}
@@ -722,6 +727,7 @@ export function buildDocumentExcellenceGuide(target: GenerateInput['documentTarg
 [문서 완성도 기준 — 견적서]
 - 항목명은 구매/정산 담당자가 바로 이해할 수준으로 구체적으로 작성합니다.
 - 금액만 나열하지 말고, spec과 note에 왜 필요한지와 산출 근거를 남깁니다.
+- 사용자 단가표에 있는 품목은 unitPrice를 단가표 금액과 동일하게 맞추세요(임의로 낮추거나 다른 금액을 넣지 마세요).
 - 사용자 단가표에 없는 품목은 시장가(대한민국 행사 업계 일반 수준)를 전제로 단가를 정하고, 그 전제를 spec/note에 드러냅니다.
 - notes와 paymentTerms는 실제 계약 전 공유 문서처럼 명확하게 씁니다.`
     case 'program':

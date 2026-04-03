@@ -162,6 +162,7 @@ type StageStructurePlan = NonNullable<GenerateInput['stageStructurePlan']>
 function detectGenerationEventCategory(eventType: string, eventName: string): GenerationEventCategory {
   const text = `${eventType} ${eventName}`.toLowerCase()
   if (/(체육대회|운동회|스포츠|달리기|이어달리기|줄다리기|운동장)/.test(text)) return 'sports'
+  if (/(팀빌딩|team\s*building)/.test(text)) return 'corporate'
   if (/(웨딩|결혼|혼례|브라이덜)/.test(text)) return 'wedding'
   if (/(컨퍼런스|컨벤션|convention|conference)/.test(text)) return 'conference'
   if (/(런칭|쇼케이스|launch|showcase)/.test(text)) return 'launch'

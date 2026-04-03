@@ -12,6 +12,7 @@ import { apiFetch, apiGenerateStream } from '@/lib/api/client'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
 import { LoadingState } from '@/components/ui/AsyncState'
 import { ESTIMATE_BUDGET_OPTIONS } from '@/lib/estimate-budget-options'
+import { EVENT_TYPE_GROUPS } from '@/lib/estimate/event-types'
 import { exportToExcel } from '@/lib/exportExcel'
 import { exportToPdf } from '@/lib/exportPdf'
 import { isPaidPlan, type PlanType } from '@/lib/plans'
@@ -105,6 +106,8 @@ function EstimateGeneratorContent() {
   /** 업체 원문만 모드: 들은 내용 전체 */
   const [vendorBrief, setVendorBrief] = useState('')
   const [budget, setBudget] = useState('미정')
+  /** 행사 종류 — 단가표 필터·AI 프롬프트에 사용 (InputForm과 동일 옵션) */
+  const [eventType, setEventType] = useState('')
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null)
 
   const [doc, setDoc] = useState<QuoteDoc | null>(null)
@@ -226,6 +229,7 @@ function EstimateGeneratorContent() {
       notes: string
       vendorBrief: string
       budget: string
+      eventType: string
       savedAt: string
     }>
 
@@ -253,6 +257,7 @@ function EstimateGeneratorContent() {
     if (typeof draft.notes === 'string') setNotes(draft.notes)
     if (typeof draft.vendorBrief === 'string') setVendorBrief(draft.vendorBrief)
     if (typeof draft.budget === 'string') setBudget(draft.budget)
+    if (typeof draft.eventType === 'string') setEventType(draft.eventType)
     if (typeof draft.savedAt === 'string') setDraftSavedAt(draft.savedAt)
   }, [userDraftStorageKey])
 
@@ -277,6 +282,7 @@ function EstimateGeneratorContent() {
         notes,
         vendorBrief,
         budget,
+        eventType,
         savedAt,
       }
       window.localStorage.setItem(userDraftStorageKey, JSON.stringify(payload))
@@ -285,7 +291,13 @@ function EstimateGeneratorContent() {
     return () => {
       window.clearTimeout(timer)
     }
-  }, [userDraftStorageKey, sourceMode, selectedEstimateId, selectedTaskOrderId, clientName, clientManager, clientTel, topic, eventDate, eventDuration, startHHmm, endHHmm, headcount, venue, notes, vendorBrief, budget])
+  }, [userDraftStorageKey, sourceMode, selectedEstimateId, selectedTaskOrderId, clientName, clientManager, clientTel, topic, eventDate, eventDuration, startHHmm, endHHmm, headcount, venue, notes, vendorBrief, budget, eventType])
+
+  useEffect(() => {
+    if (sourceMode !== 'fromEstimate') return
+    const et = selectedHistoryDoc?.eventType
+    if (typeof et === 'string' && et.trim()) setEventType(et)
+  }, [sourceMode, selectedEstimateId, selectedHistoryDoc?.eventType])
 
   useEffect(() => {
     const q = searchParams.get('estimate')
@@ -411,6 +423,7 @@ function EstimateGeneratorContent() {
     if (sourceMode === 'fromPrompt') {
       const raw = vendorBrief.trim()
       if (!raw) return null
+      const et = eventType.trim()
       return {
         eventDate: '',
         eventDuration: '',
@@ -429,7 +442,7 @@ function EstimateGeneratorContent() {
         generationMode: 'vendorBrief' as const,
         eventName: topic.trim() || '업체 견적 기반',
         quoteDate: todayStr(),
-        eventType: '기타',
+        eventType: et || '기타',
       }
     }
 
@@ -457,7 +470,7 @@ function EstimateGeneratorContent() {
         ...base,
         quoteDate: d.quoteDate,
         eventName: safeTopic || d.eventName,
-        eventType: d.eventType || '기타',
+        eventType: eventType.trim() || d.eventType || '기타',
         clientName: safeClientName || d.clientName || '',
         clientManager: safeClientManager || d.clientManager || '',
         clientTel: safeClientTel || d.clientTel || '',
@@ -490,7 +503,7 @@ function EstimateGeneratorContent() {
           selectedTaskOrder.filename ||
           '행사',
         quoteDate: todayStr(),
-        eventType: '기타',
+        eventType: eventType.trim() || '기타',
         clientName: safeClientName || selectedTaskOrderParsed?.orderingOrganization || '',
         requirements: effectiveRequirements,
         briefNotes: effectiveNotes,
@@ -503,11 +516,12 @@ function EstimateGeneratorContent() {
       ...base,
       eventName: safeTopic || '행사',
       quoteDate: todayStr(),
-      eventType: '기타',
+      eventType: eventType.trim() || '기타',
       briefNotes: safeNotes,
     }
   }, [
     budget,
+    eventType,
     selectedHistoryDoc,
     selectedTaskOrder,
     selectedTaskOrderParsed,
@@ -617,6 +631,7 @@ function EstimateGeneratorContent() {
 
   const generateDisabled = useMemo(() => {
     if (priceItemCount === 0) return true
+    if (!eventType.trim()) return true
     if (sourceMode === 'fromPrompt') {
       return vendorBrief.trim().length < 40
     }
@@ -649,6 +664,7 @@ function EstimateGeneratorContent() {
     headcount,
     venue,
     vendorBrief,
+    eventType,
   ])
 
   const validationMessage = useMemo(() => {
@@ -656,6 +672,7 @@ function EstimateGeneratorContent() {
     if (priceItemCount === 0) {
       return '단가표에 항목이 없습니다. 단가표 메뉴에서 항목을 입력하거나 .xlsx를 업로드한 뒤 다시 시도해 주세요.'
     }
+    if (!eventType.trim()) return '행사 종류를 선택해 주세요. (체육대회·워크숍·팀빌딩 등)'
     if (sourceMode === 'fromPrompt') {
       return vendorBrief.trim().length < 40
         ? '업체에서 들은 내용을 40자 이상 붙여 넣어 주세요. (메모·견적 요약·대화록 등)'
@@ -695,6 +712,7 @@ function EstimateGeneratorContent() {
     venue,
     headcount,
     vendorBrief,
+    eventType,
   ])
 
   const docSummary = useMemo(() => {
@@ -723,6 +741,30 @@ function EstimateGeneratorContent() {
           업체·행사사 등에서 들은 견적 내용을 그대로 붙여 넣으면, 단가표를 반영해 견적서 형식으로 정리합니다. 행사명·수신처·일정은
           원문에서 찾거나 AI가 채웁니다.
         </p>
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-slate-800">
+            행사 종류<span className="text-red-500">*</span>
+          </label>
+          <p className="mb-1.5 text-xs text-slate-500">
+            체육대회·워크숍·팀빌딩 등에 맞게 단가표에서 가져올 카테고리와 AI가 넣을 품목이 달라집니다.
+          </p>
+          <select
+            value={eventType}
+            onChange={(e) => setEventType(e.target.value)}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70"
+          >
+            <option value="">선택하세요</option>
+            {EVENT_TYPE_GROUPS.map((g) => (
+              <optgroup key={g.group} label={g.group}>
+                {g.options.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </div>
         <Textarea
           label="업체에서 들은 내용"
           showRequiredMark
@@ -759,6 +801,30 @@ function EstimateGeneratorContent() {
   const topicInputs = (
     <div className="space-y-3">
       <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 space-y-3">
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-slate-800">
+            행사 종류<span className="text-red-500">*</span>
+          </label>
+          <p className="mb-1.5 text-xs text-slate-500">
+            업로드한 단가표에서 이 유형에 맞는 카테고리만 펼치고, AI도 이 유형에 맞는 항목을 우선합니다.
+          </p>
+          <select
+            value={eventType}
+            onChange={(e) => setEventType(e.target.value)}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70"
+          >
+            <option value="">선택하세요</option>
+            {EVENT_TYPE_GROUPS.map((g) => (
+              <optgroup key={g.group} label={g.group}>
+                {g.options.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </div>
         <Input
           label="업체명"
           showRequiredMark
@@ -903,6 +969,7 @@ function EstimateGeneratorContent() {
               setNotes('')
               setVendorBrief('')
               setBudget('미정')
+              setEventType('')
             }}
             requiredInput={
               sourceMode === 'fromEstimate' ? (

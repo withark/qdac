@@ -363,7 +363,10 @@ export async function executeGeneratePipeline(
 
   if (documentTarget === 'estimate') {
     const userPromptText = [body.requirements, body.briefNotes].filter(Boolean).join('\n').trim()
-    doc = applyFixedEstimateTemplateV2(doc, prices, { userPromptText })
+    doc = applyFixedEstimateTemplateV2(doc, prices, {
+      userPromptText,
+      eventType: body.eventType,
+    })
     budgetConstraint = enforceBudgetHardConstraint(doc, body.budget || '')
     doc.budgetConstraint = budgetConstraint
     normalizeQuoteUnitPricesToThousand(doc)

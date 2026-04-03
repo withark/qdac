@@ -5,6 +5,10 @@ import {
   extractLineItemExclusionKeywords,
   lineItemMatchesExclusionKeyword,
 } from '@/lib/estimate/user-memo-exclusions'
+import { filterPriceCategoriesForEvent } from '@/lib/estimate/price-filter'
+
+/** 예산 맞춤 시 단가 하향은 이 카테고리(AI·시장가)에만 적용 — 업로드 단가표 행은 보호 */
+export const EXTRA_QUOTE_CATEGORY_AI_MARKET = '단가표 외 항목(시장가·AI)'
 
 const TEMPLATE_NOTES = [
   '1. 본 견적서는 행사 규모 및 요구사항에 따라 변동될 수 있으며, 유효기간은 견적일로부터 30일입니다.',
@@ -61,6 +65,8 @@ function inferItemKind(categoryName: string, itemName: string): QuoteItemKind {
 export type FixedEstimateApplyOptions = {
   /** requirements·briefNotes·추가 메모를 합친 문자열 — 품목 제외 키워드 추출 */
   userPromptText?: string
+  /** 행사 종류 — 단가표 카테고리 필터(체육 vs 워크숍 등) */
+  eventType?: string
 }
 
 export function applyFixedEstimateTemplateV2(
@@ -69,12 +75,14 @@ export function applyFixedEstimateTemplateV2(
   options?: FixedEstimateApplyOptions,
 ): QuoteDoc {
   const generatedItems = (doc.quoteItems || []).flatMap((category) => category.items || [])
-  const hasUserPriceTemplate = (prices || []).some((category) => (category.items || []).length > 0)
+  const eventTypeForFilter = (options?.eventType || doc.eventType || '').trim()
+  const pricesFiltered = filterPriceCategoriesForEvent(prices || [], eventTypeForFilter || '기타')
+  const hasUserPriceTemplate = (pricesFiltered || []).some((category) => (category.items || []).length > 0)
   const exclusionKeywords = extractLineItemExclusionKeywords(options?.userPromptText)
   const droppedByMemo: string[] = []
 
   if (hasUserPriceTemplate) {
-    const quoteItems = (prices || [])
+    const quoteItems = (pricesFiltered || [])
       .filter((category) => (category.items || []).length > 0)
       .map((category) => ({
         category: category.name || '기타',
@@ -114,7 +122,7 @@ export function applyFixedEstimateTemplateV2(
 
     const extraFromAi = generatedItems
       .filter((gi) => !isExcludedSupplyLineItem(gi))
-      .filter((gi) => !isCoveredByPriceTable(gi, prices))
+      .filter((gi) => !isCoveredByPriceTable(gi, pricesFiltered))
       .filter((gi) => {
         if (!exclusionKeywords.length) return true
         if (lineItemMatchesExclusionKeyword(gi.name || '', exclusionKeywords)) return false
@@ -143,7 +151,7 @@ export function applyFixedEstimateTemplateV2(
 
     if (extraFromAi.length > 0) {
       quoteItems.push({
-        category: '단가표 외 항목(시장가·AI)',
+        category: EXTRA_QUOTE_CATEGORY_AI_MARKET,
         items: extraFromAi,
       })
     }
