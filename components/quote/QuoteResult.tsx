@@ -321,7 +321,13 @@ export function QuoteResult({
 
   function updLine(ci: number, ii: number, k: string, v: string | number) {
     const d2 = ensureProgramShape(structuredClone(doc))
-    ;(d2.quoteItems[ci].items[ii] as unknown as Record<string, string | number>)[k] = v
+    const line = d2.quoteItems[ci].items[ii] as unknown as Record<string, string | number>
+    line[k] = v
+    if (k === 'qty' || k === 'unitPrice') {
+      const qty = Math.max(0, Math.round(Number(line.qty ?? 1)))
+      const unitPrice = Math.max(0, Math.round(Number(line.unitPrice ?? 0)))
+      line.total = qty * unitPrice
+    }
     onChange(d2)
   }
 
@@ -639,7 +645,7 @@ export function QuoteResult({
                         <th className="px-2 py-2 text-left font-semibold text-slate-500 w-[18%]">규격/내용</th>
                         <th className="px-2 py-2 text-right font-semibold text-slate-500 w-[7%]">수량</th>
                         <th className="px-2 py-2 text-center font-semibold text-slate-500 w-[6%]">단위</th>
-                        <th className="px-2 py-2 text-right font-semibold text-slate-500 w-[12%]">개당 단가</th>
+                        <th className="px-2 py-2 text-right font-semibold text-slate-500 w-[12%]">단가</th>
                         <th className="px-2 py-2 text-right font-semibold text-slate-500 w-[12%]">합계</th>
                         <th className="px-2 py-2 text-left font-semibold text-slate-500 w-[10%]">비고</th>
                         <th className="px-2 py-2 w-8" />
@@ -743,6 +749,34 @@ export function QuoteResult({
                       ))}
                     </tbody>
                   </table>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d2 = ensureProgramShape(structuredClone(doc))
+                      d2.quoteItems.push({
+                        category: '새 구분',
+                        items: [
+                          {
+                            name: '새 항목',
+                            spec: '',
+                            qty: 1,
+                            unit: '식',
+                            unitPrice: 0,
+                            total: 0,
+                            note: '',
+                            kind: '필수',
+                          },
+                        ],
+                      })
+                      onChange(d2)
+                    }}
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    + 카테고리(구분) 추가
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">

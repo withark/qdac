@@ -121,6 +121,15 @@ function EstimateGeneratorContent() {
     [selectedTaskOrder],
   )
 
+  const priceItemCount = useMemo(
+    () =>
+      prices.reduce(
+        (count, category) => count + (Array.isArray(category.items) ? category.items.length : 0),
+        0,
+      ),
+    [prices],
+  )
+
   const modes: WizardMode[] = useMemo(
     () => [
       { id: 'fromTopic', title: '주제만 입력', desc: '행사 주제와 예산 범위만으로 빠르게 견적서를 생성합니다.' },
@@ -374,13 +383,25 @@ function EstimateGeneratorContent() {
   )
 
   const generateDisabled = useMemo(() => {
+    if (priceItemCount === 0) return true
     if (sourceMode === 'fromEstimate') return !selectedEstimateId || !selectedHistoryDoc
     if (sourceMode === 'fromTaskOrder') return !selectedTaskOrderId || !selectedTaskOrder
     return !topic.trim()
-  }, [selectedEstimateId, selectedHistoryDoc, selectedTaskOrderId, selectedTaskOrder, sourceMode, topic])
+  }, [
+    priceItemCount,
+    selectedEstimateId,
+    selectedHistoryDoc,
+    selectedTaskOrderId,
+    selectedTaskOrder,
+    sourceMode,
+    topic,
+  ])
 
   const validationMessage = useMemo(() => {
     if (!generateDisabled) return null
+    if (priceItemCount === 0) {
+      return '단가표에 항목이 없습니다. 단가표 메뉴에서 항목을 입력하거나 .xlsx를 업로드한 뒤 다시 시도해 주세요.'
+    }
     if (sourceMode === 'fromTopic') {
       if (!topic.trim()) return '이벤트 주제를 입력해 주세요.'
       return null
@@ -395,6 +416,7 @@ function EstimateGeneratorContent() {
     return null
   }, [
     generateDisabled,
+    priceItemCount,
     sourceMode,
     topic,
     selectedTaskOrderId,
@@ -413,7 +435,7 @@ function EstimateGeneratorContent() {
   const objectiveByMode = useMemo(() => {
     if (sourceMode === 'fromEstimate') return '기존 견적을 기반으로 빠르게 재작성'
     if (sourceMode === 'fromTaskOrder') return '과업지시서 요구사항 중심으로 견적서 구성'
-    return '고정 템플릿 기준으로 견적서 생성'
+    return '저장된 단가표 항목·단가를 기준으로 견적서 생성'
   }, [sourceMode])
   const readinessText = generateDisabled ? validationMessage || '필수 입력을 확인해 주세요.' : '생성 준비 완료'
   const readinessToneClass = generateDisabled ? 'text-amber-800' : 'text-emerald-700'
