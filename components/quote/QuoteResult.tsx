@@ -715,6 +715,16 @@ export function QuoteResult({
           const groupedByKind = groupByKind()
           const kindSubtotals = subtotalsByKind(doc)
 
+          /** 견적 편집: 긴 텍스트도 잘리지 않도록 textarea 행 수 추정 */
+          const estTextRows = (s: string, charsPerRow = 36, cap = 12) => {
+            const t = s || ''
+            const lineBreaks = t.split('\n').length
+            const wrapped = Math.ceil(t.length / charsPerRow)
+            return Math.max(2, Math.min(cap, Math.max(lineBreaks, wrapped)))
+          }
+          const excelLineTextareaCls =
+            'w-full min-h-[2.25rem] resize-y border-0 bg-transparent px-1 py-0.5 outline-none break-words whitespace-pre-wrap leading-snug text-[11px] [overflow-wrap:anywhere] focus:ring-1 focus:ring-primary-300'
+
           if (excelSheetMode) {
             const t = calcTotals(doc)
             const writer = companySettings?.contact?.trim() || companySettings?.name?.trim() || '—'
@@ -857,18 +867,20 @@ export function QuoteResult({
                                       {EXCEL_KIND_LABELS[kind]}
                                     </td>
                                   ) : null}
-                                  <td className="border border-slate-300 p-0.5">
-                                    <input
+                                  <td className="border border-slate-300 p-0.5 align-top">
+                                    <textarea
                                       value={it.name}
                                       onChange={(e) => updLine(ci, ii, 'name', e.target.value)}
-                                      className="w-full min-w-[100px] border-0 bg-transparent px-1 py-0.5 outline-none focus:ring-1 focus:ring-primary-300"
+                                      rows={estTextRows(it.name, 32, 8)}
+                                      className={clsx(excelLineTextareaCls, 'min-w-[100px]')}
                                     />
                                   </td>
-                                  <td className="border border-slate-300 p-0.5">
-                                    <input
+                                  <td className="border border-slate-300 p-0.5 align-top">
+                                    <textarea
                                       value={it.spec || ''}
                                       onChange={(e) => updLine(ci, ii, 'spec', e.target.value)}
-                                      className="w-full min-w-[120px] border-0 bg-transparent px-1 py-0.5 outline-none focus:ring-1 focus:ring-primary-300"
+                                      rows={estTextRows(it.spec || '', 34, 12)}
+                                      className={clsx(excelLineTextareaCls, 'min-w-[120px]')}
                                     />
                                   </td>
                                   <td className="border border-slate-300 p-0.5 text-right">
@@ -912,11 +924,12 @@ export function QuoteResult({
                                   <td className="border border-slate-300 px-1 py-1 text-right font-semibold tabular-nums text-slate-900">
                                     {fmtKRW(lineAmt)}
                                   </td>
-                                  <td className="border border-slate-300 p-0.5">
-                                    <input
+                                  <td className="border border-slate-300 p-0.5 align-top">
+                                    <textarea
                                       value={it.note || ''}
                                       onChange={(e) => updLine(ci, ii, 'note', e.target.value)}
-                                      className="w-full min-w-[72px] border-0 bg-transparent px-1 py-0.5 outline-none focus:ring-1 focus:ring-primary-300"
+                                      rows={estTextRows(it.note || '', 34, 12)}
+                                      className={clsx(excelLineTextareaCls, 'min-w-[72px]')}
                                     />
                                   </td>
                                   <td className="border border-slate-300 p-0.5 text-center">
@@ -1025,8 +1038,13 @@ export function QuoteResult({
           }
 
           const templateId = (doc.quoteTemplate || 'default') as QuoteTemplateId
-          const estCell = compactEstimateEditor ? 'px-3 py-2' : 'px-2 py-1.5'
+          const estCell = compactEstimateEditor ? 'align-top px-3 py-2' : 'align-top px-2 py-1.5'
           const estHeadRow = compactEstimateEditor ? 'px-3 py-2.5' : 'px-2 py-2'
+          const estTextareaCls = clsx(
+            'w-full min-h-[2.75rem] resize-y bg-white border border-gray-100 rounded outline-none',
+            'break-words whitespace-pre-wrap leading-snug [overflow-wrap:anywhere]',
+            compactEstimateEditor ? 'px-2 py-1.5 text-[13px]' : 'px-1.5 py-1 text-xs',
+          )
           return (
             <div
               className={clsx(
@@ -1115,9 +1133,10 @@ export function QuoteResult({
                   )}
                 </div>
               </div>
+              <div className="w-full overflow-x-auto">
               <table
                 className={clsx(
-                  'w-full border-collapse',
+                  'w-full min-w-[920px] border-collapse',
                   compactEstimateEditor ? 'text-[13px]' : 'text-xs',
                 )}
               >
@@ -1197,24 +1216,20 @@ export function QuoteResult({
                               const rowTotal = effectiveLineTotalWon(it)
                               return (
                                 <tr key={`${ci}-${ii}`} className="border-b border-gray-50 hover:bg-gray-50/50 group">
-                                  <td className={estCell}>
-                                    <input
+                                  <td className={clsx(estCell, 'min-w-[8rem]')}>
+                                    <textarea
                                       value={it.name}
                                       onChange={e => updLine(ci, ii, 'name', e.target.value)}
-                                      className={clsx(
-                                        'w-full bg-white border border-gray-100 rounded outline-none',
-                                        compactEstimateEditor ? 'px-2 py-1 text-[13px]' : 'px-1.5 py-0.5',
-                                      )}
+                                      rows={estTextRows(it.name, 32, 8)}
+                                      className={estTextareaCls}
                                     />
                                   </td>
-                                  <td className={clsx(estCell, 'text-gray-400')}>
-                                    <input
+                                  <td className={clsx(estCell, 'text-gray-400 min-w-[8rem]')}>
+                                    <textarea
                                       value={it.spec || ''}
                                       onChange={e => updLine(ci, ii, 'spec', e.target.value)}
-                                      className={clsx(
-                                        'w-full bg-white border border-gray-100 rounded outline-none',
-                                        compactEstimateEditor ? 'px-2 py-1 text-[13px]' : 'px-1.5 py-0.5',
-                                      )}
+                                      rows={estTextRows(it.spec || '', 34, 12)}
+                                      className={estTextareaCls}
                                     />
                                   </td>
                                   <td className={clsx(estCell, 'text-right')}>
@@ -1254,14 +1269,12 @@ export function QuoteResult({
                                     />
                                   </td>
                                   <td className={clsx(estCell, 'text-right font-medium tabular-nums')}>{fmtKRW(rowTotal)}</td>
-                                  <td className={clsx(estCell, 'text-gray-400')}>
-                                    <input
+                                  <td className={clsx(estCell, 'text-gray-400 min-w-[7rem]')}>
+                                    <textarea
                                       value={it.note || ''}
                                       onChange={e => updLine(ci, ii, 'note', e.target.value)}
-                                      className={clsx(
-                                        'w-full bg-white border border-gray-100 rounded outline-none',
-                                        compactEstimateEditor ? 'px-2 py-1 text-[13px]' : 'px-1.5 py-0.5',
-                                      )}
+                                      rows={estTextRows(it.note || '', 34, 12)}
+                                      className={estTextareaCls}
                                     />
                                   </td>
                                   <td className={estCell}>
@@ -1297,9 +1310,9 @@ export function QuoteResult({
                                             <div key={cat.id}>
                                               <div className="px-2 py-1 text-[10px] font-semibold text-gray-400 bg-gray-50">{cat.name}</div>
                                               {(cat.items || []).map(item => (
-                                                <button key={item.id} type="button" onClick={() => addItemFromPrice(kind, item)} className="w-full text-left px-2 py-1.5 hover:bg-primary-50 text-xs flex justify-between">
-                                                  <span className="truncate">{item.name}</span>
-                                                  <span className="tabular-nums">{fmtKRW(item.price)}</span>
+                                                <button key={item.id} type="button" onClick={() => addItemFromPrice(kind, item)} className="w-full text-left px-2 py-1.5 hover:bg-primary-50 text-xs flex justify-between gap-2">
+                                                  <span className="min-w-0 flex-1 break-words whitespace-normal">{item.name}</span>
+                                                  <span className="flex-shrink-0 tabular-nums">{fmtKRW(item.price)}</span>
                                                 </button>
                                               ))}
                                             </div>
@@ -1329,6 +1342,7 @@ export function QuoteResult({
                   })}
                 </tbody>
               </table>
+              </div>
               <div className="border-t border-gray-200 pt-3 space-y-2 max-w-xs ml-auto">
                 {budgetConstraint?.budgetCeilingKRW != null && !budgetConstraint.budgetFit && (
                   <div className="border border-amber-200 bg-amber-50 rounded-xl p-3 text-[11px] text-amber-900">
