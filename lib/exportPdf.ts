@@ -123,8 +123,14 @@ export async function exportToPdf(
       layoutHeightPx = Math.max(1, container.scrollHeight)
     }
 
+    const MAX_CANVAS_PX = 14_000
+    let canvasScale = isEstimatePdf ? 2.75 : 2
+    if (isEstimatePdf && layoutHeightPx * canvasScale > MAX_CANVAS_PX) {
+      canvasScale = Math.max(1.35, MAX_CANVAS_PX / layoutHeightPx)
+    }
+
     const canvas = await html2canvas(container, {
-      scale: isEstimatePdf ? 2.75 : 2,
+      scale: canvasScale,
       useCORS: true,
       logging: false,
       backgroundColor: '#ffffff',

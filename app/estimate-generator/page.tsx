@@ -14,7 +14,7 @@ import { ESTIMATE_BUDGET_OPTIONS } from '@/lib/estimate-budget-options'
 import { exportToExcel } from '@/lib/exportExcel'
 import { exportToPdf } from '@/lib/exportPdf'
 import { isPaidPlan, type PlanType } from '@/lib/plans'
-import { calcTotals, fmtKRW } from '@/lib/calc'
+import { isExcludedSupplyLineItem } from '@/lib/quote/supply-line-filter'
 
 type MeLite = {
   user?: { id?: string | null; email?: string | null } | null
@@ -346,14 +346,18 @@ function EstimateGeneratorContent() {
       })
       setDoc(data.doc)
       setGeneratedDocId(data.id)
-      showToast('견적서 생성 완료!')
+      if (data.doc.quoteTemplate === 'fixed-v2' && priceItemCount > 0) {
+        showToast(`단가표 ${priceItemCount}개 항목을 반영했습니다. (메뉴「단가표」에서 확인)`)
+      } else {
+        showToast('견적서 생성 완료!')
+      }
     } catch (e) {
       showToast(toUserMessage(e, '견적서 생성에 실패했습니다.'))
     } finally {
       setGenerating(false)
       setGenerationProgressLabel(null)
     }
-  }, [requestBodyForEstimate, showToast, sourceMode])
+  }, [requestBodyForEstimate, showToast, sourceMode, priceItemCount])
 
   const handleSaveDoc = useCallback(
     async (nextDoc: QuoteDoc) => {
@@ -459,8 +463,11 @@ function EstimateGeneratorContent() {
   }, [completion.step2Done, completion.step3Done, validationMessage])
   const docSummary = useMemo(() => {
     if (!doc) return null
-    const totals = calcTotals(doc)
-    const lineCount = doc.quoteItems.reduce((count, category) => count + (category.items?.length ?? 0), 0)
+    const lineCount = doc.quoteItems.reduce(
+      (count, category) =>
+        count + (category.items?.filter((item) => !isExcludedSupplyLineItem(item)).length ?? 0),
+      0,
+    )
     const optionalCount = doc.quoteItems.reduce(
       (count, category) =>
         count +
@@ -470,7 +477,7 @@ function EstimateGeneratorContent() {
         }).length ?? 0),
       0,
     )
-    return { totals, lineCount, optionalCount }
+    return { lineCount, optionalCount }
   }, [doc])
 
   const topicInputs = (
@@ -675,25 +682,21 @@ function EstimateGeneratorContent() {
             <section className="rounded-2xl border border-gray-100 bg-white shadow-card">
               {docSummary ? (
                 <div className="sticky top-2 z-20 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
-                  <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                      <p className="text-[11px] font-semibold text-slate-500">총액</p>
-                      <p className="mt-1 text-base font-bold text-slate-900">{fmtKRW(docSummary.totals.grand)}원</p>
-                    </div>
+                  <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
                     <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                       <p className="text-[11px] font-semibold text-slate-500">인원/행사일</p>
                       <p className="mt-1 text-sm font-semibold text-slate-900">{doc.headcount || '미정'}명</p>
                       <p className="text-xs text-slate-600">{doc.eventDate || '행사일 미정'}</p>
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                      <p className="text-[11px] font-semibold text-slate-500">항목 수</p>
+                      <p className="text-[11px] font-semibold text-slate-500">품목 구성</p>
                       <p className="mt-1 text-sm font-semibold text-slate-900">
                         총 {docSummary.lineCount}개 · 선택 {docSummary.optionalCount}개
                       </p>
-                      <p className="text-xs text-slate-600">필수/선택 구성 확인용</p>
+                      <p className="text-xs text-slate-600">총액은 아래 견적 본문 상단에 표시됩니다.</p>
                     </div>
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                      <p className="text-[11px] font-semibold text-slate-500">저장 상태</p>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 md:col-span-1 col-span-2">
+                      <p className="text-[11px] font-semibold text-slate-500">저장</p>
                       <p className={`mt-1 text-sm font-semibold ${saving ? 'text-amber-700' : 'text-emerald-700'}`}>
                         {saving ? '저장 중...' : '저장 가능'}
                       </p>
@@ -711,39 +714,12 @@ function EstimateGeneratorContent() {
                     </button>
                     <button
                       type="button"
-                      onClick={async () => {
-                        try {
-                          await exportToExcel(doc, companySettings ?? undefined, 'quote')
-                          showToast('엑셀 다운로드 완료!')
-                        } catch (e) {
-                          showToast(toUserMessage(e, '엑셀 다운로드 실패'))
-                        }
-                      }}
-                      className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                    >
-                      엑셀 다운로드
-                    </button>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          await exportToPdf(doc, companySettings ?? undefined)
-                          showToast('PDF 저장 완료!')
-                        } catch (e) {
-                          showToast(toUserMessage(e, '저장 실패'))
-                        }
-                      }}
-                      className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                    >
-                      PDF 저장
-                    </button>
-                    <button
-                      type="button"
                       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
                       className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-100"
                     >
                       입력 수정으로 이동
                     </button>
+                    <span className="text-xs text-slate-500">엑셀·PDF는 결과 영역 상단 버튼에서보냅니다.</span>
                   </div>
                 </div>
               ) : null}
@@ -769,6 +745,7 @@ function EstimateGeneratorContent() {
                   disableAutoGenerate
                   hideOnDemandGenerate
                   disableInternalScroll
+                  estimateToolbar="exportOnly"
                   onExcel={async (view) => {
                     try {
                       await exportToExcel(doc, companySettings ?? undefined, view)

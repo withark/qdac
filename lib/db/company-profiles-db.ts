@@ -16,6 +16,8 @@ export type CompanyProfileRow = {
   profitRate: number
   validDays: number
   paymentTerms: string
+  /** 공개 URL 경로 (예: /uploads/logo/...) */
+  logoUrl?: string | null
   isDefault: boolean
   createdAt: string
   updatedAt: string
@@ -35,6 +37,7 @@ function toRow(r: any): CompanyProfileRow {
     profitRate: Number(r.profit_rate ?? 0),
     validDays: Number(r.valid_days ?? 7),
     paymentTerms: String(r.payment_terms ?? ''),
+    logoUrl: r.logo_url != null && String(r.logo_url).trim() ? String(r.logo_url).trim() : null,
     isDefault: Boolean(r.is_default),
     createdAt: new Date(r.created_at).toISOString(),
     updatedAt: new Date(r.updated_at).toISOString(),
@@ -53,6 +56,7 @@ export function profileToCompanySettings(p: CompanyProfileRow): CompanySettings 
     profitRate: p.profitRate,
     validDays: p.validDays,
     paymentTerms: p.paymentTerms,
+    logoUrl: p.logoUrl ?? null,
   }
 }
 
@@ -68,6 +72,7 @@ export function companySettingsToProfileInput(s: CompanySettings) {
     profitRate: Number(s.profitRate ?? 0),
     validDays: Number(s.validDays ?? 7),
     paymentTerms: s.paymentTerms ?? '',
+    logoUrl: (s.logoUrl && String(s.logoUrl).trim()) || '',
   }
 }
 
@@ -120,6 +125,7 @@ export async function upsertDefaultCompanyProfile(userId: string, settings: Comp
         profitRate: p.profitRate,
         validDays: p.validDays,
         paymentTerms: p.paymentTerms,
+        logoUrl: p.logoUrl ? String(p.logoUrl) : existing.logoUrl ?? null,
         isDefault: true,
         updatedAt: now,
       }
@@ -141,6 +147,7 @@ export async function upsertDefaultCompanyProfile(userId: string, settings: Comp
       profitRate: p.profitRate,
       validDays: p.validDays,
       paymentTerms: p.paymentTerms,
+      logoUrl: p.logoUrl ? String(p.logoUrl) : null,
       isDefault: true,
       createdAt: now,
       updatedAt: now,
@@ -166,6 +173,7 @@ export async function upsertDefaultCompanyProfile(userId: string, settings: Comp
         profit_rate = ${p.profitRate},
         valid_days = ${p.validDays},
         payment_terms = ${p.paymentTerms},
+        logo_url = ${p.logoUrl || ''},
         updated_at = ${now}::timestamptz
       WHERE id = ${existing.id} AND user_id = ${userId}
       RETURNING *
@@ -178,12 +186,12 @@ export async function upsertDefaultCompanyProfile(userId: string, settings: Comp
     INSERT INTO company_profiles (
       id, user_id,
       company_name, biz_no, ceo, contact_name, tel, addr,
-      expense_rate, profit_rate, valid_days, payment_terms,
+      expense_rate, profit_rate, valid_days, payment_terms, logo_url,
       is_default, created_at, updated_at
     ) VALUES (
       ${id}, ${userId},
       ${p.companyName}, ${p.bizNo}, ${p.ceo}, ${p.contactName}, ${p.tel}, ${p.addr},
-      ${p.expenseRate}, ${p.profitRate}, ${p.validDays}, ${p.paymentTerms},
+      ${p.expenseRate}, ${p.profitRate}, ${p.validDays}, ${p.paymentTerms}, ${p.logoUrl || ''},
       true, ${now}::timestamptz, ${now}::timestamptz
     )
     RETURNING *

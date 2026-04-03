@@ -1,5 +1,6 @@
 'use client'
-import { Fragment, useState, useEffect, useRef } from 'react'
+import { Fragment, useState, useEffect, useRef, useMemo } from 'react'
+import Link from 'next/link'
 import type { QuoteDoc, CompanySettings, QuoteItemKind, PriceCategory, PriceItem, ProgramTableRow, TimelineRow } from '@/lib/types'
 import PlanningProposalView from '@/components/quote/PlanningProposalView'
 import { KIND_ORDER, subtotalsByKind } from '@/lib/quoteGroup'
@@ -10,6 +11,7 @@ import type { PlanType } from '@/lib/plans'
 import type { QuoteTemplateId } from '@/lib/quoteTemplates'
 import type { ExcelExportView } from '@/lib/exportExcel'
 import { exportPlanningToWord } from '@/lib/exportWord'
+import { isExcludedSupplyLineItem } from '@/lib/quote/supply-line-filter'
 
 const EXCEL_KIND_LABELS: Record<QuoteItemKind, string> = {
   인건비: '필수인력',
@@ -84,6 +86,11 @@ interface Props {
   showCueSheetEditor?: boolean
   /** true면 컴포넌트 내부 스크롤을 끄고 문서를 전체 높이로 노출 */
   disableInternalScroll?: boolean
+  /**
+   * 견적 전용 페이지 등에서 상단(부모)에 저장이 있을 때 툴바에서 저장을 숨기고
+   * 엑셀/PDF만 노출한다.
+   */
+  estimateToolbar?: 'full' | 'exportOnly'
 }
 
 function isProgramProposalReady(doc: QuoteDoc) {
@@ -210,6 +217,7 @@ export function QuoteResult({
   hideOnDemandGenerate = false,
   showCueSheetEditor = false,
   disableInternalScroll = false,
+  estimateToolbar = 'full',
 }: Props) {
   const initial = visibleTabs.includes(initialTab) ? initialTab : 'estimate'
   const [tab, setTab] = useState<DocTab>(initial)
@@ -221,12 +229,28 @@ export function QuoteResult({
     선택1: true,
     선택2: true,
   })
+  /** 엑셀형 견적: 기간 데이터가 없을 때도 사용자가 기간 열을 켤 수 있음 */
+  const [excelPeriodColumnForced, setExcelPeriodColumnForced] = useState(false)
   const priceDropdownRef = useRef<HTMLDivElement>(null)
   const totals = calcTotals(doc)
   const budgetConstraint = doc.budgetConstraint
   const d = ensureProgramShape(doc)
   const supplierSignName = companySettings?.name?.trim() || '—'
   const excelSheetMode = visibleTabs.length === 1 && visibleTabs[0] === 'estimate'
+  const showEstimateSaveInToolbar = estimateToolbar !== 'exportOnly' || !excelSheetMode
+  const hasPeriodDataInEstimate = useMemo(
+    () =>
+      (doc.quoteItems || []).some((c) =>
+        (c.items || []).some((it) => String(it.period ?? '').trim().length > 0),
+      ),
+    [doc.quoteItems],
+  )
+  const supplierProfileWeak = useMemo(() => {
+    const cs = companySettings
+    if (!cs) return true
+    const bits = [cs.name, cs.biz, cs.tel, cs.addr].map((s) => String(s || '').trim())
+    return bits.filter(Boolean).length < 2
+  }, [companySettings])
   const requestedTabsRef = useRef<Set<DocTab>>(new Set())
 
   const programReady = isProgramProposalReady(doc)
@@ -375,6 +399,7 @@ export function QuoteResult({
     KIND_ORDER.forEach(k => map.set(k, []))
     doc.quoteItems.forEach((cat, ci) => {
       cat.items.forEach((item, ii) => {
+        if (isExcludedSupplyLineItem(item)) return
         const rawKind = item.kind as string | undefined
         const k = rawKind || '필수'
         const kind = KIND_ORDER.includes(k as QuoteItemKind) ? (k as QuoteItemKind) : '필수'
@@ -522,7 +547,7 @@ export function QuoteResult({
                 <Button size="sm" disabled>엑셀 다운로드</Button>
               )
             )}
-            {onSaveDoc && docId ? (
+            {onSaveDoc && docId && showEstimateSaveInToolbar ? (
               <Button
                 size="sm"
                 variant="secondary"
@@ -571,7 +596,7 @@ export function QuoteResult({
       <p className="flex-shrink-0 px-4 py-3 text-[13px] leading-5 text-slate-600">
         {tab === 'estimate' &&
           (excelSheetMode
-            ? '엑셀 견적서와 동일한 열 구성(구분·항목·내역·수량·단가·단위·기간·금액·합계 등)으로 편집할 수 있습니다.'
+            ? '엑셀 견적서와 같은 열 구성(구분·항목·내역·수량·단가·단위·기간·합계 등)으로 편집할 수 있습니다. 제경비·이윤은 하단 요약에만 반영됩니다.'
             : '개당 단가·수량·항목명 등 견적 표에서 바로 수정 가능')}
         {tab === 'program' && '인공지능이 생성한 프로그램 제안을 기반으로 내용/구성을 편집하세요.'}
         {tab === 'timetable' && '생성 시 입력한 시작·종료 시각에 맞춰 배치됩니다. 수정 시 즉시 반영됩니다.'}
@@ -665,6 +690,9 @@ export function QuoteResult({
             const t = calcTotals(doc)
             const writer = companySettings?.contact?.trim() || companySettings?.name?.trim() || '—'
             const preCut = t.sub + t.exp + t.prof + t.vat
+            const showPeriodCol = hasPeriodDataInEstimate || excelPeriodColumnForced
+            const subtotalLabelColSpan = 5 + (showPeriodCol ? 1 : 0)
+            const tableMinW = showPeriodCol ? 'min-w-[1040px]' : 'min-w-[980px]'
             const supplierPairs: [string, string][] = [
               ['사업자번호', companySettings?.biz || '—'],
               ['상호명', companySettings?.name || '—'],
@@ -676,7 +704,7 @@ export function QuoteResult({
               ['전화번호', companySettings?.tel || '—'],
             ]
             return (
-              <div className="max-w-none space-y-4 pb-10">
+              <div lang="ko" className="max-w-none space-y-4 pb-10">
                 <div className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-slate-800 pb-3">
                   <div className="min-w-[120px] flex-1" />
                   <h2 className="text-center text-xl font-bold tracking-[0.25em] text-slate-900">견 적 서</h2>
@@ -699,28 +727,82 @@ export function QuoteResult({
                     <span className="text-slate-600"> 귀하</span>
                   </div>
                   <div className="flex flex-col items-center justify-center rounded border border-slate-200 bg-white px-6 py-3 shadow-sm">
-                    <span className="text-[11px] font-semibold text-slate-500">금액</span>
+                    <span className="text-[11px] font-semibold text-slate-500">총액(VAT포함)</span>
                     <span className="text-xl font-bold tabular-nums text-red-600">{fmtKRW(t.grand)}원</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 rounded border border-slate-300 bg-slate-50 p-3 text-[11px]">
-                    {supplierPairs.map(([lab, val]) => (
-                      <Fragment key={lab}>
-                        <span className="font-semibold text-slate-600">{lab}</span>
-                        <span className="text-slate-800">{val || '—'}</span>
-                      </Fragment>
-                    ))}
+                  <div className="rounded border border-slate-300 bg-slate-50 text-[11px] shadow-sm">
+                    <div className="grid grid-cols-2 gap-x-2 gap-y-1 p-3">
+                      {supplierPairs.map(([lab, val]) => (
+                        <Fragment key={lab}>
+                          <span className="font-semibold text-slate-600">{lab}</span>
+                          <span className="text-slate-800">{val || '—'}</span>
+                        </Fragment>
+                      ))}
+                    </div>
+                    {supplierProfileWeak ? (
+                      <div className="border-t border-amber-200 bg-amber-50/90 px-3 py-2.5 text-[11px] leading-snug text-slate-800">
+                        <p className="font-semibold text-amber-900">공급자 정보가 비어 있거나 부족합니다.</p>
+                        <p className="mt-1 text-slate-700">상호·사업자번호·연락처를 입력하면 견적서·PDF에 올바르게 표시됩니다.</p>
+                        <Link
+                          href="/settings"
+                          className="mt-2 inline-flex items-center font-semibold text-primary-700 underline decoration-primary-400 underline-offset-2 hover:text-primary-800"
+                        >
+                          회사 설정으로 이동
+                        </Link>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 
-                <div className="overflow-x-auto rounded-sm border border-slate-400 shadow-sm">
-                  <table className="w-full min-w-[1180px] border-collapse text-[11px]">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                  <p className="md:hidden" role="note">
+                    표가 넓습니다. 좌우로 스크롤해 전체 열을 확인하세요.
+                  </p>
+                  {!hasPeriodDataInEstimate && !excelPeriodColumnForced ? (
+                    <button
+                      type="button"
+                      onClick={() => setExcelPeriodColumnForced(true)}
+                      className="font-semibold text-primary-700 underline decoration-primary-300 underline-offset-2 hover:text-primary-800"
+                    >
+                      기간 열 표시
+                    </button>
+                  ) : null}
+                </div>
+                <div
+                  className="overflow-x-auto rounded-sm border border-slate-400 shadow-sm"
+                  role="region"
+                  aria-label="견적 품목 표"
+                >
+                  <table className={clsx('w-full border-collapse text-[11px]', tableMinW)}>
                     <thead>
                       <tr className="bg-[#1F3864] text-white">
-                        {['구분', '항목', '내역', '수량', '단가', '단위', '기간', '금액', '부가세', '합계', '비고', ''].map((h) => (
-                          <th key={h || 'x'} className="border border-slate-500 px-1 py-2 font-semibold">
+                        <th
+                          scope="col"
+                          className="sticky left-0 z-[3] w-[76px] border border-slate-500 bg-[#1F3864] px-1 py-2 text-center font-semibold shadow-[3px_0_6px_rgba(0,0,0,0.12)]"
+                        >
+                          구분
+                        </th>
+                        {(['항목', '내역', '수량', '단가', '단위'] as const).map((h) => (
+                          <th key={h} scope="col" className="border border-slate-500 px-1 py-2 font-semibold">
                             {h}
                           </th>
                         ))}
+                        {showPeriodCol ? (
+                          <th scope="col" className="border border-slate-500 px-1 py-2 font-semibold">
+                            기간
+                          </th>
+                        ) : null}
+                        <th scope="col" className="border border-slate-500 px-1 py-2 font-semibold">
+                          부가세
+                        </th>
+                        <th scope="col" className="border border-slate-500 px-1 py-2 font-semibold">
+                          합계
+                          <span className="block text-[9px] font-normal opacity-90">(공급가)</span>
+                        </th>
+                        <th scope="col" className="border border-slate-500 px-1 py-2 font-semibold">
+                          비고
+                        </th>
+                        <th scope="col" className="w-10 border border-slate-500 px-1 py-2 font-semibold" aria-label="행 삭제" />
                       </tr>
                     </thead>
                     <tbody>
@@ -739,7 +821,7 @@ export function QuoteResult({
                                     <td
                                       rowSpan={rs}
                                       className={clsx(
-                                        'w-[76px] border border-slate-300 px-1 py-1 align-middle text-center text-[10px] font-bold leading-tight',
+                                        'sticky left-0 z-[1] w-[76px] border border-slate-300 px-1 py-1 align-middle text-center text-[10px] font-bold leading-tight shadow-[3px_0_6px_rgba(0,0,0,0.06)]',
                                         excelKindSectionClass(kind),
                                       )}
                                     >
@@ -786,17 +868,16 @@ export function QuoteResult({
                                       className="w-12 border-0 bg-transparent px-1 py-0.5 text-center outline-none focus:ring-1 focus:ring-primary-300"
                                     />
                                   </td>
-                                  <td className="border border-slate-300 p-0.5 text-center">
-                                    <input
-                                      value={it.period ?? ''}
-                                      onChange={(e) => updLine(ci, ii, 'period', e.target.value)}
-                                      placeholder="—"
-                                      className="w-14 border-0 bg-transparent px-1 py-0.5 text-center outline-none focus:ring-1 focus:ring-primary-300"
-                                    />
-                                  </td>
-                                  <td className="border border-slate-300 px-1 py-1 text-right font-medium tabular-nums text-slate-800">
-                                    {fmtKRW(lineAmt)}
-                                  </td>
+                                  {showPeriodCol ? (
+                                    <td className="border border-slate-300 p-0.5 text-center">
+                                      <input
+                                        value={it.period ?? ''}
+                                        onChange={(e) => updLine(ci, ii, 'period', e.target.value)}
+                                        placeholder="—"
+                                        className="w-14 border-0 bg-transparent px-1 py-0.5 text-center outline-none focus:ring-1 focus:ring-primary-300"
+                                      />
+                                    </td>
+                                  ) : null}
                                   <td className="border border-slate-300 bg-slate-50/50 text-center text-slate-400">—</td>
                                   <td className="border border-slate-300 px-1 py-1 text-right font-semibold tabular-nums text-slate-900">
                                     {fmtKRW(lineAmt)}
@@ -825,10 +906,9 @@ export function QuoteResult({
                               )
                             })}
                             <tr className="bg-slate-200 font-bold text-slate-900">
-                              <td colSpan={6} className="border border-slate-300 px-2 py-1.5 text-right">
+                              <td colSpan={subtotalLabelColSpan} className="border border-slate-300 px-2 py-1.5 text-right">
                                 {EXCEL_KIND_LABELS[kind]} 소계
                               </td>
-                              <td className="border border-slate-300 px-1 py-1.5 text-right tabular-nums">{fmtKRW(sub)}</td>
                               <td className="border border-slate-300 text-center">—</td>
                               <td className="border border-slate-300 px-1 py-1.5 text-right tabular-nums">{fmtKRW(sub)}</td>
                               <td colSpan={2} className="border border-slate-300" />

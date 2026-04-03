@@ -166,6 +166,11 @@ export async function initDb(): Promise<void> {
   `
   await sql`CREATE INDEX IF NOT EXISTS idx_company_profiles_user_id ON company_profiles (user_id)`
   await sql`CREATE UNIQUE INDEX IF NOT EXISTS uidx_company_profiles_default ON company_profiles (user_id) WHERE is_default = true`
+  try {
+    await sql`ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS logo_url text NOT NULL DEFAULT ''`
+  } catch {
+    /* */
+  }
 
   await sql`
     CREATE TABLE IF NOT EXISTS reference_docs (

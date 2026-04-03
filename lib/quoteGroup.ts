@@ -1,4 +1,5 @@
 import type { QuoteDoc, QuoteItemKind, QuoteLineItem } from '@/lib/types'
+import { isExcludedSupplyLineItem } from '@/lib/quote/supply-line-filter'
 
 export const KIND_ORDER: QuoteItemKind[] = ['인건비', '필수', '선택1', '선택2']
 
@@ -13,6 +14,7 @@ export function groupQuoteItemsByKind(doc: QuoteDoc): Map<QuoteItemKind, QuoteLi
   KIND_ORDER.forEach(k => map.set(k, []))
   doc.quoteItems.forEach(cat => {
     cat.items.forEach(item => {
+      if (isExcludedSupplyLineItem(item)) return
       const kind = normKind(item.kind)
       map.get(kind)!.push(item)
     })
