@@ -208,6 +208,18 @@ export async function executeGeneratePipeline(
   const effective = realtimePolicy.engine
 
   const pricesForPrompt: PriceCategory[] = prices
+  const priceItemCount = prices.reduce((count, category) => count + (Array.isArray(category.items) ? category.items.length : 0), 0)
+
+  // 견적서는 사용자 단가표를 단일 기준으로 강제한다.
+  // 단가표가 비어 있으면 AI 기본 템플릿으로 폴백하지 않고 명확히 실패시켜,
+  // "단가표를 반영했는데도 안 된다"는 혼선을 제거한다.
+  if (documentTarget === 'estimate' && priceItemCount === 0) {
+    throw new GeneratePipelineError(
+      400,
+      'PRICE_TABLE_REQUIRED',
+      '단가표 항목이 비어 있습니다. 단가표에서 항목/단가를 먼저 업로드 또는 입력 후 다시 생성해 주세요.',
+    )
+  }
 
   const filteredTaskOrderRefs =
     generationMode === 'taskOrderBase' && taskOrderBaseId
