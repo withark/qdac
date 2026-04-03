@@ -35,9 +35,12 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;')
 }
 
-/** PDF에 줄 항목이 없으면 선택1·선택2 구역(헤더·소계)은 생략 */
-function includeEstimatePdfSection(kind: QuoteItemKind, itemCount: number): boolean {
-  if (kind === '선택1' || kind === '선택2') return itemCount > 0
+/**
+ * PDF에서 선택1·선택2는 '행이 하나라도 있다'만으로는 부족함(0원·빈 행만 있으면 소계 0인 띠만 남음).
+ * 항목이 있고 구간 소계가 0보다 클 때만 헤더·표·소계를 넣는다.
+ */
+function includeEstimatePdfSection(kind: QuoteItemKind, itemCount: number, sectionSubtotal: number): boolean {
+  if (kind === '선택1' || kind === '선택2') return itemCount > 0 && sectionSubtotal > 0
   return true
 }
 
@@ -587,7 +590,7 @@ function buildHtml(doc: QuoteDoc, company?: CompanySettings | null): string {
   const subByKind = subtotalsByKind(doc)
   const tableCellBorder = tpl.pdf.tableStyle === 'bordered' ? 'border:1px solid #ddd;' : ''
   const rows = KIND_ORDER.filter((kind) =>
-    includeEstimatePdfSection(kind, (byKind.get(kind) || []).length),
+    includeEstimatePdfSection(kind, (byKind.get(kind) || []).length, subByKind.get(kind) ?? 0),
   )
     .map(
       (kind) => `
