@@ -1,6 +1,6 @@
 import type ExcelJS from 'exceljs'
 import type { QuoteDoc, CompanySettings } from '@/lib/types'
-import { getQuoteDateForFilename } from '@/lib/calc'
+import { calcTotals, getQuoteDateForFilename } from '@/lib/calc'
 import { KIND_ORDER, groupQuoteItemsByKind } from '@/lib/quoteGroup'
 
 export type ExcelExportView =
@@ -17,7 +17,10 @@ const DEFAULT_FONT = 'Malgun Gothic'
 const TABLE_HEADER_BG = '1F3864'
 const SECTION_BG = 'D6E4F7'
 const SUBTOTAL_BG = 'D6E4F7'
-const TOTAL_BG = '1F3864'
+/** 참조 견적서: 소계(VAT포함) */
+const SUMMARY_YELLOW_BG = 'FFF2CC'
+/** 참조 견적서: 총액(VAT포함) */
+const SUMMARY_ORANGE_BG = 'FCE4D6'
 
 type BorderStyle = 'thin' | 'medium' | 'thick'
 
@@ -254,13 +257,14 @@ async function buildQuoteSheet(
   }
 
   const OUTSOURCE_PATTERN = /(외주|추가금|합계\s*별도|별도\s*정산|A\/B|A,B)/i
-  const TAX_EXEMPT_PATTERN = /(면세|부가세\s*면제|vat\s*면제)/i
   const kindLabelMap: Record<string, string> = {
-    인건비: '인건비',
+    인건비: '필수인력',
     필수: '필수항목',
     선택1: '선택항목1',
     선택2: '선택항목2',
   }
+  const expenseRate = doc.expenseRate ?? 8
+  const profitRate = doc.profitRate ?? 7
 
   const sumRefs = (refs: string[]) => (refs.length > 0 ? `SUM(${refs.join(',')})` : '0')
 
@@ -372,18 +376,24 @@ async function buildQuoteSheet(
   applyOuterBorder(ws, partyBlockStart, 1, r + 1, 5, 'medium')
   applyOuterBorder(ws, partyBlockStart, 6, r + 1, 11, 'medium')
 
-  r += 3
+  r += 1
+  const topAmountRow = r
+  setCell(ws, r, 1, '금액', { bold: true, align: 'right' })
+  merge(ws, r, 1, r, 4)
+  merge(ws, r, 5, r, 11)
+  setCell(ws, r, 5, calcTotals(doc).grand, { align: 'center', bold: true, size: 14, color: 'C00000' })
+  ws.getRow(r).height = 28
+  r += 2
+
   const tableHeaderRow = r
-  ;['구분', '항목명', '상세 내역', '수량', '단위', '단가', '기간', '금액', '부가세', '합계', '비고'].forEach(
-    (label, idx) => {
-      setCell(ws, r, idx + 1, label, {
-        bold: true,
-        align: 'center',
-        bg: TABLE_HEADER_BG,
-        color: 'FFFFFF',
-      })
-    },
-  )
+  ;['구분', '항목', '내역', '수량', '단가', '단위', '기간', '금액', '부가세', '합계', '비고'].forEach((label, idx) => {
+    setCell(ws, r, idx + 1, label, {
+      bold: true,
+      align: 'center',
+      bg: TABLE_HEADER_BG,
+      color: 'FFFFFF',
+    })
+  })
   ws.getRow(r).height = 24
   r += 1
 
@@ -402,9 +412,8 @@ async function buildQuoteSheet(
         hasItems = true
         const sourceText = `${item.name || ''} ${item.spec || ''} ${item.note || ''}`
         const isSeparate = OUTSOURCE_PATTERN.test(sourceText)
-        const isTaxExempt = TAX_EXEMPT_PATTERN.test(sourceText)
         const qty = Math.max(0, Math.round(toNumber(item.qty || 1)))
-        const period = Math.max(0, Math.round(toNumber(item.total && item.qty && item.unitPrice ? item.total / ((item.qty || 1) * (item.unitPrice || 1)) : 1) || 1))
+        const periodStr = (item.period || '').trim()
         const bg = isSeparate ? 'F5F5F5' : idx % 2 === 1 ? 'F5F9FF' : undefined
         const note = isSeparate ? `${item.note ? `${item.note} / ` : ''}※ 합계 별도` : item.note || ''
 
@@ -413,15 +422,19 @@ async function buildQuoteSheet(
         setCell(ws, r, 3, item.spec || '', { bg, ...(isSeparate ? { color: '888888' } : {}) })
         ws.getCell(r, 3).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true }
         setCell(ws, r, 4, qty, { align: 'center', numFmt: '#,##0', bg })
-        setCell(ws, r, 5, item.unit || '식', { align: 'center', bg })
-        setCell(ws, r, 6, toNumber(item.unitPrice || 0), { align: 'right', numFmt: '#,##0', bg })
-        setCell(ws, r, 7, period, { align: 'center', numFmt: '#,##0', bg })
+        setCell(ws, r, 5, toNumber(item.unitPrice || 0), {
+          align: 'right',
+          numFmt: '#,##0',
+          bg,
+          ...(isSeparate ? { color: '888888' } : { color: '0070C0' }),
+        })
+        setCell(ws, r, 6, item.unit || '식', { align: 'center', bg })
+        setCell(ws, r, 7, periodStr, { align: 'center', bg, ...(isSeparate ? { color: '888888' } : {}) })
         setCell(ws, r, 8, 0, { align: 'right', numFmt: '#,##0', bg, ...(isSeparate ? { color: '888888' } : {}) })
-        ws.getCell(r, 8).value = { formula: `D${r}*F${r}*G${r}` }
-        setCell(ws, r, 9, 0, { align: 'right', numFmt: '#,##0', bg, ...(isSeparate ? { color: '888888' } : {}) })
-        ws.getCell(r, 9).value = { formula: isTaxExempt ? '0' : `H${r}*0.1` }
+        ws.getCell(r, 8).value = { formula: `D${r}*E${r}` }
+        setCell(ws, r, 9, '', { align: 'right', bg, ...(isSeparate ? { color: '888888' } : {}) })
         setCell(ws, r, 10, 0, { align: 'right', numFmt: '#,##0', bg, ...(isSeparate ? { color: '888888' } : {}) })
-        ws.getCell(r, 10).value = { formula: `H${r}+I${r}` }
+        ws.getCell(r, 10).value = { formula: `H${r}` }
         setCell(ws, r, 11, note, { bg, ...(isSeparate ? { color: '888888' } : {}) })
 
         if (isSeparate) {
@@ -481,44 +494,51 @@ async function buildQuoteSheet(
   const cutRow = r + 5
   const finalRow = r + 6
 
-  const totalRows: Array<[number, string]> = [
-    [partialRow, '부분합계 (외주 제외)'],
-    [mgmtRow, '일반관리비 (7%)'],
-    [profitRow, '기업이윤 (7%)'],
-    [vatRow, '부가세 (10%)'],
-    [subtotalVatRow, '소계 (VAT 포함)'],
-    [cutRow, '만원 단위 절사'],
-    [finalRow, '최종 합계'],
+  const totalRows: Array<[number, string, string | undefined]> = [
+    [partialRow, '공급가액', undefined],
+    [mgmtRow, `제경비 (${expenseRate}%)`, undefined],
+    [profitRow, `기업이윤 (${profitRate}%)`, undefined],
+    [vatRow, '부가세 (10%)', undefined],
+    [subtotalVatRow, '소계(VAT포함)', SUMMARY_YELLOW_BG],
+    [cutRow, '만원 단위 절사', undefined],
+    [finalRow, '총액(VAT포함)', SUMMARY_ORANGE_BG],
   ]
 
-  totalRows.forEach(([rowNo, label], index) => {
+  totalRows.forEach(([rowNo, label, rowBg], index) => {
     const isFinal = rowNo === finalRow
-    const bg = isFinal ? TOTAL_BG : index % 2 === 0 ? 'F5F9FF' : undefined
+    const isSubtotalVat = rowNo === subtotalVatRow
+    const bg =
+      rowBg ||
+      (isFinal ? SUMMARY_ORANGE_BG : index % 2 === 0 ? 'F5F9FF' : undefined)
     setCell(ws, rowNo, 8, label, {
       align: 'right',
-      bold: isFinal,
+      bold: isFinal || isSubtotalVat,
       bg,
-      color: isFinal ? 'FFFFFF' : undefined,
-      size: isFinal ? 14 : 10,
+      color: isFinal ? '000000' : undefined,
+      size: isFinal ? 12 : 10,
     })
     merge(ws, rowNo, 8, rowNo, 10)
     setCell(ws, rowNo, 11, 0, {
       align: 'right',
       numFmt: '#,##0',
-      bold: isFinal,
+      bold: isFinal || isSubtotalVat,
       bg,
-      color: isFinal ? 'C9522A' : undefined,
-      size: isFinal ? 14 : 10,
+      color: isFinal ? 'C00000' : undefined,
+      size: isFinal ? 12 : 10,
     })
   })
 
   ws.getCell(partialRow, 11).value = { formula: sumRefs(subtotalRefs) }
-  ws.getCell(mgmtRow, 11).value = { formula: `K${partialRow}*0.07` }
-  ws.getCell(profitRow, 11).value = { formula: `K${partialRow}*0.07` }
-  ws.getCell(vatRow, 11).value = { formula: `(K${partialRow}+K${mgmtRow}+K${profitRow})*0.1` }
+  ws.getCell(mgmtRow, 11).value = { formula: `ROUND(K${partialRow}*${expenseRate}/100,0)` }
+  ws.getCell(profitRow, 11).value = { formula: `ROUND((K${partialRow}+K${mgmtRow})*${profitRate}/100,0)` }
+  ws.getCell(vatRow, 11).value = { formula: `ROUND((K${partialRow}+K${mgmtRow}+K${profitRow})*0.1,0)` }
   ws.getCell(subtotalVatRow, 11).value = { formula: `K${partialRow}+K${mgmtRow}+K${profitRow}+K${vatRow}` }
   ws.getCell(cutRow, 11).value = { formula: `MOD(K${subtotalVatRow},10000)` }
   ws.getCell(finalRow, 11).value = { formula: `K${subtotalVatRow}-K${cutRow}` }
+
+  ws.getCell(topAmountRow, 5).value = { formula: `K${finalRow}` }
+  ws.getCell(topAmountRow, 5).font = { name: DEFAULT_FONT, bold: true, size: 14, color: { argb: 'FFC00000' } }
+  ws.getCell(topAmountRow, 5).numFmt = '#,##0'
 
   applyBorderRange(ws, totalBlockStart, 8, finalRow, 11, 'thin')
   applyOuterBorder(ws, totalBlockStart, 8, finalRow, 11, 'medium')

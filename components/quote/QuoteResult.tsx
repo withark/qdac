@@ -7,8 +7,22 @@ import { calcTotals, fmtKRW } from '@/lib/calc'
 import { Button } from '@/components/ui'
 import clsx from 'clsx'
 import type { PlanType } from '@/lib/plans'
+import type { QuoteTemplateId } from '@/lib/quoteTemplates'
 import type { ExcelExportView } from '@/lib/exportExcel'
 import { exportPlanningToWord } from '@/lib/exportWord'
+
+const EXCEL_KIND_LABELS: Record<QuoteItemKind, string> = {
+  인건비: '필수인력',
+  필수: '필수항목',
+  선택1: '선택항목1',
+  선택2: '선택항목2',
+}
+
+function excelKindSectionClass(kind: QuoteItemKind): string {
+  if (kind === '인건비') return 'bg-sky-100/90 text-slate-900'
+  if (kind === '필수') return 'bg-slate-200/80 text-slate-900'
+  return 'bg-amber-50/95 text-slate-900'
+}
 
 type DocTab = 'estimate' | 'program' | 'timetable' | 'planning' | 'scenario' | 'emceeScript'
 
@@ -212,6 +226,7 @@ export function QuoteResult({
   const budgetConstraint = doc.budgetConstraint
   const d = ensureProgramShape(doc)
   const supplierSignName = companySettings?.name?.trim() || '—'
+  const excelSheetMode = visibleTabs.length === 1 && visibleTabs[0] === 'estimate'
   const requestedTabsRef = useRef<Set<DocTab>>(new Set())
 
   const programReady = isProgramProposalReady(doc)
@@ -349,6 +364,7 @@ export function QuoteResult({
       unitPrice: 0,
       total: 0,
       note: '',
+      period: '',
       kind: '필수',
     })
     onChange(d2)
@@ -370,7 +386,7 @@ export function QuoteResult({
 
   function addItemToKind(kind: QuoteItemKind) {
     const d2 = ensureProgramShape(structuredClone(doc))
-    const newItem = { name: '새 항목', spec: '', qty: 1, unit: '식', unitPrice: 0, total: 0, note: '', kind }
+    const newItem = { name: '새 항목', spec: '', qty: 1, unit: '식', unitPrice: 0, total: 0, note: '', period: '', kind }
     const norm = (k: string | undefined) => (k === '선택' ? '선택1' : k) || '필수'
     const catIdx = d2.quoteItems.findIndex(c => c.items.some(it => norm(it.kind) === kind))
     if (catIdx >= 0) d2.quoteItems[catIdx].items.push(newItem)
@@ -388,6 +404,7 @@ export function QuoteResult({
       unitPrice: item.price,
       total: item.price,
       note: item.note || '',
+      period: '',
       kind,
     }
     const norm = (k: string | undefined) => (k === '선택' ? '선택1' : k) || '필수'
@@ -460,12 +477,18 @@ export function QuoteResult({
             </div>
           )}
           <div className="flex flex-wrap items-center gap-2">
-            {tab === 'estimate' && (
+            {tab === 'estimate' && !excelSheetMode && (
               <span className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5">
                 <span className="text-xs font-semibold text-slate-600">템플릿</span>
                 <span className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700">
                   고정 양식
                 </span>
+              </span>
+            )}
+            {tab === 'estimate' && excelSheetMode && (
+              <span className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5">
+                <span className="text-xs font-semibold text-slate-600">양식</span>
+                <span className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700">엑셀형 견적서</span>
               </span>
             )}
             {onLoadPrevious && (
@@ -546,7 +569,10 @@ export function QuoteResult({
         </div>
       </div>
       <p className="flex-shrink-0 px-4 py-3 text-[13px] leading-5 text-slate-600">
-        {tab === 'estimate' && '개당 단가·수량·항목명 등 견적 표에서 바로 수정 가능'}
+        {tab === 'estimate' &&
+          (excelSheetMode
+            ? '엑셀 견적서와 동일한 열 구성(구분·항목·내역·수량·단가·단위·기간·금액·합계 등)으로 편집할 수 있습니다.'
+            : '개당 단가·수량·항목명 등 견적 표에서 바로 수정 가능')}
         {tab === 'program' && '인공지능이 생성한 프로그램 제안을 기반으로 내용/구성을 편집하세요.'}
         {tab === 'timetable' && '생성 시 입력한 시작·종료 시각에 맞춰 배치됩니다. 수정 시 즉시 반영됩니다.'}
         {tab === 'planning' && '기획/운영/산출물 계획을 섹션별로 편집할 수 있습니다.'}
@@ -632,178 +658,255 @@ export function QuoteResult({
 
       <div className={clsx('p-4 pb-20', !disableInternalScroll && 'flex-1 overflow-y-auto')}>
         {tab === 'estimate' && (() => {
-          const isSheetEstimateMode = visibleTabs.length === 1 && visibleTabs[0] === 'estimate'
-          if (isSheetEstimateMode) {
+          const groupedByKind = groupByKind()
+          const kindSubtotals = subtotalsByKind(doc)
+
+          if (excelSheetMode) {
+            const t = calcTotals(doc)
+            const writer = companySettings?.contact?.trim() || companySettings?.name?.trim() || '—'
+            const preCut = t.sub + t.exp + t.prof + t.vat
+            const supplierPairs: [string, string][] = [
+              ['사업자번호', companySettings?.biz || '—'],
+              ['상호명', companySettings?.name || '—'],
+              ['대표자', companySettings?.ceo || '—'],
+              ['소재지', companySettings?.addr || '—'],
+              ['업태', '서비스업'],
+              ['종목', '행사 기획 / 운영'],
+              ['담당자', companySettings?.contact || '—'],
+              ['전화번호', companySettings?.tel || '—'],
+            ]
             return (
-              <div className="max-w-none space-y-4">
-                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-                  <table className="w-full min-w-[1100px] text-xs border-collapse">
+              <div className="max-w-none space-y-4 pb-10">
+                <div className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-slate-800 pb-3">
+                  <div className="min-w-[120px] flex-1" />
+                  <h2 className="text-center text-xl font-bold tracking-[0.25em] text-slate-900">견 적 서</h2>
+                  <div className="min-w-[160px] flex-1 text-right text-[11px] leading-relaxed text-slate-600">
+                    <div>
+                      <span className="font-semibold text-slate-700">작성자</span> {writer}
+                    </div>
+                    <div>
+                      <span className="font-semibold text-slate-700">작성일자</span> {doc.quoteDate || '—'}
+                    </div>
+                    <div>
+                      <span className="font-semibold text-slate-700">행사일자</span> {doc.eventDate || '—'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-[1fr_auto_1fr] lg:items-center">
+                  <div className="rounded border border-slate-300 bg-white px-3 py-2.5 text-xs shadow-sm">
+                    <span className="font-semibold text-slate-900">{doc.clientName || '수신처 미입력'}</span>
+                    <span className="text-slate-600"> 귀하</span>
+                  </div>
+                  <div className="flex flex-col items-center justify-center rounded border border-slate-200 bg-white px-6 py-3 shadow-sm">
+                    <span className="text-[11px] font-semibold text-slate-500">금액</span>
+                    <span className="text-xl font-bold tabular-nums text-red-600">{fmtKRW(t.grand)}원</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 rounded border border-slate-300 bg-slate-50 p-3 text-[11px]">
+                    {supplierPairs.map(([lab, val]) => (
+                      <Fragment key={lab}>
+                        <span className="font-semibold text-slate-600">{lab}</span>
+                        <span className="text-slate-800">{val || '—'}</span>
+                      </Fragment>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto rounded-sm border border-slate-400 shadow-sm">
+                  <table className="w-full min-w-[1180px] border-collapse text-[11px]">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-slate-200">
-                        <th className="px-2 py-2 text-left font-semibold text-slate-500 w-[14%]">카테고리</th>
-                        <th className="px-2 py-2 text-left font-semibold text-slate-500 w-[20%]">항목명</th>
-                        <th className="px-2 py-2 text-left font-semibold text-slate-500 w-[18%]">규격/내용</th>
-                        <th className="px-2 py-2 text-right font-semibold text-slate-500 w-[7%]">수량</th>
-                        <th className="px-2 py-2 text-center font-semibold text-slate-500 w-[6%]">단위</th>
-                        <th className="px-2 py-2 text-right font-semibold text-slate-500 w-[12%]">단가</th>
-                        <th className="px-2 py-2 text-right font-semibold text-slate-500 w-[12%]">합계</th>
-                        <th className="px-2 py-2 text-left font-semibold text-slate-500 w-[10%]">비고</th>
-                        <th className="px-2 py-2 w-8" />
+                      <tr className="bg-[#1F3864] text-white">
+                        {['구분', '항목', '내역', '수량', '단가', '단위', '기간', '금액', '부가세', '합계', '비고', ''].map((h) => (
+                          <th key={h || 'x'} className="border border-slate-500 px-1 py-2 font-semibold">
+                            {h}
+                          </th>
+                        ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {doc.quoteItems.map((cat, ci) => (
-                        <Fragment key={`cat-${ci}`}>
-                          <tr className="border-y border-slate-200 bg-slate-50">
-                            <td colSpan={9} className="px-2 py-1.5">
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[10px] font-semibold text-slate-500">구분</span>
-                                  <input
-                                    value={cat.category || ''}
-                                    onChange={(e) => updCategory(ci, e.target.value)}
-                                    className="h-7 min-w-[180px] rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 outline-none"
-                                  />
-                                  <span className="text-[10px] text-slate-500">{cat.items.length}개 항목</span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => addItemToCategory(ci)}
-                                  className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
-                                >
-                                  + 행 추가
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                          {cat.items.map((it, ii) => {
-                            const rowTotal = Math.max(0, Math.round((it.qty || 0) * (it.unitPrice || 0)))
-                            return (
-                              <tr key={`row-${ci}-${ii}`} className="border-b border-slate-100 hover:bg-slate-50/60 group">
-                                <td className="px-2 py-1.5 text-slate-600">{cat.category || '기타'}</td>
-                                <td className="px-2 py-1.5">
-                                  <input
-                                    value={it.name}
-                                    onChange={(e) => updLine(ci, ii, 'name', e.target.value)}
-                                    className="w-full rounded border border-slate-200 bg-white px-1.5 py-1 outline-none"
-                                  />
-                                </td>
-                                <td className="px-2 py-1.5">
-                                  <input
-                                    value={it.spec || ''}
-                                    onChange={(e) => updLine(ci, ii, 'spec', e.target.value)}
-                                    className="w-full rounded border border-slate-200 bg-white px-1.5 py-1 outline-none"
-                                  />
-                                </td>
-                                <td className="px-2 py-1.5 text-right">
-                                  <input
-                                    type="number"
-                                    min={1}
-                                    value={it.qty ?? 1}
-                                    onChange={(e) => updLine(ci, ii, 'qty', Math.max(1, +(e.target.value || 1)))}
-                                    className="w-16 rounded border border-slate-200 bg-white px-1.5 py-1 text-right tabular-nums outline-none"
-                                  />
-                                </td>
-                                <td className="px-2 py-1.5 text-center">
-                                  <input
-                                    value={it.unit || '식'}
-                                    onChange={(e) => updLine(ci, ii, 'unit', e.target.value)}
-                                    className="w-14 rounded border border-slate-200 bg-white px-1.5 py-1 text-center outline-none"
-                                  />
-                                </td>
-                                <td className="px-2 py-1.5 text-right">
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    step={100}
-                                    value={it.unitPrice ?? 0}
-                                    onChange={(e) => updLine(ci, ii, 'unitPrice', Math.max(0, +(e.target.value || 0)))}
-                                    className="w-24 rounded border border-slate-200 bg-white px-1.5 py-1 text-right tabular-nums outline-none"
-                                  />
-                                </td>
-                                <td className="px-2 py-1.5 text-right font-semibold tabular-nums text-slate-800">{fmtKRW(rowTotal)}</td>
-                                <td className="px-2 py-1.5">
-                                  <input
-                                    value={it.note || ''}
-                                    onChange={(e) => updLine(ci, ii, 'note', e.target.value)}
-                                    className="w-full rounded border border-slate-200 bg-white px-1.5 py-1 outline-none"
-                                  />
-                                </td>
-                                <td className="px-1 py-1.5 text-right">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const d2 = ensureProgramShape(structuredClone(doc))
-                                      d2.quoteItems[ci].items.splice(ii, 1)
-                                      onChange(d2)
-                                    }}
-                                    className="opacity-0 group-hover:opacity-100 text-[11px] text-red-500 hover:text-red-600"
-                                  >
-                                    삭제
-                                  </button>
-                                </td>
-                              </tr>
-                            )
-                          })}
-                        </Fragment>
-                      ))}
+                      {KIND_ORDER.map((kind) => {
+                        const rows = groupedByKind.get(kind)!
+                        if (rows.length === 0) return null
+                        const sub = rows.reduce((acc, { item: it }) => acc + Math.round((it.qty || 1) * (it.unitPrice || 0)), 0)
+                        const rs = rows.length + 1
+                        return (
+                          <Fragment key={kind}>
+                            {rows.map(({ ci, ii, item: it }, idx) => {
+                              const lineAmt = Math.round((it.qty || 1) * (it.unitPrice || 0))
+                              return (
+                                <tr key={`${kind}-${ci}-${ii}`} className="border-b border-slate-200 bg-white hover:bg-slate-50/90">
+                                  {idx === 0 ? (
+                                    <td
+                                      rowSpan={rs}
+                                      className={clsx(
+                                        'w-[76px] border border-slate-300 px-1 py-1 align-middle text-center text-[10px] font-bold leading-tight',
+                                        excelKindSectionClass(kind),
+                                      )}
+                                    >
+                                      {EXCEL_KIND_LABELS[kind]}
+                                    </td>
+                                  ) : null}
+                                  <td className="border border-slate-300 p-0.5">
+                                    <input
+                                      value={it.name}
+                                      onChange={(e) => updLine(ci, ii, 'name', e.target.value)}
+                                      className="w-full min-w-[100px] border-0 bg-transparent px-1 py-0.5 outline-none focus:ring-1 focus:ring-primary-300"
+                                    />
+                                  </td>
+                                  <td className="border border-slate-300 p-0.5">
+                                    <input
+                                      value={it.spec || ''}
+                                      onChange={(e) => updLine(ci, ii, 'spec', e.target.value)}
+                                      className="w-full min-w-[120px] border-0 bg-transparent px-1 py-0.5 outline-none focus:ring-1 focus:ring-primary-300"
+                                    />
+                                  </td>
+                                  <td className="border border-slate-300 p-0.5 text-right">
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      value={it.qty ?? 1}
+                                      onChange={(e) => updLine(ci, ii, 'qty', Math.max(1, +(e.target.value || 1)))}
+                                      className="w-14 border-0 bg-transparent px-1 py-0.5 text-right tabular-nums outline-none focus:ring-1 focus:ring-primary-300"
+                                    />
+                                  </td>
+                                  <td className="border border-slate-300 p-0.5 text-right">
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      step={100}
+                                      value={it.unitPrice ?? 0}
+                                      onChange={(e) => updLine(ci, ii, 'unitPrice', Math.max(0, +(e.target.value || 0)))}
+                                      className="w-[88px] border-0 bg-transparent px-1 py-0.5 text-right text-blue-700 tabular-nums outline-none focus:ring-1 focus:ring-primary-300"
+                                    />
+                                  </td>
+                                  <td className="border border-slate-300 p-0.5 text-center">
+                                    <input
+                                      value={it.unit || '식'}
+                                      onChange={(e) => updLine(ci, ii, 'unit', e.target.value)}
+                                      className="w-12 border-0 bg-transparent px-1 py-0.5 text-center outline-none focus:ring-1 focus:ring-primary-300"
+                                    />
+                                  </td>
+                                  <td className="border border-slate-300 p-0.5 text-center">
+                                    <input
+                                      value={it.period ?? ''}
+                                      onChange={(e) => updLine(ci, ii, 'period', e.target.value)}
+                                      placeholder="—"
+                                      className="w-14 border-0 bg-transparent px-1 py-0.5 text-center outline-none focus:ring-1 focus:ring-primary-300"
+                                    />
+                                  </td>
+                                  <td className="border border-slate-300 px-1 py-1 text-right font-medium tabular-nums text-slate-800">
+                                    {fmtKRW(lineAmt)}
+                                  </td>
+                                  <td className="border border-slate-300 bg-slate-50/50 text-center text-slate-400">—</td>
+                                  <td className="border border-slate-300 px-1 py-1 text-right font-semibold tabular-nums text-slate-900">
+                                    {fmtKRW(lineAmt)}
+                                  </td>
+                                  <td className="border border-slate-300 p-0.5">
+                                    <input
+                                      value={it.note || ''}
+                                      onChange={(e) => updLine(ci, ii, 'note', e.target.value)}
+                                      className="w-full min-w-[72px] border-0 bg-transparent px-1 py-0.5 outline-none focus:ring-1 focus:ring-primary-300"
+                                    />
+                                  </td>
+                                  <td className="border border-slate-300 p-0.5 text-center">
+                                    <button
+                                      type="button"
+                                      className="text-[10px] text-red-600 hover:underline"
+                                      onClick={() => {
+                                        const d2 = ensureProgramShape(structuredClone(doc))
+                                        d2.quoteItems[ci].items.splice(ii, 1)
+                                        onChange(d2)
+                                      }}
+                                    >
+                                      삭제
+                                    </button>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                            <tr className="bg-slate-200 font-bold text-slate-900">
+                              <td colSpan={6} className="border border-slate-300 px-2 py-1.5 text-right">
+                                {EXCEL_KIND_LABELS[kind]} 소계
+                              </td>
+                              <td className="border border-slate-300 px-1 py-1.5 text-right tabular-nums">{fmtKRW(sub)}</td>
+                              <td className="border border-slate-300 text-center">—</td>
+                              <td className="border border-slate-300 px-1 py-1.5 text-right tabular-nums">{fmtKRW(sub)}</td>
+                              <td colSpan={2} className="border border-slate-300" />
+                            </tr>
+                          </Fragment>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const d2 = ensureProgramShape(structuredClone(doc))
-                      d2.quoteItems.push({
-                        category: '새 구분',
-                        items: [
-                          {
-                            name: '새 항목',
-                            spec: '',
-                            qty: 1,
-                            unit: '식',
-                            unitPrice: 0,
-                            total: 0,
-                            note: '',
-                            kind: '필수',
-                          },
-                        ],
-                      })
-                      onChange(d2)
-                    }}
-                    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                  >
-                    + 카테고리(구분) 추가
-                  </button>
+                  {KIND_ORDER.map((kind) => (
+                    <button
+                      key={kind}
+                      type="button"
+                      onClick={() => addItemToKind(kind)}
+                      className="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      + {EXCEL_KIND_LABELS[kind]} 행
+                    </button>
+                  ))}
                 </div>
 
+                <div className="ml-auto w-full max-w-md overflow-hidden rounded border border-slate-400 text-xs shadow-sm">
+                  <div className="grid grid-cols-[1fr_auto] border-b border-slate-300 bg-slate-50 px-3 py-1.5">
+                    <span>공급가액</span>
+                    <span className="tabular-nums font-medium">{fmtKRW(t.sub)}원</span>
+                  </div>
+                  <div className="grid grid-cols-[1fr_auto] border-b border-slate-200 px-3 py-1.5">
+                    <span>제경비 ({doc.expenseRate ?? 0}%)</span>
+                    <span className="tabular-nums">{fmtKRW(t.exp)}원</span>
+                  </div>
+                  <div className="grid grid-cols-[1fr_auto] border-b border-slate-200 bg-slate-50/80 px-3 py-1.5">
+                    <span>기업이윤 ({doc.profitRate ?? 0}%)</span>
+                    <span className="tabular-nums">{fmtKRW(t.prof)}원</span>
+                  </div>
+                  <div className="grid grid-cols-[1fr_auto] border-b border-slate-200 px-3 py-1.5">
+                    <span>부가세 (10%)</span>
+                    <span className="tabular-nums">{fmtKRW(t.vat)}원</span>
+                  </div>
+                  <div className="grid grid-cols-[1fr_auto] border-b border-slate-300 bg-[#FFF2CC] px-3 py-2 font-semibold">
+                    <span>소계(VAT포함)</span>
+                    <span className="tabular-nums">{fmtKRW(preCut)}원</span>
+                  </div>
+                  <div className="grid grid-cols-[1fr_auto] border-b border-slate-200 px-3 py-1.5 text-slate-600">
+                    <span>만원 단위 절사</span>
+                    <span className="tabular-nums">-{fmtKRW(t.cut)}원</span>
+                  </div>
+                  <div className="grid grid-cols-[1fr_auto] bg-[#FCE4D6] px-3 py-2 text-sm font-bold text-red-700">
+                    <span>총액(VAT포함)</span>
+                    <span className="tabular-nums">{fmtKRW(t.grand)}원</span>
+                  </div>
+                </div>
+
+                {doc.venue ? (
+                  <div className="rounded border border-amber-200 bg-amber-50/60 px-3 py-2 text-xs text-slate-800">
+                    <span className="font-semibold">장소</span> {doc.venue}
+                  </div>
+                ) : null}
+
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                  <div className="rounded-xl border border-slate-200 bg-white p-3">
-                    <p className="mb-2 text-[11px] font-semibold text-slate-500">계약 조건 / 특이사항</p>
+                  <div className="rounded-lg border border-slate-200 bg-white p-3">
+                    <p className="mb-1 text-[10px] font-semibold text-slate-500">계약 조건 / 특이사항</p>
                     <textarea
                       value={doc.notes || ''}
-                      onChange={(e) => {
-                        const d2 = ensureProgramShape(structuredClone(doc))
-                        d2.notes = e.target.value
-                        onChange(d2)
-                      }}
-                      rows={5}
-                      className="w-full resize-none rounded border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none"
+                      onChange={(e) => patchDoc((base) => ({ ...base, notes: e.target.value }))}
+                      rows={4}
+                      className="w-full resize-none rounded border border-slate-200 px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary-200"
                     />
                   </div>
-                  <div className="rounded-xl border border-slate-200 bg-white p-3">
-                    <p className="mb-2 text-[11px] font-semibold text-slate-500">결제 조건</p>
+                  <div className="rounded-lg border border-slate-200 bg-white p-3">
+                    <p className="mb-1 text-[10px] font-semibold text-slate-500">결제 조건</p>
                     <textarea
                       value={doc.paymentTerms || ''}
-                      onChange={(e) => {
-                        const d2 = ensureProgramShape(structuredClone(doc))
-                        d2.paymentTerms = e.target.value
-                        onChange(d2)
-                      }}
-                      rows={5}
-                      className="w-full resize-none rounded border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 outline-none"
+                      onChange={(e) => patchDoc((base) => ({ ...base, paymentTerms: e.target.value }))}
+                      rows={4}
+                      className="w-full resize-none rounded border border-slate-200 px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary-200"
                     />
                   </div>
                 </div>
@@ -811,9 +914,7 @@ export function QuoteResult({
             )
           }
 
-          const templateId: string = 'default'
-          const groupedByKind = groupByKind()
-          const kindSubtotals = subtotalsByKind(doc)
+          const templateId = (doc.quoteTemplate || 'default') as QuoteTemplateId
           return (
             <div className="quote-wrapper max-w-3xl mx-auto space-y-5 pb-8" data-quote-template={templateId}>
               {templateId === 'classic' && (

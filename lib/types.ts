@@ -28,6 +28,8 @@ export interface QuoteLineItem {
   unitPrice: number
   total: number
   note: string
+  /** 기간(엑셀 견적서 ‘기간’ 열, 비어 있으면 금액은 수량×단가만 사용) */
+  period?: string
   /** 인건비·필수·선택 구분 (PDF/Excel 출력용) */
   kind?: QuoteItemKind
 }
