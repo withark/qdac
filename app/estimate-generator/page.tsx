@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { GNB } from '@/components/GNB'
@@ -15,7 +16,7 @@ import { exportToExcel } from '@/lib/exportExcel'
 import { exportToPdf } from '@/lib/exportPdf'
 import { isPaidPlan, type PlanType } from '@/lib/plans'
 import { isExcludedSupplyLineItem } from '@/lib/quote/supply-line-filter'
-import { normalizeQuoteUnitPricesToThousand } from '@/lib/calc'
+import { calcTotals, normalizeQuoteUnitPricesToThousand } from '@/lib/calc'
 
 type MeLite = {
   user?: { id?: string | null; email?: string | null } | null
@@ -82,6 +83,8 @@ function EstimateGeneratorContent() {
 
   const [historyList, setHistoryList] = useState<HistoryRecord[]>([])
   const [selectedEstimateId, setSelectedEstimateId] = useState<string | null>(null)
+  /** 우측 패널「저장된 견적 불러오기」전용 선택값 */
+  const [loadPickerId, setLoadPickerId] = useState<string>('')
 
   const [taskOrderRefs, setTaskOrderRefs] = useState<TaskOrderDoc[]>([])
   const [selectedTaskOrderId, setSelectedTaskOrderId] = useState<string | null>(null)
@@ -156,7 +159,14 @@ function EstimateGeneratorContent() {
 
   useEffect(() => {
     apiFetch<HistoryRecord[]>('/api/history')
-      .then((list) => setHistoryList([...list].reverse().slice(0, 20)))
+      .then((list) => {
+        const ordered = [...list].reverse().slice(0, 20)
+        setHistoryList(ordered)
+        setLoadPickerId((prev) => {
+          if (prev && ordered.some((r) => r.id === prev)) return prev
+          return ordered[0]?.id ?? ''
+        })
+      })
       .catch(() => setHistoryList([]))
     apiFetch<TaskOrderDoc[]>('/api/task-order-references').then(setTaskOrderRefs).catch(() => setTaskOrderRefs([]))
   }, [])
@@ -388,6 +398,24 @@ function EstimateGeneratorContent() {
     [generatedDocId, showToast],
   )
 
+  const handleLoadSavedEstimate = useCallback(() => {
+    const id = loadPickerId.trim()
+    if (!id) {
+      showToast('불러올 견적을 목록에서 선택해 주세요.')
+      return
+    }
+    const rec = historyList.find((r) => r.id === id)
+    if (!rec?.doc) {
+      showToast('문서를 불러올 수 없습니다. 작업 이력을 확인해 주세요.')
+      return
+    }
+    const next = structuredClone(rec.doc) as QuoteDoc
+    normalizeQuoteUnitPricesToThousand(next)
+    setDoc(next)
+    setGeneratedDocId(rec.id)
+    showToast('저장된 견적을 불러왔습니다. 수신처·항목만 수정한 뒤 저장하거나 보내세요.')
+  }, [historyList, loadPickerId, showToast])
+
   const generateDisabled = useMemo(() => {
     if (priceItemCount === 0) return true
     if (sourceMode === 'fromEstimate') return !selectedEstimateId || !selectedHistoryDoc
@@ -437,32 +465,6 @@ function EstimateGeneratorContent() {
   const topicInvalidHighlight =
     sourceMode === 'fromTopic' && generateDisabled && !topic.trim()
 
-  const selectedModeMeta = useMemo(() => modes.find((m) => m.id === sourceMode) ?? null, [modes, sourceMode])
-  const objectiveByMode = useMemo(() => {
-    if (sourceMode === 'fromEstimate') return '기존 견적을 기반으로 빠르게 재작성'
-    if (sourceMode === 'fromTaskOrder') return '과업지시서 요구사항 중심으로 견적서 구성'
-    return '저장된 단가표 항목·단가를 기준으로 견적서 생성'
-  }, [sourceMode])
-  const readinessText = generateDisabled ? validationMessage || '필수 입력을 확인해 주세요.' : '생성 준비 완료'
-  const readinessToneClass = generateDisabled ? 'text-amber-800' : 'text-emerald-700'
-  const completion = useMemo(() => {
-    const step1Done = true
-    const step2Done = !generateDisabled
-    const step3Done = !!doc
-    const done = Number(step1Done) + Number(step2Done) + Number(step3Done)
-    const total = 3
-    const percent = Math.round((done / total) * 100)
-    return { done, total, percent, step2Done, step3Done }
-  }, [doc, generateDisabled])
-  const nextAction = useMemo(() => {
-    if (!completion.step2Done) {
-      return validationMessage || '핵심 정보를 입력해 생성 준비를 완료하세요.'
-    }
-    if (!completion.step3Done) {
-      return '견적서 생성 버튼을 눌러 결과를 확인하세요.'
-    }
-    return '결과 문서를 검토하고 저장 또는 다운로드하세요.'
-  }, [completion.step2Done, completion.step3Done, validationMessage])
   const docSummary = useMemo(() => {
     if (!doc) return null
     const lineCount = doc.quoteItems.reduce(
@@ -551,25 +553,21 @@ function EstimateGeneratorContent() {
     </div>
   )
 
+  const totalsForHeader = useMemo(() => {
+    if (!doc) return null
+    return calcTotals(doc)
+  }, [doc])
+
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50/50">
       <GNB />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 bg-white/90 px-6 py-5 flex-shrink-0">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-slate-900">견적서 생성하기</h1>
-            <p className="mt-1 text-sm leading-6 text-slate-600">주제와 예산만 입력하면 바로 견적서를 생성합니다.</p>
-            <p className="mt-1 text-xs text-slate-500">{planFeatureHint}</p>
-            {me ? (
-              <p className="mt-1 text-xs text-slate-500">
-                이번 달 사용량: {me.usage.quoteGeneratedCount}/{me.limits.monthlyQuoteGenerateLimit}
-                {me.subscription.planType === 'PREMIUM'
-                  ? ` · 프리미엄 ${me.usage.premiumGeneratedCount}/${me.limits.monthlyPremiumGenerationLimit}`
-                  : ''}
-              </p>
-            ) : null}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <header className="flex flex-shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 py-3 sm:px-6">
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">견적서 생성</h1>
+            <p className="mt-0.5 hidden text-sm text-slate-600 sm:block">주제·예산 입력 후 생성하거나, 저장된 견적을 불러와 수정할 수 있습니다.</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {isAdvancedModeAvailable ? (
               <button
                 type="button"
@@ -580,19 +578,29 @@ function EstimateGeneratorContent() {
                     setSourceMode('fromTopic')
                   }
                 }}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 sm:text-sm"
               >
-                {showAdvancedModes ? '고급 방식 숨기기' : '고급 방식 보기'}
+                {showAdvancedModes ? '고급 숨기기' : '고급'}
               </button>
             ) : null}
             {me?.subscription?.planType === 'FREE' && (
-              <span className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-700">무료</span>
+              <span className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">무료</span>
             )}
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+          <div className="min-h-0 min-w-0 flex-1 overflow-y-auto border-slate-200 lg:max-w-[min(100%,520px)] lg:flex-none lg:border-r lg:bg-white">
+            <div id="estimate-wizard-top" className="p-4 sm:p-6">
+              <p className="mb-4 text-xs text-slate-500">{planFeatureHint}</p>
+              {me ? (
+                <p className="mb-4 text-xs text-slate-500">
+                  이번 달: {me.usage.quoteGeneratedCount}/{me.limits.monthlyQuoteGenerateLimit}
+                  {me.subscription.planType === 'PREMIUM'
+                    ? ` · 프리미엄 ${me.usage.premiumGeneratedCount}/${me.limits.monthlyPremiumGenerationLimit}`
+                    : ''}
+                </p>
+              ) : null}
             <section className="min-w-0">
               <SimpleGeneratorWizard
             title="견적서 생성하기"
@@ -678,104 +686,154 @@ function EstimateGeneratorContent() {
             step2ActionLabel="견적서 생성으로 이동"
               />
             </section>
+            </div>
+          </div>
 
-            <section className="min-w-0">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-slate-50/90">
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
               {doc && generatedDocId ? (
-            <section className="rounded-2xl border border-gray-100 bg-white shadow-card">
-              {docSummary ? (
-                <div className="sticky top-2 z-20 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
-                  <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                      <p className="text-[11px] font-semibold text-slate-500">인원/행사일</p>
-                      <p className="mt-1 text-sm font-semibold text-slate-900">{doc.headcount || '미정'}명</p>
-                      <p className="text-xs text-slate-600">{doc.eventDate || '행사일 미정'}</p>
+                <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+                  {totalsForHeader && docSummary ? (
+                    <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-slate-100 bg-white/95 px-3 py-2.5 backdrop-blur sm:px-4">
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold text-slate-500">총액(VAT포함)</p>
+                        <p className="text-lg font-bold tabular-nums text-slate-900 sm:text-xl">
+                          {totalsForHeader.grand.toLocaleString('ko-KR')}원
+                        </p>
+                      </div>
+                      <div className="text-xs text-slate-600 sm:border-l sm:border-slate-200 sm:pl-3">
+                        <span className="font-medium text-slate-700">{doc.headcount || '—'}명</span>
+                        <span className="mx-1.5 text-slate-300">·</span>
+                        <span>{doc.eventDate || '행사일 미정'}</span>
+                        <span className="mx-1.5 text-slate-300">·</span>
+                        <span>
+                          품목 {docSummary.lineCount}개
+                        </span>
+                      </div>
+                      <div className="ml-auto flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleSaveDoc(doc)}
+                          disabled={saving}
+                          className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-60 sm:text-sm"
+                        >
+                          {saving ? '저장 중…' : '저장'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const el = document.getElementById('estimate-wizard-top')
+                            el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                          }}
+                          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 sm:text-sm"
+                        >
+                          입력으로
+                        </button>
+                        <span className="hidden text-[11px] text-slate-400 xl:inline">{formatSavedAtLabel(draftSavedAt)}</span>
+                      </div>
                     </div>
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                      <p className="text-[11px] font-semibold text-slate-500">품목 구성</p>
-                      <p className="mt-1 text-sm font-semibold text-slate-900">
-                        총 {docSummary.lineCount}개 · 선택 {docSummary.optionalCount}개
-                      </p>
-                      <p className="text-xs text-slate-600">총액은 아래 견적 본문 상단에 표시됩니다.</p>
-                    </div>
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 md:col-span-1 col-span-2">
-                      <p className="text-[11px] font-semibold text-slate-500">저장</p>
-                      <p className={`mt-1 text-sm font-semibold ${saving ? 'text-amber-700' : 'text-emerald-700'}`}>
-                        {saving ? '저장 중...' : '저장 가능'}
-                      </p>
-                      <p className="text-xs text-slate-600">{formatSavedAtLabel(draftSavedAt)}</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void handleSaveDoc(doc)}
-                      disabled={saving}
-                      className="rounded-xl bg-slate-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {saving ? '저장 중...' : '저장하기'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                      className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-100"
-                    >
-                      입력 수정으로 이동
-                    </button>
-                    <span className="text-xs text-slate-500">엑셀·PDF는 결과 영역 상단 버튼에서보냅니다.</span>
+                  ) : null}
+                  <div id="estimate-result-body">
+                    <QuoteResult
+                      doc={doc}
+                      docId={generatedDocId}
+                      onSaveDoc={handleSaveDoc}
+                      saving={saving}
+                      companySettings={companySettings}
+                      prices={prices}
+                      planType={me?.subscription?.planType ?? 'FREE'}
+                      onChange={setDoc}
+                      generatingTabs={generatingTabs}
+                      generationProgressLabel={generationProgressLabel}
+                      visibleTabs={['estimate']}
+                      initialTab="estimate"
+                      showTabButtons={false}
+                      disableAutoGenerate
+                      hideOnDemandGenerate
+                      disableInternalScroll
+                      estimateToolbar="exportOnly"
+                      estimateSingleTabLayout="compact"
+                      onExcel={async (view) => {
+                        try {
+                          await exportToExcel(doc, companySettings ?? undefined, view)
+                          showToast('엑셀 다운로드 완료!')
+                        } catch (e) {
+                          showToast(toUserMessage(e, '엑셀 다운로드 실패'))
+                        }
+                      }}
+                      onPdf={async () => {
+                        try {
+                          await exportToPdf(doc, companySettings ?? undefined)
+                          showToast('PDF 저장 완료!')
+                        } catch (e) {
+                          showToast(toUserMessage(e, '저장 실패'))
+                        }
+                      }}
+                    />
                   </div>
                 </div>
-              ) : null}
-              <div className="p-4 border-b border-gray-100 bg-slate-50/50">
-                <div className="text-base font-semibold text-gray-900">견적 결과</div>
-                <div className="text-sm text-gray-600 mt-1">생성 후 내용을 편집하고 저장하세요.</div>
-              </div>
-              <div>
-                <QuoteResult
-                  doc={doc}
-                  docId={generatedDocId}
-                  onSaveDoc={handleSaveDoc}
-                  saving={saving}
-                  companySettings={companySettings}
-                  prices={prices}
-                  planType={me?.subscription?.planType ?? 'FREE'}
-                  onChange={setDoc}
-                  generatingTabs={generatingTabs}
-                  generationProgressLabel={generationProgressLabel}
-                  visibleTabs={['estimate']}
-                  initialTab="estimate"
-                  showTabButtons={false}
-                  disableAutoGenerate
-                  hideOnDemandGenerate
-                  disableInternalScroll
-                  estimateToolbar="exportOnly"
-                  onExcel={async (view) => {
-                    try {
-                      await exportToExcel(doc, companySettings ?? undefined, view)
-                      showToast('엑셀 다운로드 완료!')
-                    } catch (e) {
-                      showToast(toUserMessage(e, '엑셀 다운로드 실패'))
-                    }
-                  }}
-                  onPdf={async () => {
-                    try {
-                      await exportToPdf(doc, companySettings ?? undefined)
-                      showToast('PDF 저장 완료!')
-                    } catch (e) {
-                      showToast(toUserMessage(e, '저장 실패'))
-                    }
-                  }}
-                />
-              </div>
-            </section>
               ) : (
-                <section className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center">
-                  <div className="text-base font-semibold text-gray-900">입력 후 생성하세요</div>
-                  <div className="text-sm text-gray-500 mt-2">
-                    {sourceMode === 'fromTopic' ? '이벤트 주제만 입력하면 됩니다' : '소스 선택과 필수 입력이 필요합니다'}
+                <div className="flex h-full min-h-[280px] flex-col">
+                  <div className="flex flex-1 flex-col gap-3">
+                    <div className="text-sm font-semibold text-slate-800">미리보기 · 결과</div>
+                    <div className="flex flex-1 flex-col justify-center gap-3">
+                      <div className="bubble-tip relative rounded-2xl border border-primary-100 bg-gradient-to-br from-primary-50/90 to-white px-4 py-3 text-sm leading-relaxed text-slate-800 shadow-sm">
+                        <span className="absolute -left-1 top-4 h-3 w-3 rotate-45 border-l border-b border-primary-100 bg-primary-50/90" aria-hidden />
+                        왼쪽에서 <strong className="text-primary-800">주제·예산</strong>을 입력한 뒤 생성하면, 단가표를 반영한 견적이 여기에 표시됩니다.
+                      </div>
+                      <div className="bubble-tip relative ml-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-relaxed text-slate-700 shadow-sm">
+                        <span className="absolute -left-1 top-4 h-3 w-3 rotate-45 border-l border-b border-slate-200 bg-white" aria-hidden />
+                        이미 만든 견적은 아래에서 불러와 <strong>수신처·금액</strong>만 손보고 저장·엑셀·PDF로 보낼 수 있어요.
+                      </div>
+                      <div className="bubble-tip relative rounded-2xl border border-emerald-100 bg-emerald-50/50 px-4 py-3 text-sm leading-relaxed text-slate-800 shadow-sm">
+                        <span className="absolute -left-1 top-4 h-3 w-3 rotate-45 border-l border-b border-emerald-100 bg-emerald-50/50" aria-hidden />
+                        표는 넓게 편집할 수 있도록 이 화면에 맞춰 두었습니다. 엑셀·PDF는 결과 상단 버튼을 사용하세요.
+                      </div>
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                      <p className="text-xs font-semibold text-slate-700">저장된 견적 불러오기</p>
+                      <p className="mt-1 text-xs text-slate-500">작업 이력에 있는 견적을 그대로 열어 수정합니다. 전체 목록은 작업 이력에서 확인하세요.</p>
+                      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                        <select
+                          value={loadPickerId}
+                          onChange={(e) => setLoadPickerId(e.target.value)}
+                          disabled={historyList.length === 0}
+                          className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-200 disabled:opacity-50"
+                        >
+                          {historyList.length === 0 ? (
+                            <option value="">저장된 견적이 없습니다</option>
+                          ) : (
+                            historyList.map((r) => (
+                              <option key={r.id} value={r.id}>
+                                {r.eventName || '행사'} · {r.quoteDate}
+                                {r.total ? ` · ${Number(r.total).toLocaleString('ko-KR')}원` : ''}
+                              </option>
+                            ))
+                          )}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => void handleLoadSavedEstimate()}
+                          disabled={historyList.length === 0 || !loadPickerId}
+                          className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          불러와서 편집
+                        </button>
+                      </div>
+                      <div className="mt-3 text-center">
+                        <Link
+                          href="/history"
+                          className="text-xs font-semibold text-primary-700 underline decoration-primary-300 underline-offset-2 hover:text-primary-900"
+                        >
+                          작업 이력에서 전체 목록 보기
+                        </Link>
+                      </div>
+                    </div>
                   </div>
-                </section>
+                </div>
               )}
-            </section>
+            </div>
           </div>
         </div>
       </div>

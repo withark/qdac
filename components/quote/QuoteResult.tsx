@@ -91,6 +91,11 @@ interface Props {
    * 엑셀/PDF만 노출한다.
    */
   estimateToolbar?: 'full' | 'exportOnly'
+  /**
+   * 견적 탭만 단독으로 열릴 때 기본은 엑셀형(넓은 표·가로 스크롤).
+   * compact면 편집에 맞춘 일반 표(구분·항목 열)를 쓴다.
+   */
+  estimateSingleTabLayout?: 'excel' | 'compact'
 }
 
 function isProgramProposalReady(doc: QuoteDoc) {
@@ -218,6 +223,7 @@ export function QuoteResult({
   showCueSheetEditor = false,
   disableInternalScroll = false,
   estimateToolbar = 'full',
+  estimateSingleTabLayout = 'excel',
 }: Props) {
   const initial = visibleTabs.includes(initialTab) ? initialTab : 'estimate'
   const [tab, setTab] = useState<DocTab>(initial)
@@ -236,8 +242,12 @@ export function QuoteResult({
   const budgetConstraint = doc.budgetConstraint
   const d = ensureProgramShape(doc)
   const supplierSignName = companySettings?.name?.trim() || '—'
-  const excelSheetMode = visibleTabs.length === 1 && visibleTabs[0] === 'estimate'
-  const showEstimateSaveInToolbar = estimateToolbar !== 'exportOnly' || !excelSheetMode
+  const excelSheetMode =
+    visibleTabs.length === 1 && visibleTabs[0] === 'estimate' && estimateSingleTabLayout !== 'compact'
+  /** 편집용 일반 견적 표(가로 스크롤 최소화) */
+  const compactEstimateEditor =
+    estimateSingleTabLayout === 'compact' && visibleTabs.length === 1 && visibleTabs[0] === 'estimate'
+  const showEstimateSaveInToolbar = estimateToolbar !== 'exportOnly'
   const hasPeriodDataInEstimate = useMemo(
     () =>
       (doc.quoteItems || []).some((c) =>
@@ -585,34 +595,38 @@ export function QuoteResult({
             )}
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-4 py-2.5">
-          <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-semibold text-white">{tabLabel}</span>
-          <span
-            className={clsx(
-              'rounded-full px-2.5 py-1 text-xs font-semibold',
-              tabReady
-                ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
-                : 'border border-amber-200 bg-amber-50 text-amber-700',
-            )}
-          >
-            {tabReady ? '생성 완료' : '생성 필요'}
-          </span>
-          {doc.eventName ? (
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">{doc.eventName}</span>
-          ) : null}
-          {doc.eventDate ? (
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">{doc.eventDate}</span>
-          ) : null}
-          {doc.venue ? (
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">{doc.venue}</span>
-          ) : null}
-        </div>
+        {!(compactEstimateEditor && tab === 'estimate') ? (
+          <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-4 py-2.5">
+            <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-semibold text-white">{tabLabel}</span>
+            <span
+              className={clsx(
+                'rounded-full px-2.5 py-1 text-xs font-semibold',
+                tabReady
+                  ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                  : 'border border-amber-200 bg-amber-50 text-amber-700',
+              )}
+            >
+              {tabReady ? '생성 완료' : '생성 필요'}
+            </span>
+            {doc.eventName ? (
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">{doc.eventName}</span>
+            ) : null}
+            {doc.eventDate ? (
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">{doc.eventDate}</span>
+            ) : null}
+            {doc.venue ? (
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">{doc.venue}</span>
+            ) : null}
+          </div>
+        ) : null}
       </div>
-      <p className="flex-shrink-0 px-4 py-3 text-[13px] leading-5 text-slate-600">
+      <p className={clsx('flex-shrink-0 px-4 text-[13px] leading-5 text-slate-600', compactEstimateEditor && tab === 'estimate' ? 'py-2' : 'py-3')}>
         {tab === 'estimate' &&
           (excelSheetMode
             ? '엑셀 견적서와 같은 열 구성(구분·항목·내역·수량·단가·단위·기간·합계 등)으로 편집할 수 있습니다. 제경비·이윤은 하단 요약에만 반영됩니다.'
-            : '개당 단가·수량·항목명 등 견적 표에서 바로 수정 가능')}
+            : compactEstimateEditor
+              ? '표에서 항목·수량·단가를 수정한 뒤 저장하거나 엑셀·PDF로 내보낼 수 있습니다.'
+              : '개당 단가·수량·항목명 등 견적 표에서 바로 수정 가능')}
         {tab === 'program' && '인공지능이 생성한 프로그램 제안을 기반으로 내용/구성을 편집하세요.'}
         {tab === 'timetable' && '생성 시 입력한 시작·종료 시각에 맞춰 배치됩니다. 수정 시 즉시 반영됩니다.'}
         {tab === 'planning' && '기획/운영/산출물 계획을 섹션별로 편집할 수 있습니다.'}
@@ -1011,8 +1025,16 @@ export function QuoteResult({
           }
 
           const templateId = (doc.quoteTemplate || 'default') as QuoteTemplateId
+          const estCell = compactEstimateEditor ? 'px-3 py-2' : 'px-2 py-1.5'
+          const estHeadRow = compactEstimateEditor ? 'px-3 py-2.5' : 'px-2 py-2'
           return (
-            <div className="quote-wrapper max-w-3xl mx-auto space-y-5 pb-8" data-quote-template={templateId}>
+            <div
+              className={clsx(
+                'quote-wrapper mx-auto space-y-5 pb-8',
+                compactEstimateEditor ? 'max-w-6xl px-1' : 'max-w-3xl',
+              )}
+              data-quote-template={templateId}
+            >
               {templateId === 'classic' && (
                 <div className="quote-topbar flex items-center justify-between px-4 py-2.5 rounded-t-lg text-white text-xs">
                   <span>견적번호 Q-{String(Date.now()).slice(-6)}</span>
@@ -1046,8 +1068,18 @@ export function QuoteResult({
                   </div>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-3 quote-info-cards">
-                <div className="bg-gray-50 rounded-xl p-3 text-xs space-y-1">
+              <div
+                className={clsx(
+                  'grid grid-cols-2 gap-3 quote-info-cards',
+                  compactEstimateEditor && 'gap-4',
+                )}
+              >
+                <div
+                  className={clsx(
+                    'bg-gray-50 rounded-xl text-xs space-y-1',
+                    compactEstimateEditor ? 'p-4' : 'p-3',
+                  )}
+                >
                   <p className="text-[10px] font-semibold tracking-wider text-gray-400 uppercase mb-2">수신 (발주처)</p>
                   {[
                     ['업체명', doc.clientName], ['담당자', doc.clientManager], ['연락처', doc.clientTel],
@@ -1061,7 +1093,12 @@ export function QuoteResult({
                     </div>
                   ))}
                 </div>
-                <div className="bg-gray-50 rounded-xl p-3 text-xs space-y-1">
+                <div
+                  className={clsx(
+                    'bg-gray-50 rounded-xl text-xs space-y-1',
+                    compactEstimateEditor ? 'p-4' : 'p-3',
+                  )}
+                >
                   <p className="text-[10px] font-semibold tracking-wider text-gray-400 uppercase mb-2">공급자</p>
                   {companySettings ? (
                     [
@@ -1078,9 +1115,19 @@ export function QuoteResult({
                   )}
                 </div>
               </div>
-              <table className="w-full text-xs border-collapse">
+              <table
+                className={clsx(
+                  'w-full border-collapse',
+                  compactEstimateEditor ? 'text-[13px]' : 'text-xs',
+                )}
+              >
                 <caption className="caption-top mb-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <div
+                    className={clsx(
+                      'flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50',
+                      compactEstimateEditor ? 'px-3 py-2.5' : 'px-3 py-2',
+                    )}
+                  >
                     <p className="text-[11px] font-medium text-slate-600">섹션 표시 옵션</p>
                     <div className="flex flex-wrap items-center gap-1.5">
                       <button
@@ -1109,14 +1156,14 @@ export function QuoteResult({
                 </caption>
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="px-2 py-2 text-left font-medium text-gray-400 whitespace-nowrap">항목명</th>
-                    <th className="px-2 py-2 text-left font-medium text-gray-400 whitespace-nowrap">규격/내용</th>
-                    <th className="px-2 py-2 text-right font-medium text-gray-400 whitespace-nowrap">수량</th>
-                    <th className="px-2 py-2 text-left font-medium text-gray-400 whitespace-nowrap">단위</th>
-                    <th className="px-2 py-2 text-right font-medium text-gray-400 whitespace-nowrap">개당 단가</th>
-                    <th className="px-2 py-2 text-right font-medium text-gray-400 whitespace-nowrap">합계</th>
-                    <th className="px-2 py-2 text-left font-medium text-gray-400 whitespace-nowrap">비고</th>
-                    <th className="px-2 py-2 text-left font-medium text-gray-400 whitespace-nowrap" />
+                    <th className={clsx('text-left font-medium text-gray-400 whitespace-nowrap', estHeadRow)}>항목명</th>
+                    <th className={clsx('text-left font-medium text-gray-400 whitespace-nowrap', estHeadRow)}>규격/내용</th>
+                    <th className={clsx('text-right font-medium text-gray-400 whitespace-nowrap', estHeadRow)}>수량</th>
+                    <th className={clsx('text-left font-medium text-gray-400 whitespace-nowrap', estHeadRow)}>단위</th>
+                    <th className={clsx('text-right font-medium text-gray-400 whitespace-nowrap', estHeadRow)}>개당 단가</th>
+                    <th className={clsx('text-right font-medium text-gray-400 whitespace-nowrap', estHeadRow)}>합계</th>
+                    <th className={clsx('text-left font-medium text-gray-400 whitespace-nowrap', estHeadRow)}>비고</th>
+                    <th className={clsx('text-left font-medium text-gray-400 whitespace-nowrap', estHeadRow)} />
                   </tr>
                 </thead>
                 <tbody>
@@ -1127,7 +1174,7 @@ export function QuoteResult({
                     return (
                       <Fragment key={kind}>
                         <tr key={kind + '-h'} className="quote-section-row bg-primary-50/60 border-y border-primary-100">
-                          <td colSpan={8} className="px-2 py-2">
+                          <td colSpan={8} className={estHeadRow}>
                             <div className="flex items-center justify-between gap-2">
                               <button
                                 type="button"
@@ -1150,37 +1197,49 @@ export function QuoteResult({
                               const rowTotal = effectiveLineTotalWon(it)
                               return (
                                 <tr key={`${ci}-${ii}`} className="border-b border-gray-50 hover:bg-gray-50/50 group">
-                                  <td className="px-2 py-1.5">
+                                  <td className={estCell}>
                                     <input
                                       value={it.name}
                                       onChange={e => updLine(ci, ii, 'name', e.target.value)}
-                                      className="w-full bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none"
+                                      className={clsx(
+                                        'w-full bg-white border border-gray-100 rounded outline-none',
+                                        compactEstimateEditor ? 'px-2 py-1 text-[13px]' : 'px-1.5 py-0.5',
+                                      )}
                                     />
                                   </td>
-                                  <td className="px-2 py-1.5 text-gray-400">
+                                  <td className={clsx(estCell, 'text-gray-400')}>
                                     <input
                                       value={it.spec || ''}
                                       onChange={e => updLine(ci, ii, 'spec', e.target.value)}
-                                      className="w-full bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none"
+                                      className={clsx(
+                                        'w-full bg-white border border-gray-100 rounded outline-none',
+                                        compactEstimateEditor ? 'px-2 py-1 text-[13px]' : 'px-1.5 py-0.5',
+                                      )}
                                     />
                                   </td>
-                                  <td className="px-2 py-1.5 text-right">
+                                  <td className={clsx(estCell, 'text-right')}>
                                     <input
                                       type="number"
                                       min={1}
                                       value={it.qty ?? 1}
                                       onChange={e => updLine(ci, ii, 'qty', +e.target.value || 1)}
-                                      className="w-14 text-right bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none tabular-nums"
+                                      className={clsx(
+                                        'w-14 text-right bg-white border border-gray-100 rounded outline-none tabular-nums',
+                                        compactEstimateEditor ? 'px-2 py-1 text-[13px]' : 'px-1.5 py-0.5',
+                                      )}
                                     />
                                   </td>
-                                  <td className="px-2 py-1.5">
+                                  <td className={estCell}>
                                     <input
                                       value={it.unit || '식'}
                                       onChange={e => updLine(ci, ii, 'unit', e.target.value)}
-                                      className="w-12 bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none"
+                                      className={clsx(
+                                        'w-12 bg-white border border-gray-100 rounded outline-none',
+                                        compactEstimateEditor ? 'px-2 py-1 text-[13px]' : 'px-1.5 py-0.5',
+                                      )}
                                     />
                                   </td>
-                                  <td className="px-2 py-1.5 text-right">
+                                  <td className={clsx(estCell, 'text-right')}>
                                     <input
                                       type="number"
                                       min={0}
@@ -1188,18 +1247,24 @@ export function QuoteResult({
                                       value={it.unitPrice ?? 0}
                                       onChange={e => updLine(ci, ii, 'unitPrice', +(e.target.value || 0))}
                                       onBlur={() => snapUnitPriceOnBlur(ci, ii)}
-                                      className="w-24 text-right bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none tabular-nums"
+                                      className={clsx(
+                                        'w-24 text-right bg-white border border-gray-100 rounded outline-none tabular-nums',
+                                        compactEstimateEditor ? 'px-2 py-1 text-[13px]' : 'px-1.5 py-0.5',
+                                      )}
                                     />
                                   </td>
-                                  <td className="px-2 py-1.5 text-right font-medium tabular-nums">{fmtKRW(rowTotal)}</td>
-                                  <td className="px-2 py-1.5 text-gray-400">
+                                  <td className={clsx(estCell, 'text-right font-medium tabular-nums')}>{fmtKRW(rowTotal)}</td>
+                                  <td className={clsx(estCell, 'text-gray-400')}>
                                     <input
                                       value={it.note || ''}
                                       onChange={e => updLine(ci, ii, 'note', e.target.value)}
-                                      className="w-full bg-white border border-gray-100 rounded px-1.5 py-0.5 outline-none"
+                                      className={clsx(
+                                        'w-full bg-white border border-gray-100 rounded outline-none',
+                                        compactEstimateEditor ? 'px-2 py-1 text-[13px]' : 'px-1.5 py-0.5',
+                                      )}
                                     />
                                   </td>
-                                  <td className="px-2 py-1.5">
+                                  <td className={estCell}>
                                     <span className="flex items-center gap-1">
                                       <span className="opacity-0 group-hover:opacity-100 text-[10px] text-gray-500 whitespace-nowrap">
                                         그룹 이동
@@ -1220,7 +1285,7 @@ export function QuoteResult({
                               )
                             })}
                             <tr key={kind + '-a'}>
-                              <td colSpan={8} className="px-2 py-1.5 align-top">
+                              <td colSpan={8} className={clsx(estCell, 'align-top')}>
                                 <div className="flex flex-wrap items-center gap-2">
                                   <button type="button" onClick={() => addItemToKind(kind)} className="text-xs text-primary-600 font-medium">+ 빈 항목</button>
                                   {flatPriceItems.length > 0 && (
@@ -1255,8 +1320,8 @@ export function QuoteResult({
                           </tr>
                         )}
                         <tr key={kind + '-s'} className="bg-gray-50/80 border-b border-gray-100">
-                          <td colSpan={5} className="px-2 py-1.5 text-right text-gray-500 font-medium">소계</td>
-                          <td className="px-2 py-1.5 text-right font-semibold tabular-nums text-gray-700">{fmtKRW(subtotal)}</td>
+                          <td colSpan={5} className={clsx(estCell, 'text-right text-gray-500 font-medium')}>소계</td>
+                          <td className={clsx(estCell, 'text-right font-semibold tabular-nums text-gray-700')}>{fmtKRW(subtotal)}</td>
                           <td colSpan={2} />
                         </tr>
                       </Fragment>
