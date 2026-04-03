@@ -155,7 +155,16 @@ function setCell(
 }
 
 function merge(ws: ExcelJS.Worksheet, row1: number, col1: number, row2: number, col2: number) {
-  ws.mergeCells(row1, col1, row2, col2)
+  if (row2 < row1 || col2 < col1) return
+  // ExcelJS는 1칸 병합이나 이미 병합된 영역과 겹치는 병합에서 예외를 던질 수 있음
+  if (row1 === row2 && col1 === col2) return
+  try {
+    ws.mergeCells(row1, col1, row2, col2)
+  } catch (err) {
+    const m = String(err instanceof Error ? err.message : err)
+    if (m.includes('Cannot merge') || /already merged/i.test(m)) return
+    throw err
+  }
 }
 
 function applyOuterBorder(
@@ -270,7 +279,6 @@ async function buildQuoteSheet(
 
   let r = 1
 
-  merge(ws, r, 1, r + 2, 3)
   let logoInserted = false
   const logoUrl = company?.logoUrl || ''
   const logoExt = logoExtFromUrl(logoUrl)
@@ -278,15 +286,17 @@ async function buildQuoteSheet(
     const dataUrl = await fetchAsDataUrl(logoUrl)
     if (dataUrl) {
       const imageId = workbook.addImage({ base64: dataUrl, extension: logoExt })
+      // addImage(A1:C3)가 동일 범위를 병합하므로, 미리 merge 하면 "Cannot merge already merged cells" 발생
       ws.addImage(imageId, 'A1:C3')
       logoInserted = true
     }
   }
-  if (logoInserted) {
-    setCell(ws, r, 1, '', { align: 'center', bg: 'F5F9FF' })
-  } else {
+  if (!logoInserted) {
+    merge(ws, r, 1, r + 2, 3)
     setCell(ws, r, 1, '[ LOGO ]', { align: 'center', bold: true, bg: 'F5F9FF' })
     ws.getCell(r, 1).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+  } else {
+    setCell(ws, r, 1, '', { align: 'center', bg: 'F5F9FF' })
   }
 
   merge(ws, r, 4, r + 2, 8)
@@ -450,8 +460,10 @@ async function buildQuoteSheet(
       },
     )
 
-    if (hasItems) {
+    if (hasItems && groupStartRow < r - 1) {
       merge(ws, groupStartRow, 1, r - 1, 1)
+      ws.getCell(groupStartRow, 1).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+    } else if (hasItems) {
       ws.getCell(groupStartRow, 1).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
     }
 
