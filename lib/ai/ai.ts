@@ -353,13 +353,19 @@ function buildEventPhasePlans(input: GenerateInput): EventPhasePlan[] {
 
 function buildStageBrief(input: GenerateInput): StageBrief {
   const target = input.documentTarget ?? 'estimate'
-  const mustHaveFacts = [
-    `행사명:${input.eventName || ''}`,
-    `행사유형:${input.eventType || ''}`,
-    `일시:${input.eventDate || ''}`,
-    `장소:${input.venue || ''}`,
-    `인원:${input.headcount || ''}`,
-  ].filter((x) => !x.endsWith(':'))
+  const vendorBrief = input.generationMode === 'vendorBrief' && target === 'estimate'
+  const mustHaveFacts = vendorBrief
+    ? [
+        '업체 원문에서 추출한 행사명·수신처·일정·장소·인원이 JSON 상단 필드에 반영됨',
+        '원문에 나온 품목·조건이 quoteItems/spec/notes에 반영됨',
+      ]
+    : [
+        `행사명:${input.eventName || ''}`,
+        `행사유형:${input.eventType || ''}`,
+        `일시:${input.eventDate || ''}`,
+        `장소:${input.venue || ''}`,
+        `인원:${input.headcount || ''}`,
+      ].filter((x) => !x.endsWith(':'))
   const requiredSectionsByTarget: Record<string, string[]> = {
     estimate: ['카테고리/항목', '포함/제외', '결제 조건', '예산 부합 여부'],
     planning: ['개요', '범위', '접근', '운영 계획', '리스크/대응', '체크리스트'],
@@ -379,17 +385,29 @@ function buildStageBrief(input: GenerateInput): StageBrief {
     emceeScript: ['lines>=12', '구어체/호칭 가이드 준수'],
   }
   return {
-    purpose: input.briefGoal?.trim() || input.requirements?.trim() || `${input.eventName} 문서 완성`,
+    purpose:
+      vendorBrief && (input.briefNotes || '').trim()
+        ? `업체 원문 기반 견적: ${(input.briefNotes || '').trim().slice(0, 240)}`
+        : input.briefGoal?.trim() || input.requirements?.trim() || `${input.eventName} 문서 완성`,
     audience: input.headcount?.trim() ? `${input.headcount.trim()} 참석자/운영팀` : '참석자/운영팀',
     tone: '실무형, 과장 없이 명확, 즉시 실행 가능',
     requiredSections: requiredSectionsByTarget[target] || requiredSectionsByTarget.estimate,
     mustHaveFacts,
-    sourcePriority: [
-      '사용자 직접 입력(requirements/brief)',
-      '선택된 참조 문서(taskOrder/scenario/cuesheet/reference)',
-      '기존 문서(existingDoc)',
-      '일반 도메인 상식(최후 보완)',
-    ],
+    sourcePriority: vendorBrief
+      ? [
+          '업체 원문(briefNotes, 프롬프트 상단 블록)',
+          '사용자 단가표(prices)',
+          'requirements 지시문',
+          '선택된 참조 문서(taskOrder 등)',
+          '기존 문서(existingDoc)',
+          '일반 도메인 상식(최후 보완)',
+        ]
+      : [
+          '사용자 직접 입력(requirements/brief)',
+          '선택된 참조 문서(taskOrder/scenario/cuesheet/reference)',
+          '기존 문서(existingDoc)',
+          '일반 도메인 상식(최후 보완)',
+        ],
     budgetConstraint: input.budget?.trim() || '예산 미정(불일치 시 조정안 명시)',
     documentConstraints: documentConstraintsByTarget[target] || documentConstraintsByTarget.estimate,
   }

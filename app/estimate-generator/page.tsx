@@ -25,7 +25,7 @@ type MeLite = {
   limits: { monthlyQuoteGenerateLimit: number; monthlyPremiumGenerationLimit: number }
 }
 
-type SourceMode = 'fromEstimate' | 'fromTaskOrder' | 'fromTopic'
+type SourceMode = 'fromEstimate' | 'fromTaskOrder' | 'fromTopic' | 'fromPrompt'
 const DRAFT_STORAGE_KEY = 'planic:estimate-generator:draft:v1'
 
 type TaskOrderSummaryParsed = {
@@ -103,6 +103,8 @@ function EstimateGeneratorContent() {
   const [headcount, setHeadcount] = useState('')
   const [venue, setVenue] = useState('')
   const [notes, setNotes] = useState('') // 행사내용(요청내용)
+  /** 업체 원문만 모드: 들은 내용 전체 */
+  const [vendorBrief, setVendorBrief] = useState('')
   const [budget, setBudget] = useState('미정')
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null)
 
@@ -148,6 +150,7 @@ function EstimateGeneratorContent() {
   const modes: WizardMode[] = useMemo(
     () => [
       { id: 'fromTopic', title: '주제만 입력' },
+      { id: 'fromPrompt', title: '업체 원문만' },
       { id: 'fromTaskOrder', title: '과업지시서 기준' },
       { id: 'fromEstimate', title: '저장된 견적서 기준' },
     ],
@@ -156,10 +159,16 @@ function EstimateGeneratorContent() {
   const isAdvancedModeAvailable = useMemo(() => isPaidPlan(me?.subscription?.planType ?? 'FREE'), [me?.subscription?.planType])
   const modesForWizard = useMemo(() => {
     if (!isAdvancedModeAvailable) {
-      return modes.map((m) => ({
-        ...m,
-        disabled: m.id !== 'fromTopic',
-      }))
+      if (showAdvancedModes || (sourceMode !== 'fromTopic' && sourceMode !== 'fromPrompt')) {
+        return modes.map((m) => ({
+          ...m,
+          disabled: m.id !== 'fromTopic' && m.id !== 'fromPrompt',
+        }))
+      }
+      return [
+        { ...modes[0], disabled: false },
+        { ...modes[1], disabled: false },
+      ]
     }
     if (showAdvancedModes || sourceMode !== 'fromTopic') {
       return modes.map((m) => ({ ...m, disabled: false }))
@@ -208,6 +217,7 @@ function EstimateGeneratorContent() {
       headcount: string
       venue: string
       notes: string
+      vendorBrief: string
       budget: string
       savedAt: string
     }>
@@ -234,6 +244,7 @@ function EstimateGeneratorContent() {
     if (typeof draft.headcount === 'string') setHeadcount(draft.headcount)
     if (typeof draft.venue === 'string') setVenue(draft.venue)
     if (typeof draft.notes === 'string') setNotes(draft.notes)
+    if (typeof draft.vendorBrief === 'string') setVendorBrief(draft.vendorBrief)
     if (typeof draft.budget === 'string') setBudget(draft.budget)
     if (typeof draft.savedAt === 'string') setDraftSavedAt(draft.savedAt)
   }, [userDraftStorageKey])
@@ -257,6 +268,7 @@ function EstimateGeneratorContent() {
         headcount,
         venue,
         notes,
+        vendorBrief,
         budget,
         savedAt,
       }
@@ -266,7 +278,7 @@ function EstimateGeneratorContent() {
     return () => {
       window.clearTimeout(timer)
     }
-  }, [userDraftStorageKey, sourceMode, selectedEstimateId, selectedTaskOrderId, clientName, clientManager, clientTel, topic, eventDate, eventDuration, startHHmm, endHHmm, headcount, venue, notes, budget])
+  }, [userDraftStorageKey, sourceMode, selectedEstimateId, selectedTaskOrderId, clientName, clientManager, clientTel, topic, eventDate, eventDuration, startHHmm, endHHmm, headcount, venue, notes, vendorBrief, budget])
 
   useEffect(() => {
     const q = searchParams.get('estimate')
@@ -287,7 +299,7 @@ function EstimateGeneratorContent() {
     setGeneratedDocId(null)
     if (sourceMode === 'fromEstimate') setSelectedTaskOrderId(null)
     if (sourceMode === 'fromTaskOrder') setSelectedEstimateId(null)
-    if (sourceMode === 'fromTopic') {
+    if (sourceMode === 'fromTopic' || sourceMode === 'fromPrompt') {
       setSelectedEstimateId(null)
       setSelectedTaskOrderId(null)
     }
@@ -328,7 +340,7 @@ function EstimateGeneratorContent() {
       p.orderingOrganization ||
       selectedTaskOrder?.filename ||
       '행사'
-    const derivedNotes = p.oneLineSummary || p.purpose || p.mainScope || p.summary || ''
+    const derivedNotes = p.oneLineSummary || p.purpose || p.mainScope || selectedTaskOrder?.summary || ''
 
     if (!topic.trim()) setTopic(derivedEventName)
     if (!clientName.trim() && p.orderingOrganization) setClientName(p.orderingOrganization)
@@ -364,7 +376,7 @@ function EstimateGeneratorContent() {
 
   useEffect(() => {
     if (isAdvancedModeAvailable) return
-    if (sourceMode !== 'fromTopic') {
+    if (sourceMode !== 'fromTopic' && sourceMode !== 'fromPrompt') {
       setSourceMode('fromTopic')
     }
     if (showAdvancedModes) {
@@ -390,6 +402,31 @@ function EstimateGeneratorContent() {
     const safeStartHHmm = startHHmm.trim()
     const safeEndHHmm = endHHmm.trim()
     const promptRequirements = safeNotes ? `추가 메모: ${safeNotes}` : ''
+
+    if (sourceMode === 'fromPrompt') {
+      const raw = vendorBrief.trim()
+      if (!raw) return null
+      return {
+        eventDate: '',
+        eventDuration: '',
+        eventStartHHmm: '',
+        eventEndHHmm: '',
+        headcount: '',
+        venue: '',
+        budget,
+        documentTarget: 'estimate' as const,
+        clientName: '',
+        clientManager: '',
+        clientTel: '',
+        requirements:
+          '업체 견적·브리핑 원문을 기준으로 견적서를 구성합니다. 원문의 품목·수량·단가·조건을 반영하고, 사용자 단가표와 조합해 합리적인 항목을 만드세요.',
+        briefNotes: raw,
+        generationMode: 'vendorBrief' as const,
+        eventName: topic.trim() || '업체 견적 기반',
+        quoteDate: todayStr(),
+        eventType: '기타',
+      }
+    }
 
     const base = {
       eventDate: eventDateIso,
@@ -481,6 +518,7 @@ function EstimateGeneratorContent() {
     headcount,
     venue,
     notes,
+    vendorBrief,
   ])
 
   const handleGenerateEstimate = useCallback(async () => {
@@ -490,6 +528,8 @@ function EstimateGeneratorContent() {
         showToast('저장된 견적 문서를 불러올 수 없습니다. 목록에서 다시 선택해 주세요.')
       } else if (sourceMode === 'fromTaskOrder') {
         showToast('과업지시서 정보를 불러올 수 없습니다. 다시 선택해 주세요.')
+      } else if (sourceMode === 'fromPrompt') {
+        showToast('업체에서 들은 내용을 입력해 주세요.')
       } else {
         showToast('필수 입력을 확인해 주세요.')
       }
@@ -570,6 +610,9 @@ function EstimateGeneratorContent() {
 
   const generateDisabled = useMemo(() => {
     if (priceItemCount === 0) return true
+    if (sourceMode === 'fromPrompt') {
+      return vendorBrief.trim().length < 40
+    }
     const commonValid =
       clientName.trim() &&
       clientManager.trim() &&
@@ -600,12 +643,18 @@ function EstimateGeneratorContent() {
     headcount,
     venue,
     notes,
+    vendorBrief,
   ])
 
   const validationMessage = useMemo(() => {
     if (!generateDisabled) return null
     if (priceItemCount === 0) {
       return '단가표에 항목이 없습니다. 단가표 메뉴에서 항목을 입력하거나 .xlsx를 업로드한 뒤 다시 시도해 주세요.'
+    }
+    if (sourceMode === 'fromPrompt') {
+      return vendorBrief.trim().length < 40
+        ? '업체에서 들은 내용을 40자 이상 붙여 넣어 주세요. (메모·견적 요약·대화록 등)'
+        : null
     }
     if (sourceMode === 'fromEstimate') {
       if (!selectedEstimateId) return '저장된 견적을 선택해 주세요.'
@@ -642,6 +691,7 @@ function EstimateGeneratorContent() {
     venue,
     headcount,
     notes,
+    vendorBrief,
   ])
 
   const docSummary = useMemo(() => {
@@ -662,6 +712,46 @@ function EstimateGeneratorContent() {
     )
     return { lineCount, optionalCount }
   }, [doc])
+
+  const promptOnlyInputs = (
+    <div className="space-y-3">
+      <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 space-y-3">
+        <p className="text-xs leading-relaxed text-slate-600">
+          업체·행사사 등에서 들은 견적 내용을 그대로 붙여 넣으면, 단가표를 반영해 견적서 형식으로 정리합니다. 행사명·수신처·일정은
+          원문에서 찾거나 AI가 채웁니다.
+        </p>
+        <Textarea
+          label="업체에서 들은 내용"
+          showRequiredMark
+          required
+          value={vendorBrief}
+          onChange={(e) => setVendorBrief(e.target.value)}
+          placeholder="예) ○○업체 담당 ○○○ / 4/12 잠실 ○○홀 / 인원 200명 전후 / MC 180만, 음향 350만, 현수막 2개 각 15만… (메모·카톡·이메일 그대로)"
+          rows={12}
+        />
+        <Input
+          label="행사명(선택)"
+          value={topic}
+          onChange={(e) => setTopic(e.target.value)}
+          placeholder="비워 두면 원문·견적서 제목에서 추정합니다"
+        />
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-slate-800">예산 범위</label>
+          <select
+            value={budget}
+            onChange={(e) => setBudget(e.target.value)}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 shadow-sm focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-100/70"
+          >
+            {ESTIMATE_BUDGET_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+    </div>
+  )
 
   const topicInputs = (
     <div className="space-y-3">
@@ -787,7 +877,7 @@ function EstimateGeneratorContent() {
                   onClick={() => {
                     const next = !showAdvancedModes
                     setShowAdvancedModes(next)
-                    if (!next && sourceMode !== 'fromTopic') {
+                    if (!next && sourceMode !== 'fromTopic' && sourceMode !== 'fromPrompt') {
                       setSourceMode('fromTopic')
                     }
                   }}
@@ -812,6 +902,7 @@ function EstimateGeneratorContent() {
               setHeadcount('')
               setVenue('')
               setNotes('')
+              setVendorBrief('')
               setBudget('미정')
             }}
             requiredInput={
@@ -859,6 +950,8 @@ function EstimateGeneratorContent() {
                   </select>
                   <div className="mt-3">{topicInputs}</div>
                 </>
+              ) : sourceMode === 'fromPrompt' ? (
+                promptOnlyInputs
               ) : (
                 topicInputs
               )
@@ -974,17 +1067,26 @@ function EstimateGeneratorContent() {
                       </div>
                       <div className="min-w-0 flex-1 rounded-2xl rounded-tl-sm border border-slate-200 bg-white px-3.5 py-2.5 text-sm leading-relaxed text-slate-800 shadow-sm">
                         <span className="font-semibold text-primary-800">Planic</span>
-                        <span className="text-slate-600"> — 입력하신 주제·예산·단가표를 바탕으로 견적을 구성하고 있어요.</span>
+                        <span className="text-slate-600">
+                          {' '}
+                          — 입력하신{' '}
+                          {sourceMode === 'fromPrompt' ? '업체 원문·예산·단가표' : '주제·예산·단가표'}를 바탕으로 견적을 구성하고
+                          있어요.
+                        </span>
                       </div>
                     </div>
-                    {notes.trim() ? (
+                    {(sourceMode === 'fromPrompt' ? vendorBrief.trim() : notes.trim()) ? (
                       <div className="ml-8 flex gap-2">
                         <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-[10px] font-bold text-slate-600">
                           나
                         </div>
                         <div className="min-w-0 flex-1 rounded-2xl rounded-tl-sm border border-emerald-100 bg-emerald-50/80 px-3.5 py-2.5 text-sm text-slate-800 shadow-sm">
-                          <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-800">프롬프트(추가 요청)</p>
-                          <p className="mt-1 whitespace-pre-wrap break-words">{notes.trim()}</p>
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
+                            {sourceMode === 'fromPrompt' ? '업체 원문' : '프롬프트(추가 요청)'}
+                          </p>
+                          <p className="mt-1 whitespace-pre-wrap break-words">
+                            {(sourceMode === 'fromPrompt' ? vendorBrief : notes).trim()}
+                          </p>
                         </div>
                       </div>
                     ) : null}
@@ -1023,7 +1125,11 @@ function EstimateGeneratorContent() {
                     <div className="flex flex-1 flex-col justify-center gap-3">
                       <div className="bubble-tip relative rounded-2xl border border-primary-100 bg-gradient-to-br from-primary-50/90 to-white px-4 py-3 text-sm leading-relaxed text-slate-800 shadow-sm">
                         <span className="absolute -left-1 top-4 h-3 w-3 rotate-45 border-l border-b border-primary-100 bg-primary-50/90" aria-hidden />
-                        왼쪽에서 <strong className="text-primary-800">주제·예산</strong>을 입력한 뒤 생성하면, 단가표를 반영한 견적이 여기에 표시됩니다.
+                        왼쪽에서{' '}
+                        <strong className="text-primary-800">
+                          {sourceMode === 'fromPrompt' ? '업체 원문·예산' : '주제·예산'}
+                        </strong>
+                        을 입력한 뒤 생성하면, 단가표를 반영한 견적이 여기에 표시됩니다.
                       </div>
                       <div className="bubble-tip relative ml-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-relaxed text-slate-700 shadow-sm">
                         <span className="absolute -left-1 top-4 h-3 w-3 rotate-45 border-l border-b border-slate-200 bg-white" aria-hidden />

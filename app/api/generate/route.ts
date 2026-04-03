@@ -40,7 +40,7 @@ const GenerateRequestSchema = z.object({
   requirements: z.string().optional().default(''),
   briefGoal: z.string().optional().default(''),
   briefNotes: z.string().optional().default(''),
-  generationMode: z.enum(['normal', 'taskOrderBase']).optional().default('normal'),
+  generationMode: z.enum(['normal', 'taskOrderBase', 'vendorBrief']).optional().default('normal'),
   taskOrderBaseId: z.string().optional().default(''),
   documentTarget: z
     .enum(['estimate', 'program', 'timetable', 'planning', 'scenario', 'cuesheet', 'emceeScript'])

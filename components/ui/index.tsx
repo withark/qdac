@@ -210,3 +210,5 @@ export function Spinner({ label }: { label?: string }) {
     </div>
   )
 }
+
+export { CalendarPicker } from './CalendarPicker'

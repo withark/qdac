@@ -621,12 +621,37 @@ function buildExistingDocContext(input: GenerateInput): string {
 function buildBriefContext(input: GenerateInput): string {
   const goal = input.briefGoal?.trim()
   const notes = input.briefNotes?.trim()
+  if (input.generationMode === 'vendorBrief') {
+    if (!notes) return ''
+    const lines = ['=== 사용자 브리프(업체 원문과 중복 — 아래「업체 원문」블록이 우선) ===']
+    if (goal) lines.push(`핵심 목표: ${goal}`)
+    lines.push('원문 블록은 이미 상단에 전체가 포함되어 있으므로 여기서는 요약하지 마세요.')
+    return `\n${lines.join('\n')}\n`
+  }
   if (!goal && !notes) return ''
   const lines = ['=== 사용자 브리프 ===']
   if (goal) lines.push(`핵심 목표: ${goal}`)
   if (notes) lines.push(`중요 메모: ${notes}`)
   lines.push('위 브리프는 단순 참고가 아니라 문서 구조와 우선순위에 직접 반영하세요.')
   return `\n${lines.join('\n')}\n`
+}
+
+/** 업체에서 들은 내용만 넣어 견적을 뽑는 모드 — 원문을 최우선으로 프롬프트 상단에 둔다. */
+function buildVendorBriefModeBlock(input: GenerateInput): string {
+  if (input.generationMode !== 'vendorBrief') return ''
+  const raw = (input.briefNotes || '').trim()
+  if (!raw) return ''
+  const capped = raw.slice(0, 14_000)
+  return `
+=== 모드: 업체 원문(프롬프트) 기반 견적 ===
+- 아래「업체에서 전달받은 내용」원문을 최우선 근거로 사용합니다.
+- 원문에서 행사명, 수신처(업체명·담당·연락처), 일정·장소·인원, 품목·수량·단가·조건을 찾아 JSON(eventName, clientName, clientManager, clientTel, eventDate, venue, headcount, quoteItems, notes 등)에 반영하세요.
+- 원문에 금액이 없거나 불명확하면 사용자 단가표 항목과 수량·규모를 조합해 합리적으로 채우고, spec·note에 산출 근거를 적으세요.
+- 원문과 모순되지 않게 작성하세요.
+
+=== 업체에서 전달받은 내용(원문) ===
+${capped}
+`
 }
 
 function buildTraceabilityContext(input: GenerateInput, target: GenerateInput['documentTarget']): string {
@@ -808,7 +833,9 @@ export function buildGeneratePrompt(input: GenerateInput): string {
   const envPolicyFragment = getEnvDrivenPromptPolicyFragment()
 
   const principles = [
-    '1. 모든 필드를 구체적으로 작성. 빈 문자열·"-"·"해당없음" 절대 불가.',
+    input.generationMode === 'vendorBrief' && target === 'estimate'
+      ? '1. 출력 JSON의 모든 필드를 구체적으로 작성. 빈 문자열·"-"·"해당없음"은 금지. 업체 원문에서 추출 가능한 정보는 반드시 채움.'
+      : '1. 모든 필드를 구체적으로 작성. 빈 문자열·"-"·"해당없음" 절대 불가.',
     '2. 현실적인 대한민국 시세 기반 수치 사용. 0원·1원 불가.',
     '3. 행사 유형에 맞지 않는 항목 절대 금지.',
     '4. time 필드는 반드시 HH:mm 실제 시간.',
@@ -817,16 +844,20 @@ export function buildGeneratePrompt(input: GenerateInput): string {
       : target === 'emceeScript'
         ? '5. emceeScript.lines[].script는 현장에서 그대로 읽을 구어체 멘트로 작성.'
         : '5. content는 구체적 진행 내용 (예: "명랑운동회 1부 — 비전탑 세우기·도전99초").',
-    '6. requirements에 언급된 내용 반드시 반영.',
+    input.generationMode === 'vendorBrief' && target === 'estimate'
+      ? '6. 업체 원문에 언급된 품목·조건·금액(단가/수량)을 반드시 반영하고, requirements 지시도 따릅니다.'
+      : '6. requirements에 언급된 내용 반드시 반영.',
     '7. 항목/행은 최소 기준 이상으로 작성. 누락보다 과잉이 낫습니다.',
     '8. 결과물은 내부 메모 수준이 아니라 고객에게 바로 전달 가능한 실무 문서 품질이어야 합니다.',
     '9. "원활하게/효과적으로/적절히" 같은 안전한 일반 문구만으로 문장을 채우지 않습니다.',
     '10. 참고자료가 있으면 topic-only 결과와 유사한 문장/행/우선순위를 금지하고, 자료 근거를 행 단위로 반영합니다.',
   ].join('\n')
 
+  const vendorBriefBlock = buildVendorBriefModeBlock(input)
+
   return `당신은 대한민국 행사·이벤트 업계 전문 ${label} 작성 AI입니다.
 아래 행사 정보를 바탕으로 ${label}를 생성하세요.
-
+${vendorBriefBlock}
 === 행사 기본 정보 ===
 ${basicInfo}
 ${settingsCtx}

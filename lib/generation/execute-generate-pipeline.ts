@@ -57,7 +57,7 @@ export type GeneratePipelineBody = {
   requirements?: string
   briefGoal?: string
   briefNotes?: string
-  generationMode?: 'normal' | 'taskOrderBase'
+  generationMode?: 'normal' | 'taskOrderBase' | 'vendorBrief'
   taskOrderBaseId?: string
   documentTarget?: 'estimate' | 'program' | 'timetable' | 'planning' | 'scenario' | 'cuesheet' | 'emceeScript'
   existingDoc?: unknown

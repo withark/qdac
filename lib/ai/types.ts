@@ -7,8 +7,8 @@ export type { QuoteDoc, PriceCategory, CompanySettings, ReferenceDoc, TaskOrderD
 export interface GenerateInput {
   /** 실행 프로필: 사용자 실시간 요청 vs 관리자/배치성 후처리 */
   generationProfile?: 'realtime' | 'background'
-  /** 생성 모드: 일반 생성 vs 과업지시서 기반 기본 견적서(빠른 생성) */
-  generationMode?: 'normal' | 'taskOrderBase'
+  /** 생성 모드: 일반 생성 vs 과업지시서 기반 vs 업체 원문(프롬프트)만 */
+  generationMode?: 'normal' | 'taskOrderBase' | 'vendorBrief'
   /** 과업지시서 기반 모드일 때 적용할 특정 업로드 ID */
   taskOrderBaseId?: string
   /** 문서 타깃: 견적/프로그램/타임테이블/기획/시나리오 */
