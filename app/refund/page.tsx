@@ -1,7 +1,12 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { LegalPageShell } from '@/components/legal/LegalPageShell'
-import { SUPPORT_EMAIL } from '@/lib/support-contact'
+import {
+  COMPANY_LANDLINE_TEL,
+  SITE_COMPANY_ADDRESS,
+  SUPPORT_EMAIL,
+  companyLandlineTelHref,
+} from '@/lib/support-contact'
 
 const title = '환불정책 · 플래닉 Planic'
 const description = '플래닉(Planic) 유료 구독 상품의 환불 및 청약철회 기준을 안내합니다.'
@@ -151,7 +156,15 @@ export default function RefundPage() {
         <section id="refund-contact" className={`${section} border-t border-slate-100 pt-8 mt-10`}>
           <h2 className={h2}>문의처</h2>
           <p className={p}>
-            주소: 광릉수목원로 600 A동
+            주소: {SITE_COMPANY_ADDRESS}
+            <br />
+            문의 유선:{' '}
+            <a
+              href={companyLandlineTelHref()}
+              className="rounded-sm text-slate-900 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2"
+            >
+              {COMPANY_LANDLINE_TEL}
+            </a>
             <br />
             문의 이메일: {SUPPORT_EMAIL}
             <br />

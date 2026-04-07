@@ -1,6 +1,12 @@
 import Link from 'next/link'
 import { EvQuoteLogo } from '@/components/EvQuoteLogo'
-import { SUPPORT_EMAIL, supportMailtoHref } from '@/lib/support-contact'
+import {
+  COMPANY_LANDLINE_TEL,
+  SITE_COMPANY_ADDRESS,
+  SUPPORT_EMAIL,
+  companyLandlineTelHref,
+  supportMailtoHref,
+} from '@/lib/support-contact'
 
 type SiteFooterProps = {
   /** 랜딩 등에서 여백·부가 카피 축소 */
@@ -90,9 +96,20 @@ export function SiteFooter({ compact = false }: SiteFooterProps) {
                   {' '}
                   ·{' '}
                 </span>
-                주소: 광릉수목원로 600 A동
+                주소: {SITE_COMPANY_ADDRESS}
               </p>
               <p className="text-pretty">
+                유선:{' '}
+                <a
+                  href={companyLandlineTelHref()}
+                  className="rounded-sm font-medium text-slate-600 underline-offset-2 transition-colors hover:text-slate-800 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2"
+                >
+                  {COMPANY_LANDLINE_TEL}
+                </a>
+                <span className="text-slate-400" aria-hidden>
+                  {' '}
+                  ·{' '}
+                </span>
                 문의:{' '}
                 <a
                   href={supportMailtoHref}

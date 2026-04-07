@@ -3,7 +3,12 @@ import Link from 'next/link'
 import { HelpFaqAccordion } from '@/components/public/HelpFaqAccordion'
 import { PublicPageCrossLinks } from '@/components/public/PublicPageCrossLinks'
 import { PublicPageShell } from '@/components/public/PublicPageShell'
-import { SUPPORT_EMAIL, supportMailtoHref } from '@/lib/support-contact'
+import {
+  COMPANY_LANDLINE_TEL,
+  SUPPORT_EMAIL,
+  companyLandlineTelHref,
+  supportMailtoHref,
+} from '@/lib/support-contact'
 
 const title = '도움말 · 플래닉 Planic'
 const description = '플래닉 자주 묻는 질문과 사용 도움말입니다.'
@@ -51,9 +56,20 @@ export default function HelpPage() {
           <h2 className="text-[17px] font-semibold text-slate-900">문의 방법</h2>
           <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-sm leading-relaxed text-slate-600">
-              이용 중 불편한 점이나 문의 사항은 이메일로 남겨 주세요. 전화 상담은 제공하지 않습니다.
+              이용 중 불편한 점이나 문의 사항은 유선 또는 이메일로 남겨 주시면 순차적으로 안내해 드립니다.
             </p>
             <dl className="mt-3 space-y-1.5 text-sm text-slate-700">
+              <div className="flex flex-wrap gap-x-2">
+                <dt className="font-semibold text-slate-900">문의 유선:</dt>
+                <dd>
+                  <a
+                    href={companyLandlineTelHref()}
+                    className="rounded-sm text-slate-700 underline-offset-2 hover:text-slate-900 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2"
+                  >
+                    {COMPANY_LANDLINE_TEL}
+                  </a>
+                </dd>
+              </div>
               <div className="flex flex-wrap gap-x-2">
                 <dt className="font-semibold text-slate-900">문의 이메일:</dt>
                 <dd>

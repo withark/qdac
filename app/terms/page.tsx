@@ -1,7 +1,12 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { LegalPageShell } from '@/components/legal/LegalPageShell'
-import { SUPPORT_EMAIL } from '@/lib/support-contact'
+import {
+  COMPANY_LANDLINE_TEL,
+  SITE_COMPANY_ADDRESS,
+  SUPPORT_EMAIL,
+  companyLandlineTelHref,
+} from '@/lib/support-contact'
 
 const title = '이용약관 · 플래닉 Planic'
 const description = '플래닉(Planic) 서비스 이용에 관한 약관입니다.'
@@ -143,7 +148,15 @@ export default function TermsPage() {
           <p className={p}>
             상호: (주)시냇가에심은나무
             <br />
-            주소: 광릉수목원로 600 A동
+            주소: {SITE_COMPANY_ADDRESS}
+            <br />
+            문의 유선:{' '}
+            <a
+              href={companyLandlineTelHref()}
+              className="rounded-sm text-slate-900 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2"
+            >
+              {COMPANY_LANDLINE_TEL}
+            </a>
             <br />
             문의 이메일: {SUPPORT_EMAIL}
             <br />
