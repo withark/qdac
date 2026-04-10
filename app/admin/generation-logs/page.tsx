@@ -149,6 +149,16 @@ type AiRuntimePayload = {
   mockIgnoredInProduction?: boolean
   effectiveEngine: { provider: string; model: string; maxTokens: number }
   apiKeys: { anthropicConfigured: boolean; openaiConfigured: boolean }
+  hybrid?: {
+    enabled: boolean
+    reason: string | null
+    draftProvider: string | null
+    draftModel: string | null
+    refineProvider: string | null
+    refineModel: string | null
+    modeEnabled: boolean
+    prerequisites?: { openaiKey: boolean; anthropicKey: boolean }
+  }
   summaryKo: string
 }
 
@@ -388,6 +398,43 @@ export default function AdminGenerationLogsPage() {
                           {!r.engineSnapshot?.provider && '엔진: —'}
                           {r.engineSnapshot?.model ? ` · ${String(r.engineSnapshot.model)}` : ''}
                         </div>
+                        {isRecord(r.engineSnapshot?.aiGenerationMeta) ? (
+                          <div className="text-[11px] text-slate-700 leading-snug">
+                            {(() => {
+                              const meta = r.engineSnapshot.aiGenerationMeta as Record<string, unknown>
+                              const draftProvider = String(meta.draftProvider ?? '')
+                              const refineProvider = String(meta.refineProvider ?? '')
+                              const hybrid = meta.hybridPipeline === true
+                              const draftModel = String(meta.draftModel ?? '')
+                              const refineModel = String(meta.refineModel ?? '')
+                              if (hybrid && draftProvider && refineProvider) {
+                                return (
+                                  <>
+                                    파이프라인: {draftProvider} → {refineProvider}
+                                    {draftModel ? ` · 초안 ${draftModel}` : ''}
+                                    {refineModel ? ` · 정제 ${refineModel}` : ''}
+                                  </>
+                                )
+                              }
+                              if (draftProvider) {
+                                return (
+                                  <>
+                                    파이프라인: 단일({draftProvider})
+                                    {draftModel ? ` · ${draftModel}` : ''}
+                                  </>
+                                )
+                              }
+                              return null
+                            })()}
+                          </div>
+                        ) : null}
+                        {isRecord(r.engineSnapshot?.aiGenerationMeta) &&
+                        (r.engineSnapshot.aiGenerationMeta as Record<string, unknown>).documentRefineSkipped === true ? (
+                          <div className="text-[10px] text-amber-700">
+                            정제 단계 생략:{' '}
+                            {String((r.engineSnapshot.aiGenerationMeta as Record<string, unknown>).documentRefineSkipReason ?? 'unknown')}
+                          </div>
+                        ) : null}
                         {r.engineSnapshot?.maxTokens != null && (
                           <div className="text-[11px]">최대 토큰: {String(r.engineSnapshot.maxTokens)}</div>
                         )}

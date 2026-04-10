@@ -200,9 +200,3 @@ input[type=number] { -moz-appearance: textfield; }
   .quote-wrapper { padding-bottom: 2rem !important; }
   .flex-1.overflow-y-auto { padding-bottom: 2rem !important; }
 }
-
-.planning-word-sheet {
-  font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', 'Pretendard', sans-serif;
-  font-size: 12pt;
-  line-height: 1.55;
-}

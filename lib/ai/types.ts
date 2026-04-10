@@ -66,6 +66,10 @@ export interface GenerateInput {
   hybridTemplateId?: string | null
   /** 프리미엄(Opus) 월 쿼터 소진 등으로 Sonnet 정제로 강제할 때 true */
   forceStandardHybridRefine?: boolean
+  /** 사용자 프리미엄 Claude 경로 명시 선택 */
+  premiumPathRequested?: boolean
+  /** 고난도/고품질 모드 */
+  highStakesMode?: boolean
 
   /** 서버 전용: 요청당 1회 조회된 엔진 설정 — callLLM 내부 KV 중복 조회 방지 */
   cachedEngineConfig?: {

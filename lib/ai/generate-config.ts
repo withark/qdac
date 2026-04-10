@@ -1,11 +1,11 @@
 /**
  * 견적·기획안 JSON 생성은 길어서 출력 토큰 부족 시 잘림 → 최소 출력 한도.
  */
-export const GENERATE_QUOTE_OUTPUT_MIN = 1_200
+export const GENERATE_QUOTE_OUTPUT_MIN = 6_000
 
-export const ENGINE_MAX_TOKENS_MIN = 1_200
+export const ENGINE_MAX_TOKENS_MIN = 6_000
 export const ENGINE_MAX_TOKENS_MAX = 32_000
-export const ENGINE_MAX_TOKENS_DEFAULT = 2_048
+export const ENGINE_MAX_TOKENS_DEFAULT = 6_144
 
 export const GENERATE_OUTPUT_CAP: Record<'anthropic' | 'openai', number> = {
   anthropic: 16_384,
@@ -34,12 +34,12 @@ export type DocumentTargetForTokens =
 /** 문서 종류별 초안 출력 상한(비용·길이 제어). refine은 별도 엔진 maxTokens 사용. */
 const DRAFT_MAX_BY_TARGET: Record<DocumentTargetForTokens, number> = {
   estimate: 8_192,
-  program: 6_144,
+  program: 8_192,
   timetable: 7_168,
-  planning: 7_168,
-  scenario: 8_192,
-  cuesheet: 8_192,
-  emceeScript: 8_192,
+  planning: 10_240,
+  scenario: 9_216,
+  cuesheet: 10_240,
+  emceeScript: 9_216,
 }
 
 export function resolveDraftMaxTokensForDocumentTarget(

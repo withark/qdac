@@ -5,7 +5,24 @@ import Link from 'next/link'
 
 type EnginesData = {
   effective: { provider: string; model: string; maxTokens: number }
-  env: { hasAnthropic: boolean; hasOpenAI: boolean; aiProvider: string | null; openaiModel: string | null; anthropicModel: string | null }
+  policy: {
+    mode: 'openai_only' | 'hybrid' | 'premium_hybrid'
+    defaultOpenAIModel: string
+    defaultClaudeModel: string
+    premiumClaudeEscalationModel: string
+    premiumClaudeEnabled: boolean
+    claudeFallbackEnabled: boolean
+    opusEscalationEnabled: boolean
+    premiumEscalationPolicy: 'explicit_only' | 'high_stakes_or_explicit'
+  }
+  env: {
+    hasAnthropic: boolean
+    hasOpenAI: boolean
+    aiProvider: string | null
+    openaiModel: string | null
+    anthropicModel: string | null
+    anthropicPremiumModel?: string | null
+  }
   overlay: Record<string, unknown> | null
 }
 
@@ -40,6 +57,14 @@ export default function AdminEnginesPage() {
     outputFormatTemplate: '',
     sampleWeightNote: '',
     qualityBoost: '',
+    defaultEngineMode: 'hybrid' as 'openai_only' | 'hybrid' | 'premium_hybrid',
+    defaultOpenAIModel: '',
+    defaultClaudeModel: '',
+    premiumClaudeEscalationModel: '',
+    premiumClaudeEnabled: true,
+    claudeFallbackEnabled: true,
+    opusEscalationEnabled: true,
+    premiumEscalationPolicy: 'high_stakes_or_explicit' as 'explicit_only' | 'high_stakes_or_explicit',
   })
   const [sampleStrengthPreset, setSampleStrengthPreset] = useState<'low' | 'medium' | 'strong' | ''>('')
   const [outputFormatPreset, setOutputFormatPreset] = useState<string>('')
@@ -60,6 +85,16 @@ export default function AdminEnginesPage() {
             outputFormatTemplate: String(ov.outputFormatTemplate ?? ''),
             sampleWeightNote: String(ov.sampleWeightNote ?? ''),
             qualityBoost: String(ov.qualityBoost ?? ''),
+            defaultEngineMode: (res.data.policy?.mode ?? 'hybrid') as 'openai_only' | 'hybrid' | 'premium_hybrid',
+            defaultOpenAIModel: String(res.data.policy?.defaultOpenAIModel ?? ''),
+            defaultClaudeModel: String(res.data.policy?.defaultClaudeModel ?? ''),
+            premiumClaudeEscalationModel: String(res.data.policy?.premiumClaudeEscalationModel ?? ''),
+            premiumClaudeEnabled: Boolean(res.data.policy?.premiumClaudeEnabled ?? true),
+            claudeFallbackEnabled: Boolean(res.data.policy?.claudeFallbackEnabled ?? true),
+            opusEscalationEnabled: Boolean(res.data.policy?.opusEscalationEnabled ?? true),
+            premiumEscalationPolicy: (res.data.policy?.premiumEscalationPolicy ?? 'high_stakes_or_explicit') as
+              | 'explicit_only'
+              | 'high_stakes_or_explicit',
           })
           const sn = String(ov.sampleWeightNote ?? '')
           if (/약하게|참고만/.test(sn)) setSampleStrengthPreset('low')
@@ -106,6 +141,14 @@ export default function AdminEnginesPage() {
           outputFormatTemplate: outputFormatPreset ? outputFormatTemplate : overlay.outputFormatTemplate,
           sampleWeightNote: sampleStrengthPreset ? sampleWeightNote : overlay.sampleWeightNote,
           qualityBoost: overlay.qualityBoost,
+          defaultEngineMode: overlay.defaultEngineMode,
+          defaultOpenAIModel: overlay.defaultOpenAIModel,
+          defaultClaudeModel: overlay.defaultClaudeModel,
+          premiumClaudeEscalationModel: overlay.premiumClaudeEscalationModel,
+          premiumClaudeEnabled: overlay.premiumClaudeEnabled,
+          claudeFallbackEnabled: overlay.claudeFallbackEnabled,
+          opusEscalationEnabled: overlay.opusEscalationEnabled,
+          premiumEscalationPolicy: overlay.premiumEscalationPolicy,
         }),
       })
       const result = await res.json().catch(() => ({}))
@@ -134,6 +177,95 @@ export default function AdminEnginesPage() {
 
       {/* 현재 적용 값 요약 */}
       <section className="rounded-xl border border-slate-200 bg-white p-4">
+        <h2 className="text-sm font-medium text-gray-700 mb-2">엔진 정책</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">기본 엔진 모드</label>
+            <select
+              value={overlay.defaultEngineMode}
+              onChange={(e) =>
+                setOverlay((o) => ({ ...o, defaultEngineMode: e.target.value as 'openai_only' | 'hybrid' | 'premium_hybrid' }))
+              }
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+            >
+              <option value="openai_only">openai_only (기본/단일)</option>
+              <option value="hybrid">hybrid (OpenAI + Claude)</option>
+              <option value="premium_hybrid">premium_hybrid (프로 플랜 Claude 허용)</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">기본 OpenAI 모델</label>
+            <input
+              type="text"
+              value={overlay.defaultOpenAIModel}
+              onChange={(e) => setOverlay((o) => ({ ...o, defaultOpenAIModel: e.target.value }))}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">기본 Claude 모델 (Sonnet)</label>
+            <input
+              type="text"
+              value={overlay.defaultClaudeModel}
+              onChange={(e) => setOverlay((o) => ({ ...o, defaultClaudeModel: e.target.value }))}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">프리미엄 상향 모델 (Opus)</label>
+            <input
+              type="text"
+              value={overlay.premiumClaudeEscalationModel}
+              onChange={(e) => setOverlay((o) => ({ ...o, premiumClaudeEscalationModel: e.target.value }))}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+            />
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={overlay.premiumClaudeEnabled}
+              onChange={(e) => setOverlay((o) => ({ ...o, premiumClaudeEnabled: e.target.checked }))}
+            />
+            프로 사용자 Claude 프리미엄 경로 허용
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={overlay.claudeFallbackEnabled}
+              onChange={(e) => setOverlay((o) => ({ ...o, claudeFallbackEnabled: e.target.checked }))}
+            />
+            OpenAI 실패 시 Claude 폴백 허용
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={overlay.opusEscalationEnabled}
+              onChange={(e) => setOverlay((o) => ({ ...o, opusEscalationEnabled: e.target.checked }))}
+            />
+            Opus 4.1 2차 상향 허용
+          </label>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Opus 상향 조건</label>
+            <select
+              value={overlay.premiumEscalationPolicy}
+              onChange={(e) =>
+                setOverlay((o) => ({
+                  ...o,
+                  premiumEscalationPolicy: e.target.value as 'explicit_only' | 'high_stakes_or_explicit',
+                }))
+              }
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+            >
+              <option value="high_stakes_or_explicit">고난도 또는 명시 요청</option>
+              <option value="explicit_only">명시 요청일 때만</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-4">
         <h2 className="text-sm font-medium text-gray-700 mb-2">현재 적용 값 (env + DB 오버레이)</h2>
         <dl className="grid grid-cols-2 gap-2 text-sm">
           <dt className="text-gray-500">provider</dt>
@@ -142,6 +274,12 @@ export default function AdminEnginesPage() {
           <dd className="font-mono">{data.effective?.model ?? '—'}</dd>
           <dt className="text-gray-500">maxTokens</dt>
           <dd className="font-mono">{data.effective?.maxTokens ?? '—'}</dd>
+          <dt className="text-gray-500">enginePolicy</dt>
+          <dd className="font-mono">{data.policy?.mode ?? '—'}</dd>
+          <dt className="text-gray-500">premiumClaude</dt>
+          <dd>{data.policy?.premiumClaudeEnabled ? '활성' : '비활성'}</dd>
+          <dt className="text-gray-500">opusEscalation</dt>
+          <dd>{data.policy?.opusEscalationEnabled ? '활성' : '비활성'}</dd>
         </dl>
       </section>
 

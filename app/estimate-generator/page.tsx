@@ -98,6 +98,8 @@ function EstimateGeneratorContent() {
   const [notes, setNotes] = useState('')
   const [budget, setBudget] = useState('미정')
   const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null)
+  const [premiumPathRequested, setPremiumPathRequested] = useState(false)
+  const [highStakesMode, setHighStakesMode] = useState(false)
 
   const [doc, setDoc] = useState<QuoteDoc | null>(null)
   const [generatedDocId, setGeneratedDocId] = useState<string | null>(null)
@@ -275,6 +277,8 @@ function EstimateGeneratorContent() {
       clientManager: '',
       clientTel: '',
       requirements: '',
+      premiumPathRequested,
+      highStakesMode,
     }
 
     if (sourceMode === 'fromEstimate') {
@@ -339,6 +343,8 @@ function EstimateGeneratorContent() {
     headcount,
     venue,
     notes,
+    premiumPathRequested,
+    highStakesMode,
   ])
 
   const handleGenerateEstimate = useCallback(async () => {
@@ -585,6 +591,13 @@ function EstimateGeneratorContent() {
                   : ''}
               </p>
             ) : null}
+            {me?.subscription?.planType === 'PREMIUM' ? (
+              <p className="mt-1 text-xs text-emerald-700">
+                프로 전용: 프리미엄 Claude 경로와 Opus 상향(관리자 정책 허용 시)을 사용할 수 있습니다.
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-slate-500">프리미엄 Claude 경로는 프로 플랜 전용입니다.</p>
+            )}
           </div>
           {me?.subscription?.planType === 'FREE' ? (
             <div className="flex items-center gap-2">
@@ -631,7 +644,33 @@ function EstimateGeneratorContent() {
                   setBudget('미정')
                 }}
                 requiredInput={
-                  sourceMode === 'fromEstimate' ? (
+                  <>
+                    {me?.subscription?.planType === 'PREMIUM' ? (
+                      <div className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={premiumPathRequested}
+                            onChange={(e) => setPremiumPathRequested(e.target.checked)}
+                          />
+                          프리미엄 생성 경로 사용 (Claude Sonnet 중심)
+                        </label>
+                        <label className="mt-2 flex items-center gap-2 text-xs text-emerald-900">
+                          <input
+                            type="checkbox"
+                            checked={highStakesMode}
+                            onChange={(e) => setHighStakesMode(e.target.checked)}
+                            disabled={!premiumPathRequested}
+                          />
+                          고난도/중요 문서 모드 (정책 허용 시 Opus 4.1 상향)
+                        </label>
+                      </div>
+                    ) : (
+                      <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                        Claude 프리미엄 생성은 프로 플랜에서 사용 가능합니다.
+                      </div>
+                    )}
+                    {sourceMode === 'fromEstimate' ? (
                     <select
                       value={selectedEstimateId || ''}
                       onChange={(e) => {
@@ -700,7 +739,8 @@ function EstimateGeneratorContent() {
                     </>
                   ) : (
                     topicInputs
-                  )
+                  )}
+                  </>
                 }
                 generateLabel="견적서 생성하기"
                 onGenerate={handleGenerateEstimate}

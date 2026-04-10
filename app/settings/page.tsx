@@ -1,10 +1,11 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { GNB } from '@/components/GNB'
-import { Button, Input, Field, Toast } from '@/components/ui'
+import { Button, Input, Field, Toast, Spinner } from '@/components/ui'
 import type { CompanySettings } from '@/lib/types'
 import { DEFAULT_SETTINGS } from '@/lib/defaults'
 import Link from 'next/link'
+import Image from 'next/image'
 import { apiFetch } from '@/lib/api/client'
 import { toUserMessage } from '@/lib/errors/toUserMessage'
 import type { PlanType } from '@/lib/plans'
@@ -92,7 +93,9 @@ export default function SettingsPage() {
   const [cfg,  setCfg]  = useState<CompanySettings>(DEFAULT_SETTINGS)
   const [toast, setToast] = useState('')
   const [postcodeError, setPostcodeError] = useState('')
+  const [logoUploading, setLogoUploading] = useState(false)
   const [me, setMe] = useState<{ subscription: { planType: PlanType }; usage: { companyProfileCount: number }; limits: { companyProfileLimit: number } } | null>(null)
+  const logoInputRef = useRef<HTMLInputElement | null>(null)
 
   const showToast = useCallback((m: string) => {
     setToast(m); setTimeout(() => setToast(''), 2500)
@@ -110,14 +113,15 @@ export default function SettingsPage() {
       .catch(() => {})
   }, [])
 
-  async function saveCfg() {
+  async function saveCfg(nextCfg?: CompanySettings, successMessage = '설정 저장 완료!') {
     try {
+      const payload = nextCfg ?? cfg
       await apiFetch<null>('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cfg),
+        body: JSON.stringify(payload),
       })
-      showToast('설정 저장 완료!')
+      showToast(successMessage)
       apiFetch<{ subscription: { planType: PlanType }; usage: { companyProfileCount: number }; limits: { companyProfileLimit: number } }>('/api/me')
         .then(setMe)
         .catch(() => {})
@@ -128,6 +132,42 @@ export default function SettingsPage() {
 
   const set = (k: keyof CompanySettings) => (v: string | number) =>
     setCfg(c => ({ ...c, [k]: v }))
+  const setBank = (k: 'bankName' | 'accountNumber' | 'accountHolder') => (v: string) =>
+    setCfg(c => ({
+      ...c,
+      bankAccount: {
+        bankName: c.bankAccount?.bankName || '',
+        accountNumber: c.bankAccount?.accountNumber || '',
+        accountHolder: c.bankAccount?.accountHolder || '',
+        [k]: v,
+      },
+    }))
+
+  async function uploadLogo(file: File) {
+    try {
+      setLogoUploading(true)
+      const formData = new FormData()
+      formData.append('file', file)
+      const uploaded = await apiFetch<{ logoUrl: string }>('/api/settings/logo', {
+        method: 'POST',
+        body: formData,
+      })
+      const nextCfg = { ...cfg, logoUrl: uploaded.logoUrl }
+      setCfg(nextCfg)
+      await saveCfg(nextCfg, '로고 업로드 및 저장 완료!')
+    } catch (e) {
+      showToast(toUserMessage(e, '로고 업로드에 실패했습니다.'))
+    } finally {
+      setLogoUploading(false)
+      if (logoInputRef.current) logoInputRef.current.value = ''
+    }
+  }
+
+  async function deleteLogo() {
+    const nextCfg = { ...cfg, logoUrl: null }
+    setCfg(nextCfg)
+    await saveCfg(nextCfg, '로고 삭제 및 저장 완료!')
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50/50">
@@ -138,7 +178,7 @@ export default function SettingsPage() {
             <h1 className="text-base font-semibold text-gray-900">설정</h1>
             <p className="text-xs text-gray-500 mt-0.5">회사 정보와 견적 기본값</p>
           </div>
-          <Button size="sm" variant="primary" onClick={saveCfg}>저장</Button>
+          <Button size="sm" variant="primary" onClick={() => void saveCfg()}>저장</Button>
         </header>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6 max-w-2xl">
@@ -197,6 +237,102 @@ export default function SettingsPage() {
                 </div>
                 {postcodeError && <p className="mt-2 text-xs text-red-600">{postcodeError}</p>}
               </Field>
+            </div>
+          </section>
+
+          <section className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-card">
+            <div className="px-4 py-3 bg-primary-50/50 border-b border-gray-100">
+              <h2 className="text-sm font-medium text-gray-900">브랜드/연락/정산 정보</h2>
+            </div>
+            <div className="p-4 space-y-5">
+              <div>
+                <p className="text-sm font-semibold text-slate-700 mb-2">회사 로고</p>
+                <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4">
+                  {cfg.logoUrl ? (
+                    <Image
+                      src={cfg.logoUrl}
+                      alt="회사 로고"
+                      width={240}
+                      height={80}
+                      className="h-20 w-auto object-contain rounded bg-white border border-slate-200 p-2"
+                    />
+                  ) : (
+                    <p className="text-sm text-slate-500">로고 없음</p>
+                  )}
+                </div>
+                <div className="mt-3 flex items-center gap-2">
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/svg+xml"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      void uploadLogo(file)
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={logoUploading}
+                    onClick={() => logoInputRef.current?.click()}
+                  >
+                    파일 선택
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="danger"
+                    size="sm"
+                    disabled={logoUploading || !cfg.logoUrl}
+                    onClick={deleteLogo}
+                  >
+                    로고 삭제
+                  </Button>
+                  {logoUploading && <Spinner label="업로드 중..." />}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="이메일">
+                  <Input
+                    type="email"
+                    value={cfg.email || ''}
+                    onChange={e => setCfg(c => ({ ...c, email: e.target.value }))}
+                    placeholder="hello@company.com"
+                  />
+                </Field>
+                <Field label="웹사이트">
+                  <Input
+                    type="url"
+                    value={cfg.websiteUrl || ''}
+                    onChange={e => setCfg(c => ({ ...c, websiteUrl: e.target.value }))}
+                    placeholder="https://"
+                  />
+                </Field>
+              </div>
+
+              <div>
+                <p className="text-sm font-semibold text-slate-700 mb-2">계좌 정보</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <Input
+                    value={cfg.bankAccount?.bankName || ''}
+                    onChange={e => setBank('bankName')(e.target.value)}
+                    placeholder="은행명"
+                  />
+                  <Input
+                    value={cfg.bankAccount?.accountNumber || ''}
+                    onChange={e => setBank('accountNumber')(e.target.value)}
+                    placeholder="계좌번호"
+                  />
+                  <Input
+                    value={cfg.bankAccount?.accountHolder || ''}
+                    onChange={e => setBank('accountHolder')(e.target.value)}
+                    placeholder="예금주"
+                  />
+                </div>
+              </div>
             </div>
           </section>
 

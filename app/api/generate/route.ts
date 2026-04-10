@@ -8,6 +8,8 @@ import { ensureFreeSubscription, getActiveSubscription } from '@/lib/db/subscrip
 import { getOrCreateUsage } from '@/lib/db/usage-db'
 import { assertEstimateGenerationAllowed, assertQuoteGenerateAllowed, EntitlementError } from '@/lib/entitlements'
 import { shouldUsePremiumRefineModel } from '@/lib/ai/config'
+import { resolveEnginePolicy } from '@/lib/ai/hybrid-pipeline'
+import { getEffectiveEngineConfig } from '@/lib/ai/client'
 import type { PlanType } from '@/lib/plans'
 import { PLAN_LIMITS } from '@/lib/plans'
 import { documentAccessMessage, isDocumentAllowedForPlan, type AppDocumentType } from '@/lib/plan-access'
@@ -58,6 +60,10 @@ const GenerateRequestSchema = z.object({
   quoteTemplate: z.string().optional().default(''),
   /** 프로그램/종목 힌트(비어 있으면 서버가 existingDoc에서 유도) */
   programs: z.array(z.string()).optional().default([]),
+  /** 프로 전용 프리미엄 생성 경로 요청 */
+  premiumPathRequested: z.boolean().optional().default(false),
+  /** 고품질 상향(고난도 문서) 요청 */
+  highStakesMode: z.boolean().optional().default(false),
 })
 
 function buildNoKeyMockDoc(input: z.infer<typeof GenerateRequestSchema>): QuoteDoc {
@@ -182,6 +188,17 @@ export async function POST(req: NextRequest) {
 
     let forceStandardHybridRefine: boolean | undefined
     const usage = await getOrCreateUsage(userId)
+    const effectiveEngine = await getEffectiveEngineConfig()
+    const enginePolicy = resolveEnginePolicy(effectiveEngine.overlay)
+    if (body.premiumPathRequested && plan !== 'PREMIUM') {
+      return errorResponse(403, 'PLAN_UPGRADE_REQUIRED', '프리미엄 생성 경로는 프로 플랜에서만 사용할 수 있습니다.')
+    }
+    if (body.highStakesMode && plan !== 'PREMIUM') {
+      return errorResponse(403, 'PLAN_UPGRADE_REQUIRED', '고품질 상향 모드는 프로 플랜에서만 사용할 수 있습니다.')
+    }
+    if (body.premiumPathRequested && !enginePolicy.premiumClaudeEnabled) {
+      return errorResponse(403, 'PREMIUM_PATH_DISABLED', '현재 운영 정책에서 프리미엄 Claude 경로가 비활성화되어 있습니다.')
+    }
     if (body.documentTarget === 'estimate') {
       const existing = body.existingDoc as { quoteTemplate?: string } | undefined
       const templateId = (existing?.quoteTemplate || body.quoteTemplate || 'default').trim() || 'default'
@@ -210,6 +227,8 @@ export async function POST(req: NextRequest) {
       aiModeRawMock,
       mockBlockedInProduction,
       forceStandardHybridRefine,
+      premiumPathRequested: body.premiumPathRequested,
+      highStakesMode: body.highStakesMode,
     }
 
     if (body.streamProgress) {

@@ -18,12 +18,12 @@ import {
   applySuggestedPrices,
 } from './parsers'
 import { resolveGenerateMaxTokens, resolveDraftMaxTokensForDocumentTarget } from './generate-config'
-import { getHybridPipelineEngines, shouldSkipHybridRefinementForPlan } from './hybrid-pipeline'
+import { getHybridPipelineEngines, resolveEnginePolicy, shouldSkipHybridRefinementForPlan } from './hybrid-pipeline'
 import { runDocumentRefinementPass, shouldSkipDocumentRefinementPass } from './services/documentRefiner'
 import { aggregateGenerationCostUsd } from './services/pricingCalculator'
 import { hhmmToMinutes, minutesToHHMM } from './timeline-utils'
 import { logInfo } from '@/lib/utils/logger'
-import { shouldLogPipelineStage, shouldUsePremiumRefineModel } from './config'
+import { shouldLogPipelineStage } from './config'
 
 export type { GenerateInput, QuoteDoc, PriceCategory }
 export type GenerateTimingMeta = {
@@ -2283,9 +2283,11 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
   const hybrid = getHybridPipelineEngines(input.userPlan, {
     hybridTemplateId,
     forceStandardRefine: input.forceStandardHybridRefine,
+    premiumPathRequested: input.premiumPathRequested,
+    highStakes: input.highStakesMode,
+    overlay: eff.overlay,
   })
-  const premiumRefineActive =
-    shouldUsePremiumRefineModel(input.userPlan, hybridTemplateId) && !input.forceStandardHybridRefine
+  const premiumRefineActive = !!hybrid?.refine?.model && /claude-opus-4-1-20250805/.test(hybrid.refine.model)
   const hybridRefineTier: 'opus' | 'sonnet' | 'skipped' = !hybrid?.refine
     ? 'skipped'
     : premiumRefineActive
@@ -2301,6 +2303,7 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
   const stageBrief = buildStageBrief(input)
   const stageStructurePlan = buildStageStructurePlan(input, stageBrief)
   const generationProfile = input.generationProfile ?? 'realtime'
+  const runtimePolicy = resolveEnginePolicy(eff.overlay)
   const stagedInput: GenerateInput = {
     ...input,
     stageBrief,
@@ -2373,6 +2376,26 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
           })
         }
         draftEff = eff
+        return runOnce(extra, kind)
+      }
+      if (
+        draftEff.provider === 'openai' &&
+        runtimePolicy.claudeFallbackEnabled &&
+        hybrid?.refine?.provider === 'anthropic'
+      ) {
+        draftEff = {
+          provider: 'anthropic',
+          model: runtimePolicy.defaultClaudeModel,
+          maxTokens: draftEff.maxTokens,
+          overlay: null,
+        }
+        if (shouldLogPipelineStage()) {
+          logInfo('ai.pipeline.draft.fallback', {
+            reason: 'openai_failed_fallback_to_claude',
+            toProvider: draftEff.provider,
+            toModel: draftEff.model,
+          })
+        }
         return runOnce(extra, kind)
       }
       if (err?.timedOut || err?.code === 'ETIMEDOUT' || String(err?.message || '').toLowerCase().includes('timeout')) {

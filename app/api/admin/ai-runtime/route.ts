@@ -6,18 +6,19 @@ import { getEffectiveEngineConfig } from '@/lib/ai/client'
 import { isAiModeMockRaw, isEffectiveMockAi, isMockGenerationEnabled, isProductionRuntime } from '@/lib/ai/mode'
 import { isHybridPipelineModeEnabled, resolveAnthropicFinalModel } from '@/lib/ai/config'
 import { clampEngineMaxTokens } from '@/lib/ai/generate-config'
-import { getHybridPipelineEngines } from '@/lib/ai/hybrid-pipeline'
+import { getHybridPipelineEngines, resolveEnginePolicy } from '@/lib/ai/hybrid-pipeline'
 
 export const dynamic = 'force-dynamic'
 
 const REALTIME_ANTHROPIC_MODEL_DEFAULT = resolveAnthropicFinalModel()
 const REALTIME_MAX_TOKENS_DEFAULT = 6_144
 
-function resolveHybridStatus(env: ReturnType<typeof getEnv>) {
+function resolveHybridStatus(env: ReturnType<typeof getEnv>, overlay: Awaited<ReturnType<typeof getEffectiveEngineConfig>>['overlay']) {
   const modeEnabled = isHybridPipelineModeEnabled()
   const hasOpenAI = !!env.OPENAI_API_KEY?.trim()
   const hasAnthropic = !!env.ANTHROPIC_API_KEY?.trim()
-  const engines = getHybridPipelineEngines(undefined)
+  const engines = getHybridPipelineEngines(undefined, { overlay })
+  const policy = resolveEnginePolicy(overlay)
   const enabled = engines != null
 
   let reason: string | null = null
@@ -39,6 +40,7 @@ function resolveHybridStatus(env: ReturnType<typeof getEnv>) {
     refineProvider: engines?.refine.provider ?? null,
     refineModel: engines?.refine.model ?? null,
     modeEnabled,
+    policy,
     prerequisites: {
       openaiKey: hasOpenAI,
       anthropicKey: hasAnthropic,
@@ -64,7 +66,7 @@ export async function GET(req: NextRequest) {
   try {
     const env = getEnv()
     const effRaw = await getEffectiveEngineConfig()
-    const hybrid = resolveHybridStatus(env)
+    const hybrid = resolveHybridStatus(env, effRaw.overlay)
     const realtimeTokenCap = parsePositiveInt(process.env.AI_REALTIME_MAX_TOKENS, REALTIME_MAX_TOKENS_DEFAULT)
     const eff =
       effRaw.provider === 'anthropic'

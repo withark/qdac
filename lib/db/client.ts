@@ -159,11 +159,23 @@ export async function initDb(): Promise<void> {
       profit_rate int NOT NULL DEFAULT 0,
       valid_days int NOT NULL DEFAULT 7,
       payment_terms text NOT NULL DEFAULT '',
+      bank_name text NOT NULL DEFAULT '',
+      account_number text NOT NULL DEFAULT '',
+      account_holder text NOT NULL DEFAULT '',
+      logo_url text NOT NULL DEFAULT '',
+      email text NOT NULL DEFAULT '',
+      website_url text NOT NULL DEFAULT '',
       is_default boolean NOT NULL DEFAULT true,
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now()
     )
   `
+  await sql`ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS bank_name text NOT NULL DEFAULT ''`
+  await sql`ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS account_number text NOT NULL DEFAULT ''`
+  await sql`ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS account_holder text NOT NULL DEFAULT ''`
+  await sql`ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS logo_url text NOT NULL DEFAULT ''`
+  await sql`ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS email text NOT NULL DEFAULT ''`
+  await sql`ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS website_url text NOT NULL DEFAULT ''`
   await sql`CREATE INDEX IF NOT EXISTS idx_company_profiles_user_id ON company_profiles (user_id)`
   await sql`CREATE UNIQUE INDEX IF NOT EXISTS uidx_company_profiles_default ON company_profiles (user_id) WHERE is_default = true`
 

@@ -23,6 +23,22 @@ export interface EngineConfigOverlay {
   provider?: 'anthropic' | 'openai'
   model?: string
   maxTokens?: number
+  /** 기본 엔진 정책 모드 */
+  defaultEngineMode?: 'openai_only' | 'hybrid' | 'premium_hybrid'
+  /** OpenAI 기본 모델(정상 경로) */
+  defaultOpenAIModel?: string
+  /** Claude 기본 모델(프리미엄/폴백 경로) */
+  defaultClaudeModel?: string
+  /** 프리미엄 2차 상향 모델 */
+  premiumClaudeEscalationModel?: string
+  /** 프리미엄 플랜의 Claude 경로 허용 */
+  premiumClaudeEnabled?: boolean
+  /** OpenAI 결과 품질 미달/실패 시 Claude 폴백 허용 */
+  claudeFallbackEnabled?: boolean
+  /** Opus 4.1 상향 패스 허용 */
+  opusEscalationEnabled?: boolean
+  /** Opus 상향 허용 규칙 */
+  premiumEscalationPolicy?: 'explicit_only' | 'high_stakes_or_explicit'
   /** true면 표·행 구조를 문체보다 우선 지시 */
   structureFirst?: boolean
   /** true면 톤·문체를 구조보다 우선 */

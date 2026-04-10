@@ -35,8 +35,7 @@ export function templateMatchesHybridPremiumList(templateId: string | undefined 
 
 /** 하이브리드 파이프라인 활성 여부 (키는 호출부에서 별도 확인) */
 export function isHybridPipelineModeEnabled(): boolean {
-  // 비용 폭주를 막기 위해 기본은 single(OpenAI 우선)로 두고, 필요 시에만 명시적으로 활성화.
-  if (!readEnvBool('AI_ENABLE_HYBRID' as keyof AppEnv, false)) return false
+  if (!readEnvBool('AI_ENABLE_HYBRID' as keyof AppEnv, true)) return false
   const env = getEnv()
   const mode = (env.AI_MODE || '').trim().toLowerCase()
   const legacy = (env.AI_PIPELINE_MODE || '').trim().toLowerCase()
@@ -124,7 +123,7 @@ export function shouldUsePremiumRefineModel(plan: PlanType | undefined, hybridTe
  */
 export function planAllowsHybridRefinement(plan: PlanType | undefined): boolean {
   if (!plan || plan === 'PREMIUM') return readEnvBool('AI_HYBRID_PLAN_PREMIUM' as keyof AppEnv, true)
-  return readEnvBool('AI_HYBRID_PLAN_BASIC' as keyof AppEnv, false)
+  return readEnvBool('AI_HYBRID_PLAN_BASIC' as keyof AppEnv, true)
 }
 
 /** env 기반 출력 품질·길이 힌트 (프롬프트에만 소량 주입, 기존 로직 유지) */

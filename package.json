@@ -23,6 +23,7 @@
     "@tosspayments/payment-sdk": "^1.9.2",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
+    "docx": "^9.6.1",
     "exceljs": "^4.4.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",

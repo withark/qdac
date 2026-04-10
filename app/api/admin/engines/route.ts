@@ -6,8 +6,9 @@ import { getAIProvider } from '@/lib/ai/client'
 import { hasDatabase } from '@/lib/db/client'
 import { kvGet, kvSet } from '@/lib/db/kv'
 import type { EngineConfigOverlay } from '@/lib/admin-types'
-import { resolveAnthropicFinalModel, resolveOpenAIStructModel } from '@/lib/ai/config'
+import { resolveAnthropicFinalModel, resolveAnthropicPremiumModel, resolveOpenAIStructModel } from '@/lib/ai/config'
 import { clampEngineMaxTokens, ENGINE_MAX_TOKENS_DEFAULT } from '@/lib/ai/generate-config'
+import { resolveEnginePolicy } from '@/lib/ai/hybrid-pipeline'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,14 +31,17 @@ export async function GET(_req: NextRequest) {
         (provider === 'openai' ? (env.OPENAI_MODEL ?? resolveOpenAIStructModel()) : (env.ANTHROPIC_MODEL ?? resolveAnthropicFinalModel())),
       maxTokens: clampEngineMaxTokens(overlay?.maxTokens ?? ENGINE_MAX_TOKENS_DEFAULT),
     }
+    const policy = resolveEnginePolicy(overlay)
     return okResponse({
       effective,
+      policy,
       env: {
         hasAnthropic: !!env.ANTHROPIC_API_KEY,
         hasOpenAI: !!env.OPENAI_API_KEY,
         aiProvider: env.AI_PROVIDER ?? null,
         openaiModel: env.OPENAI_MODEL ?? null,
         anthropicModel: env.ANTHROPIC_MODEL ?? null,
+        anthropicPremiumModel: env.ANTHROPIC_MODEL_PREMIUM ?? null,
       },
       overlay,
     })
@@ -55,6 +59,17 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const prev = (await kvGet<EngineConfigOverlay | null>('engine_config', null)) || {}
+    const mode =
+      body?.defaultEngineMode === 'openai_only' ||
+      body?.defaultEngineMode === 'hybrid' ||
+      body?.defaultEngineMode === 'premium_hybrid'
+        ? body.defaultEngineMode
+        : prev.defaultEngineMode ?? 'hybrid'
+    const premiumEscalationPolicy =
+      body?.premiumEscalationPolicy === 'explicit_only' ||
+      body?.premiumEscalationPolicy === 'high_stakes_or_explicit'
+        ? body.premiumEscalationPolicy
+        : prev.premiumEscalationPolicy ?? 'high_stakes_or_explicit'
     const overlay: EngineConfigOverlay = {
       provider:
         body?.provider === 'openai' || body?.provider === 'anthropic'
@@ -64,6 +79,26 @@ export async function POST(req: NextRequest) {
       maxTokens: clampEngineMaxTokens(
         typeof body?.maxTokens === 'number' ? body.maxTokens : prev.maxTokens ?? ENGINE_MAX_TOKENS_DEFAULT,
       ),
+      defaultEngineMode: mode,
+      defaultOpenAIModel:
+        typeof body?.defaultOpenAIModel === 'string'
+          ? body.defaultOpenAIModel.trim() || resolveOpenAIStructModel()
+          : prev.defaultOpenAIModel ?? resolveOpenAIStructModel(),
+      defaultClaudeModel:
+        typeof body?.defaultClaudeModel === 'string'
+          ? body.defaultClaudeModel.trim() || resolveAnthropicFinalModel()
+          : prev.defaultClaudeModel ?? resolveAnthropicFinalModel(),
+      premiumClaudeEscalationModel:
+        typeof body?.premiumClaudeEscalationModel === 'string'
+          ? body.premiumClaudeEscalationModel.trim() || resolveAnthropicPremiumModel()
+          : prev.premiumClaudeEscalationModel ?? resolveAnthropicPremiumModel(),
+      premiumClaudeEnabled:
+        typeof body?.premiumClaudeEnabled === 'boolean' ? body.premiumClaudeEnabled : prev.premiumClaudeEnabled ?? true,
+      claudeFallbackEnabled:
+        typeof body?.claudeFallbackEnabled === 'boolean' ? body.claudeFallbackEnabled : prev.claudeFallbackEnabled ?? true,
+      opusEscalationEnabled:
+        typeof body?.opusEscalationEnabled === 'boolean' ? body.opusEscalationEnabled : prev.opusEscalationEnabled ?? true,
+      premiumEscalationPolicy,
       structureFirst:
         typeof body?.structureFirst === 'boolean' ? body.structureFirst : !!prev.structureFirst,
       toneFirst: typeof body?.toneFirst === 'boolean' ? body.toneFirst : !!prev.toneFirst,

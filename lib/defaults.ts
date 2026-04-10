@@ -12,4 +12,12 @@ export const DEFAULT_SETTINGS: CompanySettings = {
   profitRate: 10,
   validDays: 30,
   paymentTerms: '계약금 50% 선입금\n잔금 행사 당일 현장 정산\n세금계산서 발행 가능',
+  bankAccount: {
+    bankName: '',
+    accountNumber: '',
+    accountHolder: '',
+  },
+  logoUrl: null,
+  email: '',
+  websiteUrl: '',
 }

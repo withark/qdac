@@ -16,6 +16,12 @@ export type CompanyProfileRow = {
   profitRate: number
   validDays: number
   paymentTerms: string
+  bankName: string
+  accountNumber: string
+  accountHolder: string
+  logoUrl: string
+  email: string
+  websiteUrl: string
   isDefault: boolean
   createdAt: string
   updatedAt: string
@@ -35,6 +41,12 @@ function toRow(r: any): CompanyProfileRow {
     profitRate: Number(r.profit_rate ?? 0),
     validDays: Number(r.valid_days ?? 7),
     paymentTerms: String(r.payment_terms ?? ''),
+    bankName: String(r.bank_name ?? ''),
+    accountNumber: String(r.account_number ?? ''),
+    accountHolder: String(r.account_holder ?? ''),
+    logoUrl: String(r.logo_url ?? ''),
+    email: String(r.email ?? ''),
+    websiteUrl: String(r.website_url ?? ''),
     isDefault: Boolean(r.is_default),
     createdAt: new Date(r.created_at).toISOString(),
     updatedAt: new Date(r.updated_at).toISOString(),
@@ -53,6 +65,17 @@ export function profileToCompanySettings(p: CompanyProfileRow): CompanySettings 
     profitRate: p.profitRate,
     validDays: p.validDays,
     paymentTerms: p.paymentTerms,
+    bankAccount:
+      p.bankName || p.accountNumber || p.accountHolder
+        ? {
+            bankName: p.bankName,
+            accountNumber: p.accountNumber,
+            accountHolder: p.accountHolder,
+          }
+        : undefined,
+    logoUrl: p.logoUrl || null,
+    email: p.email || '',
+    websiteUrl: p.websiteUrl || '',
   }
 }
 
@@ -68,6 +91,12 @@ export function companySettingsToProfileInput(s: CompanySettings) {
     profitRate: Number(s.profitRate ?? 0),
     validDays: Number(s.validDays ?? 7),
     paymentTerms: s.paymentTerms ?? '',
+    bankName: s.bankAccount?.bankName ?? '',
+    accountNumber: s.bankAccount?.accountNumber ?? '',
+    accountHolder: s.bankAccount?.accountHolder ?? '',
+    logoUrl: s.logoUrl ?? '',
+    email: s.email ?? '',
+    websiteUrl: s.websiteUrl ?? '',
   }
 }
 
@@ -120,6 +149,12 @@ export async function upsertDefaultCompanyProfile(userId: string, settings: Comp
         profitRate: p.profitRate,
         validDays: p.validDays,
         paymentTerms: p.paymentTerms,
+        bankName: p.bankName,
+        accountNumber: p.accountNumber,
+        accountHolder: p.accountHolder,
+        logoUrl: p.logoUrl,
+        email: p.email,
+        websiteUrl: p.websiteUrl,
         isDefault: true,
         updatedAt: now,
       }
@@ -141,6 +176,12 @@ export async function upsertDefaultCompanyProfile(userId: string, settings: Comp
       profitRate: p.profitRate,
       validDays: p.validDays,
       paymentTerms: p.paymentTerms,
+      bankName: p.bankName,
+      accountNumber: p.accountNumber,
+      accountHolder: p.accountHolder,
+      logoUrl: p.logoUrl,
+      email: p.email,
+      websiteUrl: p.websiteUrl,
       isDefault: true,
       createdAt: now,
       updatedAt: now,
@@ -166,6 +207,12 @@ export async function upsertDefaultCompanyProfile(userId: string, settings: Comp
         profit_rate = ${p.profitRate},
         valid_days = ${p.validDays},
         payment_terms = ${p.paymentTerms},
+        bank_name = ${p.bankName},
+        account_number = ${p.accountNumber},
+        account_holder = ${p.accountHolder},
+        logo_url = ${p.logoUrl},
+        email = ${p.email},
+        website_url = ${p.websiteUrl},
         updated_at = ${now}::timestamptz
       WHERE id = ${existing.id} AND user_id = ${userId}
       RETURNING *
@@ -179,11 +226,13 @@ export async function upsertDefaultCompanyProfile(userId: string, settings: Comp
       id, user_id,
       company_name, biz_no, ceo, contact_name, tel, addr,
       expense_rate, profit_rate, valid_days, payment_terms,
+      bank_name, account_number, account_holder, logo_url, email, website_url,
       is_default, created_at, updated_at
     ) VALUES (
       ${id}, ${userId},
       ${p.companyName}, ${p.bizNo}, ${p.ceo}, ${p.contactName}, ${p.tel}, ${p.addr},
       ${p.expenseRate}, ${p.profitRate}, ${p.validDays}, ${p.paymentTerms},
+      ${p.bankName}, ${p.accountNumber}, ${p.accountHolder}, ${p.logoUrl}, ${p.email}, ${p.websiteUrl},
       true, ${now}::timestamptz, ${now}::timestamptz
     )
     RETURNING *

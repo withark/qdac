@@ -22,7 +22,7 @@ import { getCuesheetFile } from '@/lib/db/cuesheet-samples-db'
 import { extractTextFromBuffer } from '@/lib/file-utils'
 import { getEffectiveEngineConfig } from '@/lib/ai/client'
 import { resolveAnthropicFinalModel } from '@/lib/ai/config'
-import { getHybridPipelineEngines } from '@/lib/ai/hybrid-pipeline'
+import { getHybridPipelineEngines, resolveEnginePolicy } from '@/lib/ai/hybrid-pipeline'
 import { readEnvBool } from '@/lib/env'
 import { clampEngineMaxTokens } from '@/lib/ai/generate-config'
 import { logError, logInfo } from '@/lib/utils/logger'
@@ -85,6 +85,10 @@ export type ExecuteGeneratePipelineArgs = {
   mockBlockedInProduction: boolean
   /** 프로: 프리미엄 쿼터 소진 시 Sonnet으로 강제 */
   forceStandardHybridRefine?: boolean
+  /** 사용자 프리미엄 경로 선택 */
+  premiumPathRequested?: boolean
+  /** 고난도/고품질 모드 선택 */
+  highStakesMode?: boolean
   pipelineEmit?: (info: { stage: string; label: string }) => void
 }
 
@@ -164,6 +168,8 @@ export async function executeGeneratePipeline(
     aiModeRawMock,
     mockBlockedInProduction,
     forceStandardHybridRefine,
+    premiumPathRequested,
+    highStakesMode,
     pipelineEmit,
   } = args
 
@@ -274,9 +280,13 @@ export async function executeGeneratePipeline(
     (existingDoc as QuoteDoc | undefined)?.quoteTemplate ?? quoteTemplateHint
 
   const overlayForPrompt = effective.overlay
+  const resolvedPolicy = resolveEnginePolicy(overlayForPrompt)
   const hybridEngines = getHybridPipelineEngines(plan, {
     hybridTemplateId: hybridTemplateIdForPolicy,
     forceStandardRefine: forceStandardHybridRefine,
+    premiumPathRequested,
+    highStakes: highStakesMode,
+    overlay: effective.overlay,
   })
 
   const engineSnapshot: Record<string, unknown> = {
@@ -309,6 +319,13 @@ export async function executeGeneratePipeline(
       hybridEngines != null
         ? { draftModel: hybridEngines.draft.model, refineModel: hybridEngines.refine.model }
         : null,
+    enginePolicyMode: resolvedPolicy.mode,
+    premiumPathRequested: !!premiumPathRequested,
+    highStakesMode: !!highStakesMode,
+    defaultClaudeModel: resolvedPolicy.defaultClaudeModel,
+    premiumClaudeEscalationModel: resolvedPolicy.premiumClaudeEscalationModel,
+    premiumClaudeEnabled: resolvedPolicy.premiumClaudeEnabled,
+    opusEscalationEnabled: resolvedPolicy.opusEscalationEnabled,
     aiPremiumMode: readEnvBool('AI_ENABLE_PREMIUM_MODE', true),
     aiRefineSkip: readEnvBool('AI_ENABLE_REFINE_SKIP', false),
     aiLogTokens: readEnvBool('AI_LOG_TOKENS', false),
@@ -363,6 +380,8 @@ export async function executeGeneratePipeline(
     userPlan: plan,
     hybridTemplateId: hybridTemplateIdForPolicy,
     forceStandardHybridRefine,
+    premiumPathRequested,
+    highStakesMode,
     cachedEngineConfig: effective,
     generationProfile: generationProfileForPlan,
     pipelineEmit,
