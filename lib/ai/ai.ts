@@ -2416,13 +2416,13 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
       documentRefineSkipReason = sk.reason
       return jsonTextIn
     }
-    if (generationProfile !== 'background' ? generationProfile === 'realtime' : true) {
-      // 실시간(realtime) + 유료 background에서도 비-estimate 문서의 polish(문장·톤 다듬기) 호출은
-      // 전체 지연/타임아웃의 주요 원인이 됩니다. polish는 스킵하고, 이후 quality repair로만 구조 완성도를 맞춥니다.
-      if ((input.documentTarget ?? 'estimate') !== 'estimate') {
-        documentRefineSkipReason = generationProfile === 'realtime' ? 'realtime_speed_policy' : 'background_speed_policy'
-        return jsonTextIn
-      }
+    if (
+      readEnvBool('AI_REALTIME_SKIP_DOCUMENT_POLISH', false) &&
+      (input.documentTarget ?? 'estimate') !== 'estimate'
+    ) {
+      documentRefineSkipReason =
+        generationProfile === 'realtime' ? 'realtime_speed_policy' : 'background_speed_policy'
+      return jsonTextIn
     }
     input.pipelineEmit?.({ stage: 'polish', label: '문장·톤 다듬는 중' })
     try {
@@ -2521,7 +2521,8 @@ export async function generateQuoteWithMeta(input: GenerateInput): Promise<{ doc
       let bestDoc = doc
       let bestIssues = qualityIssues
       let bestScore = scoreQualityIssues(bestIssues)
-      const maxRepairAttempts = generationProfile === 'realtime' ? 1 : strictQualityTarget ? 3 : 2
+      const maxRepairAttempts =
+        generationProfile === 'realtime' ? (strictQualityTarget ? 2 : 1) : strictQualityTarget ? 3 : 2
 
       /** 실시간 + 비견적: polish는 이미 생략했으므로 repair만 남는데, 여기서 Claude를 쓰면 지연이 커짐 → 초안(OpenAI)으로 보정 */
       const useDraftForQualityRepair =

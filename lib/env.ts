@@ -49,6 +49,11 @@ const EnvSchema = z.object({
   AI_REALTIME_REPAIR_USE_DRAFT_ENGINE: z.string().optional(),
   /** true면 hybrid 시 Claude 2차(문서 다듬기) 패스 생략 — 초안만 사용 */
   AI_HYBRID_DOCUMENT_REFINE_SKIP: z.string().optional(),
+  /**
+   * true면 기획안·프로그램 등 비견적 문서에서도 속도 우선으로 Claude 문장 다듬기(polish) 생략.
+   * 기본 false — 문서 품질 우선(하이브리드일 때 견적과 동일하게 polish 수행).
+   */
+  AI_REALTIME_SKIP_DOCUMENT_POLISH: z.string().optional(),
   /** true면 LLM 응답 usage 토큰 로그 */
   AI_LOG_TOKENS: z.string().optional(),
   /** true면 대략적 USD 비용 추정 로그(AI_LOG_TOKENS와 무관하게 usage가 있으면 계산) */

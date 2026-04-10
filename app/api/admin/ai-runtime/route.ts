@@ -11,7 +11,8 @@ import { getHybridPipelineEngines } from '@/lib/ai/hybrid-pipeline'
 export const dynamic = 'force-dynamic'
 
 const REALTIME_ANTHROPIC_MODEL_DEFAULT = resolveAnthropicFinalModel()
-const REALTIME_MAX_TOKENS_DEFAULT = 6_144
+/** `execute-generate-pipeline` 의 `AI_REALTIME_MAX_TOKENS` 기본값과 동일해야 함 */
+const REALTIME_MAX_TOKENS_DEFAULT = 4_096
 
 function resolveHybridStatus(env: ReturnType<typeof getEnv>) {
   const modeEnabled = isHybridPipelineModeEnabled()
