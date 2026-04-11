@@ -16,6 +16,7 @@ export const ADMIN_NAV_GROUPS: {
   {
     label: '문서 생성 운영',
     items: [
+      { href: '/admin/references-collect', label: '참고 수집', desc: '기준 양식 관리로 연결(레거시 경로)' },
       { href: '/admin/samples', label: '기준 양식 관리', desc: '참고 양식 등록·연결·반영 방식' },
       { href: '/admin/engines', label: '생성 규칙 설정', desc: '탭별 규칙·샘플 강도·출력 형식' },
       { href: '/admin/generation-logs', label: '생성 로그', desc: '샘플·엔진 반영 추적' },

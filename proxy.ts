@@ -3,8 +3,7 @@ import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { resolveNextAuthSecret } from '@/lib/nextauth-secret'
 import { planicProductionSharedCookie, PLANIC_SESSION_COOKIE_NAME } from '@/lib/planic-auth-env'
-
-const ADMIN_COOKIE_NAME = 'planic_admin'
+import { COOKIE_NAME as ADMIN_SESSION_COOKIE_NAME, parseAdminSessionFromValue } from '@/lib/admin-session-cookie'
 const PROTECTED_PREFIXES = [
   '/estimate-generator',
   '/planning-generator',
@@ -51,11 +50,13 @@ export function proxy(request: NextRequest) {
   }
 
   if (pathname.startsWith('/admin')) {
-    if (pathname === '/admin') return NextResponse.next()
-    const token = request.cookies.get(ADMIN_COOKIE_NAME)?.value
-    if (!token?.trim()) {
+    if (pathname === '/admin' || pathname === '/admin/') return NextResponse.next()
+    const token = request.cookies.get(ADMIN_SESSION_COOKIE_NAME)?.value
+    const adminSession = parseAdminSessionFromValue(token)
+    if (!adminSession) {
       const url = request.nextUrl.clone()
       url.pathname = '/admin'
+      url.search = ''
       url.searchParams.set('returnTo', request.nextUrl.pathname + request.nextUrl.search)
       return NextResponse.redirect(url)
     }

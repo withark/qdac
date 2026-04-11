@@ -1,8 +1,15 @@
-import { createHmac, scryptSync, timingSafeEqual } from 'crypto'
+import { scryptSync, timingSafeEqual } from 'crypto'
 import { getDb, hasDatabase, initDb } from '@/lib/db/client'
+import {
+  COOKIE_NAME,
+  createAdminSessionCookie,
+  getAdminSessionCookie,
+  getSecret,
+  parseAdminSession,
+  parseAdminSessionFromValue,
+} from '@/lib/admin-session-cookie'
 
 const ADMIN_USER = 'admin'
-const COOKIE_NAME = 'planic_admin'
 const KV_KEY_ADMIN_HASH = 'admin_password_hash'
 const WEAK_ADMIN_PASSWORDS = new Set(['admin', 'password', '12345678', 'qwerty'])
 
@@ -15,14 +22,6 @@ function isWeakAdminPassword(value: string): boolean {
   if (!pw) return true
   if (pw.length < 8) return true
   return WEAK_ADMIN_PASSWORDS.has(pw.toLowerCase())
-}
-
-function getSecret(): string {
-  const adminSecret = (process.env.ADMIN_SECRET || '').trim()
-  if (!adminSecret) {
-    throw new Error('ADMIN_SECRET가 설정되지 않았습니다. 관리자 인증을 사용하려면 환경변수를 설정하세요.')
-  }
-  return adminSecret
 }
 
 if (!(process.env.ADMIN_SECRET || '').trim()) {
@@ -101,7 +100,7 @@ function passwordRuleError(password: string): string | null {
 /** 비밀번호 변경: 현재 비밀번호 검증 후 새 해시 저장. DB 없으면 false */
 export async function changeAdminPassword(
   currentPassword: string,
-  newPassword: string
+  newPassword: string,
 ): Promise<{ ok: boolean; error?: string }> {
   const valid = await verifyAdmin(ADMIN_USER, currentPassword)
   if (!valid) return { ok: false, error: '현재 비밀번호가 올바르지 않습니다.' }
@@ -113,63 +112,16 @@ export async function changeAdminPassword(
   return { ok: true }
 }
 
-function signPayload(payload: object): string {
-  const data = JSON.stringify(payload)
-  const sig = createHmac('sha256', getSecret()).update(data).digest('hex')
-  return Buffer.from(JSON.stringify({ data, sig })).toString('base64url')
+export {
+  COOKIE_NAME,
+  createAdminSessionCookie,
+  getAdminSessionCookie,
+  parseAdminSession,
+  parseAdminSessionFromValue,
 }
 
-function verifyPayload(token: string): { user: string } | null {
-  try {
-    const raw = JSON.parse(Buffer.from(token, 'base64url').toString()) as { data?: string; sig?: string }
-    if (!raw.data || !raw.sig) return null
-    const expected = createHmac('sha256', getSecret()).update(raw.data).digest('hex')
-    if (raw.sig !== expected) return null
-    const parsed = JSON.parse(raw.data) as { user?: string; exp?: number }
-    if (parsed.user !== ADMIN_USER) return null
-    if (parsed.exp && parsed.exp < Date.now() / 1000) return null
-    return { user: parsed.user }
-  } catch {
-    return null
-  }
-}
-
-const SESSION_MAX_AGE_SEC = 60 * 60 * 24 * 7 // 7일
-
-export function createAdminSessionCookie(): string {
-  const payload = {
-    user: ADMIN_USER,
-    exp: Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SEC,
-  }
-  const value = signPayload(payload)
-  return `${COOKIE_NAME}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE_SEC}${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`
-}
-
-export function getAdminSessionCookie(): string {
-  return `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`
-}
-
-export function parseAdminSession(cookieHeader: string | null): { user: string } | null {
-  if (!cookieHeader) return null
-  const m = cookieHeader.match(new RegExp(`${COOKIE_NAME}=([^;]+)`))
-  const token = m?.[1]?.trim()
-  if (!token) return null
-  return verifyPayload(token)
-}
-
-/** 서버 컴포넌트용: 쿠키 값만 넘겨서 세션 확인 */
-export function parseAdminSessionFromValue(cookieValue: string | undefined): { user: string } | null {
-  if (!cookieValue?.trim()) return null
-  return verifyPayload(cookieValue.trim())
-}
-
-/** API 라우트용: 관리자 아니면 401 Response 반환, 관리자면 null 반환. 사용: const err = await requireAdmin(request); if (err) return err; */
-export async function requireAdmin(
-  request: Request,
-): Promise<{ user: string } | null> {
+/** API 라우트용: 관리자 세션이 없으면 null */
+export async function requireAdmin(request: Request): Promise<{ user: string } | null> {
   const cookieHeader = request.headers.get('cookie')
-  const session = parseAdminSession(cookieHeader)
-  return session
+  return parseAdminSession(cookieHeader)
 }
-
-export { COOKIE_NAME }

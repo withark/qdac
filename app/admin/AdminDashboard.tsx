@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { AdminCard, AdminSection } from '@/components/admin/AdminCard'
+import { ErrorState, LoadingState } from '@/components/ui/AsyncState'
 
 const ADMIN_LINKS = [
   { href: '/admin/samples', label: '기준 양식 관리', desc: '참고 양식 등록·반영 방식' },
@@ -50,6 +51,8 @@ type Stats = {
 
 export function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
+  const [statsLoading, setStatsLoading] = useState(true)
+  const [statsError, setStatsError] = useState<string | null>(null)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
@@ -57,13 +60,33 @@ export function AdminDashboard() {
   const [pwMessage, setPwMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
   const [pwLoading, setPwLoading] = useState(false)
 
+  async function loadStats() {
+    setStatsLoading(true)
+    setStatsError(null)
+    try {
+      const r = await fetch('/api/admin/stats')
+      const res = await r.json().catch(() => ({}))
+      if (r.status === 401) {
+        setStats(null)
+        setStatsError('세션이 만료되었거나 권한이 없습니다. 다시 로그인해 주세요.')
+        return
+      }
+      if (res?.ok && res?.data) {
+        setStats(res.data)
+      } else {
+        setStats(null)
+        setStatsError(res?.error?.message || res?.error || '통계를 불러오지 못했습니다.')
+      }
+    } catch {
+      setStats(null)
+      setStatsError('통계 요청 중 오류가 발생했습니다.')
+    } finally {
+      setStatsLoading(false)
+    }
+  }
+
   useEffect(() => {
-    fetch('/api/admin/stats')
-      .then((r) => r.json())
-      .then((res) => {
-        if (res?.ok && res?.data) setStats(res.data)
-      })
-      .catch(() => {})
+    void loadStats()
   }, [])
 
   async function onChangePassword(e: React.FormEvent) {
@@ -105,7 +128,19 @@ export function AdminDashboard() {
           </p>
         </header>
 
-        {stats && (
+        {statsLoading && (
+          <div className="py-8">
+            <LoadingState />
+          </div>
+        )}
+
+        {!statsLoading && statsError && (
+          <div className="py-4">
+            <ErrorState message={statsError} onRetry={() => void loadStats()} />
+          </div>
+        )}
+
+        {!statsLoading && !statsError && stats && (
           <>
             {/* B. 핵심 KPI 카드 */}
             <AdminSection title="핵심 KPI" description="사용자 규모">
@@ -268,6 +303,19 @@ export function AdminDashboard() {
               </div>
             </AdminSection>
           </>
+        )}
+
+        {!statsLoading && !statsError && !stats && (
+          <AdminSection title="통계" description="표시할 데이터가 없습니다">
+            <p className="text-sm text-slate-600">서버에서 빈 응답을 받았습니다. 잠시 후 다시 시도해 주세요.</p>
+            <button
+              type="button"
+              onClick={() => void loadStats()}
+              className="mt-3 text-sm text-primary-600 underline"
+            >
+              다시 불러오기
+            </button>
+          </AdminSection>
         )}
 
         {/* 운영 바로가기 */}
